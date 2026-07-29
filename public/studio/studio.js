@@ -2789,7 +2789,9 @@
             syncBreathGuide();
         }
 
-        const ORB_TINTS = ['white', 'ink', 'palette', 'warm', 'cool', 'depth'];
+        // `ink` is reachable but unlisted: Glass switches to it, and moving off
+        // Glass switches back, so it never needs a button of its own.
+        const ORB_TINTS = ['white', 'palette', 'warm', 'cool', 'depth'];
         const ORB_BACKDROPS = ['none', 'dark', 'glass'];
 
         function setBackdropAlpha(v) {

@@ -1239,7 +1239,6 @@
             <label class="edge-label">Orb colour</label>
             <div class="breath-row edge-row">
                 <button id="tint-white" class="active" onclick="setOrbTint('white')">White</button>
-                <button id="tint-ink" onclick="setOrbTint('ink')">Ink</button>
                 <button id="tint-palette" onclick="setOrbTint('palette')">Palette</button>
                 <button id="tint-warm" onclick="setOrbTint('warm')">Warm</button>
                 <button id="tint-cool" onclick="setOrbTint('cool')">Cool</button>
@@ -4294,7 +4293,9 @@
             syncBreathGuide();
         }
 
-        const ORB_TINTS = ['white', 'ink', 'palette', 'warm', 'cool', 'depth'];
+        // `ink` is reachable but unlisted: Glass switches to it, and moving off
+        // Glass switches back, so it never needs a button of its own.
+        const ORB_TINTS = ['white', 'palette', 'warm', 'cool', 'depth'];
         const ORB_BACKDROPS = ['none', 'dark', 'glass'];
 
         function setBackdropAlpha(v) {
