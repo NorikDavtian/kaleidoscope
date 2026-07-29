@@ -100,6 +100,10 @@
         #sheet .control-section { display: none; margin-bottom: 0; }
         #sheet .control-section.on { display: block; }
 
+        /* Keep the section's own lock/dice/auto clear of the close button,
+           which is pinned to the same corner. */
+        #sheet .control-section h3 { padding-right: 28px; }
+
         /* ── Dock ──────────────────────────────────────────────────────────── */
         #dock {
             position: fixed;
@@ -644,7 +648,7 @@
         #source-card {
             position: fixed;
             right: 16px;
-            bottom: 46px;
+            bottom: 88px;
             z-index: 12;
             width: 164px;
             background: var(--panel);
@@ -652,10 +656,11 @@
             -webkit-backdrop-filter: blur(18px);
             border-radius: 12px;
             padding: 9px;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.6s ease;
         }
 
         #source-card.off { display: none; }
+        #source-card.faded { opacity: 0; pointer-events: none; }
         #source-card img { width: 100%; display: block; border-radius: 7px; }
         #source-card .card-title { font-size: 12.5px; font-weight: 600; margin-top: 8px; line-height: 1.3; }
         #source-card .card-sub { font-size: 10.5px; color: var(--faint); line-height: 1.4; margin-top: 2px; }
@@ -736,7 +741,7 @@
             .dock-tip { display: none; }
             .intro-card { padding: 30px 22px 26px; border-radius: 16px; }
             .intro-card h1 { font-size: 28px; }
-            #source-card { width: 116px; bottom: 16px; right: 12px; }
+            #source-card { width: 116px; bottom: 82px; right: 12px; }
             .breath-row { grid-template-columns: repeat(3, 1fr); }
     
         }
@@ -1942,9 +1947,25 @@
             box.style.transform = 'rotate(' + (-params.imgAngle) + 'deg)';
         }
 
+        let cardTimer = null;
+
+        // The card says what the scope is reading, which matters for a moment
+        // after choosing and then just sits on the artwork. Show it, then let it
+        // go. Picking another source brings it back.
         function toggleSourceCard(on) {
             const el = document.getElementById('source-card');
-            if (el) el.className = (on && srcThumbURL) ? '' : 'off';
+            if (!el) return;
+            if (cardTimer) { clearTimeout(cardTimer); cardTimer = null; }
+
+            const show = on && srcThumbURL;
+            el.classList.toggle('off', !show);
+            el.classList.remove('faded');
+            if (!show) return;
+
+            cardTimer = setTimeout(function () {
+                el.classList.add('faded');
+                cardTimer = null;
+            }, 10000);
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -3039,6 +3060,16 @@
             });
             document.getElementById('sheet').classList.add('hidden');
         }
+
+        // Clicking away from the sheet closes it. The dock is exempt, or its own
+        // buttons would close the panel before their handler could open it.
+        window.addEventListener('pointerdown', function (e) {
+            if (!openPanelName) return;
+            const sheet = document.getElementById('sheet');
+            const dock = document.getElementById('dock');
+            if (sheet.contains(e.target) || dock.contains(e.target)) return;
+            closePanel();
+        }, true);
 
         // Cinema mode: everything but the artwork gets out of the way.
         let cinema = false;

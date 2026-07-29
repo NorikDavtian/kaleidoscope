@@ -697,9 +697,25 @@
             box.style.transform = 'rotate(' + (-params.imgAngle) + 'deg)';
         }
 
+        let cardTimer = null;
+
+        // The card says what the scope is reading, which matters for a moment
+        // after choosing and then just sits on the artwork. Show it, then let it
+        // go. Picking another source brings it back.
         function toggleSourceCard(on) {
             const el = document.getElementById('source-card');
-            if (el) el.className = (on && srcThumbURL) ? '' : 'off';
+            if (!el) return;
+            if (cardTimer) { clearTimeout(cardTimer); cardTimer = null; }
+
+            const show = on && srcThumbURL;
+            el.classList.toggle('off', !show);
+            el.classList.remove('faded');
+            if (!show) return;
+
+            cardTimer = setTimeout(function () {
+                el.classList.add('faded');
+                cardTimer = null;
+            }, 10000);
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -1794,6 +1810,16 @@
             });
             document.getElementById('sheet').classList.add('hidden');
         }
+
+        // Clicking away from the sheet closes it. The dock is exempt, or its own
+        // buttons would close the panel before their handler could open it.
+        window.addEventListener('pointerdown', function (e) {
+            if (!openPanelName) return;
+            const sheet = document.getElementById('sheet');
+            const dock = document.getElementById('dock');
+            if (sheet.contains(e.target) || dock.contains(e.target)) return;
+            closePanel();
+        }, true);
 
         // Cinema mode: everything but the artwork gets out of the way.
         let cinema = false;
