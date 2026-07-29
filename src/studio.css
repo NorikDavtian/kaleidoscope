@@ -228,6 +228,7 @@
 
         /* ── Controls ──────────────────────────────────────────────────────── */
         .control-group { margin-bottom: 14px; }
+        .control-group.off { display: none; }
 
         .control-group label {
             display: block;
@@ -576,28 +577,41 @@
             inset: 0;
             z-index: 13;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 18px;
             pointer-events: none;
             transition: opacity 0.4s ease;
         }
 
         #breath-guide.off { display: none; }
 
+        /* A glow rather than an outline — a hard 1px circle sits on top of the
+           artwork, where a soft annulus sits in it. Built from a gradient so the
+           edge falls off on both sides, with a faint bloom outside.
+           Scale is written per frame from the breath, so no CSS transition here:
+           one would lag behind and fight the animation. */
         #breath-ring {
-            width: 108px;
-            height: 108px;
+            width: 132px;
+            height: 132px;
             border-radius: 50%;
-            border: 1.5px solid rgba(250, 249, 245, 0.6);
-            /* Scale is written per frame from the breath, so no CSS transition:
-               one would lag behind and fight the animation. */
+            background: radial-gradient(circle closest-side,
+                transparent 0 58%,
+                rgba(255, 253, 246, 0.10) 66%,
+                rgba(255, 253, 246, 0.32) 75%,
+                rgba(255, 253, 246, 0.10) 85%,
+                transparent 96%);
+            box-shadow: 0 0 34px rgba(255, 253, 246, 0.10);
         }
 
+        /* Out of the flow, or its height would push the ring off centre. */
         #breath-stage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 78px;
             font-size: 12px;
-            letter-spacing: 2.5px;
+            letter-spacing: 0.22em;   /* scales with the size, unlike a px value */
             text-transform: uppercase;
             color: rgba(250, 249, 245, 0.8);
         }
@@ -736,7 +750,8 @@
         .ring-track { stroke: rgba(236, 234, 228, 0.1); }
 
         .ring-run {
-            stroke: var(--accent);
+            /* Muted rather than the accent: it is a timer, not a call to act. */
+            stroke: rgba(236, 234, 228, 0.42);
             /* 2 * pi * 97 */
             stroke-dasharray: 609.47;
             stroke-dashoffset: 0;

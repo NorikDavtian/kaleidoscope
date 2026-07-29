@@ -269,6 +269,22 @@
                 </button>
             </div>
 
+            <div class="lock-row">
+                <span>Stage label</span>
+                <button class="sec-btn on" id="breath-label-toggle" onclick="toggleBreathLabel()"
+                        title="Show or hide the Breathe in / Hold / Breathe out text">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6.5h16"/><path d="M12 6.5V19"/><path d="M8.5 19h7"/></svg>
+                </button>
+            </div>
+
+            <div class="control-group" id="label-size-row">
+                <label>Label Size</label>
+                <div class="slider-container">
+                    <input type="range" id="breathLabelSize" min="9" max="34" step="1" value="12" oninput="setLabelSize(this.value)">
+                    <span class="value-display" id="breathLabelSize-value">12</span>
+                </div>
+            </div>
+
             <div class="control-group">
                 <label>Breath Depth</label>
                 <div class="slider-container">

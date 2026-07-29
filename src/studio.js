@@ -30,6 +30,8 @@
             breath: 'calm',   // off | box | calm | deep | progressive
             breathDepth: 0.6, // how far the breath swings the colour and scale
             breathGuide: true,// show the ring to breathe along with
+            breathLabel: true,// and the stage text under it
+            breathLabelSize: 12,
             imgZoom: 1.04,    // how much of the source image one wedge covers
             imgPanX: 0.51,     // centre of the sampled patch, in source uv
             imgPanY: 0.69,
@@ -2412,12 +2414,36 @@
             const guide = document.getElementById('breath-guide');
             const on = params.breath !== 'off' && params.breathGuide;
             if (guide) guide.className = on ? '' : 'off';
+
             const btn = document.getElementById('breath-guide-toggle');
             if (btn) btn.className = params.breathGuide ? 'sec-btn on' : 'sec-btn';
+
+            const lbl = document.getElementById('breath-stage');
+            if (lbl) {
+                lbl.style.display = params.breathLabel ? '' : 'none';
+                lbl.style.fontSize = params.breathLabelSize + 'px';
+            }
+            const lb = document.getElementById('breath-label-toggle');
+            if (lb) lb.className = params.breathLabel ? 'sec-btn on' : 'sec-btn';
+
+            const row = document.getElementById('label-size-row');
+            if (row) row.className = params.breathLabel ? 'control-group' : 'control-group off';
         }
 
         function toggleBreathGuide() {
             params.breathGuide = !params.breathGuide;
+            syncBreathGuide();
+        }
+
+        function toggleBreathLabel() {
+            params.breathLabel = !params.breathLabel;
+            syncBreathGuide();
+        }
+
+        function setLabelSize(v) {
+            params.breathLabelSize = parseInt(v, 10);
+            const out = document.getElementById('breathLabelSize-value');
+            if (out) out.textContent = v;
             syncBreathGuide();
         }
 
