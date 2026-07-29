@@ -620,12 +620,18 @@
         /* Out of the flow, or its height would push the ring off centre. */
         #breath-stage {
             position: absolute;
-            top: 50%;
             left: 50%;
             transform: translateX(-50%);
-            margin-top: 78px;
             font-size: 12px;
             letter-spacing: 0.22em;   /* scales with the size, unlike a px value */
+            text-transform: uppercase;
+            color: rgba(250, 249, 245, 0.82);
+            text-shadow: 0 1px 10px rgba(6, 6, 10, 0.7);
+        }
+
+        #breath-stage.pos-below  { top: 50%; margin-top: 78px; }
+        #breath-stage.pos-centre { top: 50%; transform: translate(-50%, -50%); }
+        #breath-stage.pos-bottom { bottom: 92px; }
             text-transform: uppercase;
             color: rgba(250, 249, 245, 0.8);
         }
@@ -751,7 +757,39 @@
             color: var(--text);
         }
 
-        .intro-inner { width: 72%; }
+        #intro-orb {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        /* The well sits behind the particles, not over them: painted on top it
+           swallowed the middle of the sphere and left only a rim. Stacking is
+           explicit because all three are positioned — well 0, points 1, words 2. */
+        .intro-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            border-radius: 50%;
+            pointer-events: none;
+            background: radial-gradient(circle closest-side,
+                rgba(9, 9, 13, 0.90) 0 38%,
+                rgba(9, 9, 13, 0.66) 62%,
+                rgba(9, 9, 13, 0.26) 82%,
+                transparent 100%);
+        }
+
+        .intro-inner {
+            position: relative;
+            z-index: 2;
+            width: 72%;
+            text-shadow: 0 1px 14px rgba(6, 6, 10, 0.95), 0 0 30px rgba(6, 6, 10, 0.8);
+        }
 
         .intro-card h1 { font-family: 'Lora', serif; font-size: 31px; font-weight: 500; line-height: 1.14; }
         .intro-card .intro-sub { font-size: 12.5px; color: var(--faint); margin: 7px 0 3px; }

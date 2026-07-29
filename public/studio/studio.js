@@ -32,6 +32,7 @@
             breathGuide: true,// show the ring to breathe along with
             breathLabel: true,// and the stage text under it
             breathLabelSize: 12,
+            breathLabelPos: 'below',  // below | centre | bottom
             orbSize: 300,     // diameter of the breath orb, in px
             orbStrength: 1,   // how strongly it reads against the artwork
             orbTint: 'white', // white | palette | warm | cool | depth
@@ -1616,6 +1617,8 @@
                 tablesDirty = true;
             }
 
+            if (!document.getElementById('intro').classList.contains('gone')) drawIntroOrb();
+
             if (anySectionAuto()) stepSections(nowMs);
 
             if (plateAnim && params.source === 'image') {
@@ -2594,12 +2597,15 @@
             // with the square of the side. Points are soft anyway, so the slight
             // upscale costs nothing visually.
             const S = state.side;
-            if (el.width !== S) {
+            // Both dimensions. A canvas defaults to 300x150, so testing width
+            // alone passed on the first frame at S=300 and left the height at
+            // 150 — the sphere was rendered into a buffer twice the height of
+            // its canvas and came out as its own top half.
+            if (el.width !== S || el.height !== S || !state.ctx) {
                 el.width = S; el.height = S;
                 state.ctx = el.getContext('2d');
                 state.img = state.ctx.createImageData(S, S);
             }
-            if (!state.ctx) { state.ctx = el.getContext('2d'); state.img = state.ctx.createImageData(S, S); }
 
             const d = state.img.data;
             d.fill(0);
@@ -2696,6 +2702,12 @@
         // uploading the buffer dominates the cost and grows with the square of
         // the side. Points are soft, so the upscale costs nothing visually.
         const breathOrb = { side: 300, spin: 0, ctx: null, img: null };
+        const introOrb  = { side: 300, spin: 1.9, ctx: null, img: null };
+
+        // The welcome runs the same shell, dimmer and slower, as a backdrop.
+        function drawIntroOrb() {
+            renderOrb(document.getElementById('intro-orb'), introOrb, 0.34, 0.0009, -0.26);
+        }
 
         function drawOrb() {
             breathOrb.side = Math.max(80, Math.min(300, Math.round(params.orbSize)));
@@ -2719,7 +2731,12 @@
             if (lbl) {
                 lbl.style.display = params.breathLabel ? '' : 'none';
                 lbl.style.fontSize = params.breathLabelSize + 'px';
+                lbl.className = 'pos-' + params.breathLabelPos;
             }
+            ['below', 'centre', 'bottom'].forEach(function (k) {
+                const el2 = document.getElementById('lblpos-' + k);
+                if (el2) el2.className = (k === params.breathLabelPos) ? 'active' : '';
+            });
             const lb = document.getElementById('breath-label-toggle');
             if (lb) lb.className = params.breathLabel ? 'sec-btn on' : 'sec-btn';
 
@@ -2759,6 +2776,11 @@
             params.orbStrength = parseFloat(v);
             const out = document.getElementById('orbStrength-value');
             if (out) out.textContent = v;
+            syncBreathGuide();
+        }
+
+        function setLabelPos(mode) {
+            params.breathLabelPos = mode;
             syncBreathGuide();
         }
 

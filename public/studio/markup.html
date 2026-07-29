@@ -4,6 +4,10 @@
          the thing itself rather than a description of it. -->
     <div id="intro" onclick="introBackdropClick(event)">
         <div class="intro-card">
+            <!-- The same particle shell as the breath guide, dimmer and slower.
+                 Sits above the card's well and below the words. -->
+            <canvas id="intro-orb" aria-hidden="true"></canvas>
+
             <div class="intro-inner">
                 <h1>Refracted Descent</h1>
                 <div class="intro-sub">A polycentral kaleidoscope studio</div>
@@ -326,6 +330,12 @@
                         title="Show or hide the Breathe in / Hold / Breathe out text">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6.5h16"/><path d="M12 6.5V19"/><path d="M8.5 19h7"/></svg>
                 </button>
+            </div>
+
+            <div class="breath-row edge-row" id="label-pos-row">
+                <button id="lblpos-below" class="active" onclick="setLabelPos('below')">Below</button>
+                <button id="lblpos-centre" onclick="setLabelPos('centre')">Centre</button>
+                <button id="lblpos-bottom" onclick="setLabelPos('bottom')">Bottom</button>
             </div>
 
             <div class="control-group" id="label-size-row">

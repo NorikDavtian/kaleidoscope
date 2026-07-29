@@ -176,15 +176,16 @@ it, since clearing and uploading the buffer dominates and grows with the square
 of the side.
 `Breath Depth` sets how far the swing carries. The guide sits in the middle of
 the canvas — a soft glow rather than an outline, so it sits *in* the artwork
-rather than on top of it — and both the ring and the stage label can be switched
-off independently from the Breathing panel, with the label's size adjustable.
+rather than on top of it — and both the orb and the stage label can be switched
+off independently from the Breathing panel. The label sits below the orb, at its
+centre, or pinned near the bottom of the frame, at whatever size suits.
 Breathing runs independently of the Animate button.
 
 ## Opening
 
 The welcome disc sits over the live scope, running the same particle shell as
 the breath guide behind its text — dimmer, slower, and with a well of darkness
-through the middle so the words stay legible against it. It waits: there is no
+behind the points so the words stay legible against them. It waits: there is no
 timer. Click past the disc, or press Enter, Space or Esc — clicking the disc
 itself does nothing, since it carries a link and a share button. `I` brings it
 back.

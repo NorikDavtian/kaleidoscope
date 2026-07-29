@@ -638,12 +638,18 @@
         /* Out of the flow, or its height would push the ring off centre. */
         #breath-stage {
             position: absolute;
-            top: 50%;
             left: 50%;
             transform: translateX(-50%);
-            margin-top: 78px;
             font-size: 12px;
             letter-spacing: 0.22em;   /* scales with the size, unlike a px value */
+            text-transform: uppercase;
+            color: rgba(250, 249, 245, 0.82);
+            text-shadow: 0 1px 10px rgba(6, 6, 10, 0.7);
+        }
+
+        #breath-stage.pos-below  { top: 50%; margin-top: 78px; }
+        #breath-stage.pos-centre { top: 50%; transform: translate(-50%, -50%); }
+        #breath-stage.pos-bottom { bottom: 92px; }
             text-transform: uppercase;
             color: rgba(250, 249, 245, 0.8);
         }
@@ -769,7 +775,39 @@
             color: var(--text);
         }
 
-        .intro-inner { width: 72%; }
+        #intro-orb {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        /* The well sits behind the particles, not over them: painted on top it
+           swallowed the middle of the sphere and left only a rim. Stacking is
+           explicit because all three are positioned — well 0, points 1, words 2. */
+        .intro-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            border-radius: 50%;
+            pointer-events: none;
+            background: radial-gradient(circle closest-side,
+                rgba(9, 9, 13, 0.90) 0 38%,
+                rgba(9, 9, 13, 0.66) 62%,
+                rgba(9, 9, 13, 0.26) 82%,
+                transparent 100%);
+        }
+
+        .intro-inner {
+            position: relative;
+            z-index: 2;
+            width: 72%;
+            text-shadow: 0 1px 14px rgba(6, 6, 10, 0.95), 0 0 30px rgba(6, 6, 10, 0.8);
+        }
 
         .intro-card h1 { font-family: 'Lora', serif; font-size: 31px; font-weight: 500; line-height: 1.14; }
         .intro-card .intro-sub { font-size: 12.5px; color: var(--faint); margin: 7px 0 3px; }
@@ -847,6 +885,10 @@
          the thing itself rather than a description of it. -->
     <div id="intro" onclick="introBackdropClick(event)">
         <div class="intro-card">
+            <!-- The same particle shell as the breath guide, dimmer and slower.
+                 Sits above the card's well and below the words. -->
+            <canvas id="intro-orb" aria-hidden="true"></canvas>
+
             <div class="intro-inner">
                 <h1>Refracted Descent</h1>
                 <div class="intro-sub">A polycentral kaleidoscope studio</div>
@@ -1171,6 +1213,12 @@
                 </button>
             </div>
 
+            <div class="breath-row edge-row" id="label-pos-row">
+                <button id="lblpos-below" class="active" onclick="setLabelPos('below')">Below</button>
+                <button id="lblpos-centre" onclick="setLabelPos('centre')">Centre</button>
+                <button id="lblpos-bottom" onclick="setLabelPos('bottom')">Bottom</button>
+            </div>
+
             <div class="control-group" id="label-size-row">
                 <label>Label Size</label>
                 <div class="slider-container">
@@ -1432,6 +1480,7 @@
             breathGuide: true,// show the ring to breathe along with
             breathLabel: true,// and the stage text under it
             breathLabelSize: 12,
+            breathLabelPos: 'below',  // below | centre | bottom
             orbSize: 300,     // diameter of the breath orb, in px
             orbStrength: 1,   // how strongly it reads against the artwork
             orbTint: 'white', // white | palette | warm | cool | depth
@@ -3016,6 +3065,8 @@
                 tablesDirty = true;
             }
 
+            if (!document.getElementById('intro').classList.contains('gone')) drawIntroOrb();
+
             if (anySectionAuto()) stepSections(nowMs);
 
             if (plateAnim && params.source === 'image') {
@@ -3994,12 +4045,15 @@
             // with the square of the side. Points are soft anyway, so the slight
             // upscale costs nothing visually.
             const S = state.side;
-            if (el.width !== S) {
+            // Both dimensions. A canvas defaults to 300x150, so testing width
+            // alone passed on the first frame at S=300 and left the height at
+            // 150 — the sphere was rendered into a buffer twice the height of
+            // its canvas and came out as its own top half.
+            if (el.width !== S || el.height !== S || !state.ctx) {
                 el.width = S; el.height = S;
                 state.ctx = el.getContext('2d');
                 state.img = state.ctx.createImageData(S, S);
             }
-            if (!state.ctx) { state.ctx = el.getContext('2d'); state.img = state.ctx.createImageData(S, S); }
 
             const d = state.img.data;
             d.fill(0);
@@ -4096,6 +4150,12 @@
         // uploading the buffer dominates the cost and grows with the square of
         // the side. Points are soft, so the upscale costs nothing visually.
         const breathOrb = { side: 300, spin: 0, ctx: null, img: null };
+        const introOrb  = { side: 300, spin: 1.9, ctx: null, img: null };
+
+        // The welcome runs the same shell, dimmer and slower, as a backdrop.
+        function drawIntroOrb() {
+            renderOrb(document.getElementById('intro-orb'), introOrb, 0.34, 0.0009, -0.26);
+        }
 
         function drawOrb() {
             breathOrb.side = Math.max(80, Math.min(300, Math.round(params.orbSize)));
@@ -4119,7 +4179,12 @@
             if (lbl) {
                 lbl.style.display = params.breathLabel ? '' : 'none';
                 lbl.style.fontSize = params.breathLabelSize + 'px';
+                lbl.className = 'pos-' + params.breathLabelPos;
             }
+            ['below', 'centre', 'bottom'].forEach(function (k) {
+                const el2 = document.getElementById('lblpos-' + k);
+                if (el2) el2.className = (k === params.breathLabelPos) ? 'active' : '';
+            });
             const lb = document.getElementById('breath-label-toggle');
             if (lb) lb.className = params.breathLabel ? 'sec-btn on' : 'sec-btn';
 
@@ -4159,6 +4224,11 @@
             params.orbStrength = parseFloat(v);
             const out = document.getElementById('orbStrength-value');
             if (out) out.textContent = v;
+            syncBreathGuide();
+        }
+
+        function setLabelPos(mode) {
+            params.breathLabelPos = mode;
             syncBreathGuide();
         }
 
