@@ -3871,7 +3871,12 @@
         const SECTIONS = {
             symmetry: { step: true,  keys: ['cellSize'], every: [8, 16], ease: [6, 12] },
             seed:     { step: true,  keys: [],           every: [4, 10] },
-            source:   { step: true,  keys: [],           every: [8, 18] },
+            // The image controls belong to Source. Leaving them out meant its
+            // lock only ever held the plate, while Randomize kept moving the
+            // zoom, pan and mix underneath it.
+            source:   { step: true,  every: [8, 18], ease: [6, 14],
+                        keys: ['imgZoom', 'imgPanX', 'imgPanY', 'imgAngle',
+                               'imgWarp', 'mix'] },
             motion:   { keys: ['flow', 'spin', 'trail'], ease: [6, 14] },
             params:   { keys: ['folds', 'moire', 'mfreq', 'detune', 'descent', 'angular',
                                'twist', 'warp', 'octaves', 'bands', 'rings', 'shift',
