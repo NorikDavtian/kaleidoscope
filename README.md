@@ -52,14 +52,9 @@ tainted cross-origin canvas would fail.
 
 ## Files
 
-| File | Notes |
-| --- | --- |
-| `kaleidoscope-studio-polycentral.html` | **Current.** GPU renderer, polycentral tilings, image sources. |
-| `kaleidoscope-studio.html` | Previous studio build. |
-| `refracted-descent-ii.html` | Earlier field experiment. |
-| `hedral-recursion.html` | Earliest sketch. |
-
-Open the current file directly in a browser — no build step, no server.
+`kaleidoscope-studio-polycentral.html` is the standalone build — GPU renderer,
+polycentral tilings, image sources. Open it directly in a browser: no build
+step, no server. (Earlier iterations live in git history.)
 
 ## How it renders
 
