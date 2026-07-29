@@ -32,6 +32,11 @@
             breathGuide: true,// show the ring to breathe along with
             breathLabel: true,// and the stage text under it
             breathLabelSize: 12,
+            orbSize: 300,     // diameter of the breath orb, in px
+            orbStrength: 1,   // how strongly it reads against the artwork
+            edgeMask: 'off',  // off | circle | petal | scallop | bloom
+            edgeSize: 0.86,   // how far out the shape reaches
+            edgeSoft: 46,     // px of blur on its boundary — never a clean cut
             imgZoom: 1.04,    // how much of the source image one wedge covers
             imgPanX: 0.51,     // centre of the sampled patch, in source uv
             imgPanY: 0.69,
@@ -1688,6 +1693,7 @@
             }
 
             ctx.globalAlpha = 1;
+            applyEdgeMask(ctx, width, height);
             if (!needsLoop()) noLoop();
         }
 
@@ -1700,6 +1706,82 @@
         // counter-rotation inside each clipped cell: the mirrors turn, the
         // contents do not, which is what a real scope does.
         // ═══════════════════════════════════════════════════════════════════════
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // EDGE MASK
+        //
+        // Floats the piece on black. The boundary follows the fold count rather
+        // than being a plain circle, and is always blurred — a hard cut looks
+        // like a crop, where a soft one looks like the end of the mirrors.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const EDGE_SHAPES = ['off', 'circle', 'petal', 'scallop', 'bloom'];
+        let maskCv = null, maskCtx = null, maskKey = '';
+
+        function edgePath(ctx, cx, cy, R, lobes, amp) {
+            const STEPS = 512;
+            ctx.beginPath();
+            for (let i = 0; i <= STEPS; i++) {
+                const a = (i / STEPS) * Math.PI * 2;
+                const r = R * (1 + amp * Math.cos(a * lobes));
+                const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+        }
+
+        // Rebuilt only when the shape, size, softness, folds or canvas change.
+        function buildMask(w, h) {
+            const key = [params.edgeMask, params.edgeSize, params.edgeSoft,
+                         params.folds, w, h].join('|');
+            if (key === maskKey && maskCv) return maskCv;
+
+            if (!maskCv) { maskCv = document.createElement('canvas'); maskCtx = maskCv.getContext('2d'); }
+            if (maskCv.width !== w || maskCv.height !== h) { maskCv.width = w; maskCv.height = h; }
+
+            const c = maskCtx;
+            c.setTransform(1, 0, 0, 1, 0, 0);
+            c.clearRect(0, 0, w, h);
+
+            const R = Math.min(w, h) / 2 * params.edgeSize;
+            const folds = Math.max(3, params.folds);
+
+            let lobes = 0, amp = 0;
+            if (params.edgeMask === 'petal')   { lobes = folds;     amp = 0.13; }
+            if (params.edgeMask === 'scallop') { lobes = folds * 2; amp = 0.06; }
+            if (params.edgeMask === 'bloom')   { lobes = folds;     amp = 0.24; }
+
+            c.filter = 'blur(' + Math.max(1, params.edgeSoft) + 'px)';
+            c.fillStyle = '#fff';
+            edgePath(c, w / 2, h / 2, R, lobes, amp);
+            c.fill();
+            c.filter = 'none';
+
+            maskKey = key;
+            return maskCv;
+        }
+
+        function applyEdgeMask(ctx, w, h) {
+            if (params.edgeMask === 'off') return;
+            const m = buildMask(w, h);
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.globalCompositeOperation = 'destination-in';
+            ctx.drawImage(m, 0, 0);
+            ctx.restore();
+        }
+
+        function setEdgeMask(shape) {
+            params.edgeMask = shape;
+            EDGE_SHAPES.forEach(function (k) {
+                const el = document.getElementById('edge-' + k);
+                if (el) el.className = (k === shape) ? 'active' : '';
+            });
+            const rows = document.getElementById('edge-controls');
+            if (rows) rows.className = shape === 'off' ? 'off' : '';
+            maskKey = '';
+            redraw();
+        }
 
         function fieldCanvas() {
             return glReady ? glCanvas : (img ? img.canvas : null);
@@ -2081,7 +2163,8 @@
 
         const INT_PARAMS = ['folds', 'octaves', 'rotation', 'imgAngle', 'bpm'];
         const COLOUR_ONLY = ['shift', 'seam', 'mix', 'breathDepth'];
-        const MOTION_ONLY = ['flow', 'spin', 'trail', 'cellSize', 'cellSpin', 'bpm'];
+        const MOTION_ONLY = ['flow', 'spin', 'trail', 'cellSize', 'cellSpin', 'bpm',
+                             'edgeSize', 'edgeSoft'];
         const IMG_PARAMS = ['imgZoom', 'imgPanX', 'imgPanY', 'imgAngle', 'imgWarp'];
 
         function setSlider(name, value) {
@@ -2098,6 +2181,7 @@
 
             if (IMG_PARAMS.indexOf(name) >= 0) refreshSrcRegion();
             if (name === 'seam') tablesDirty = true;
+            if (name === 'folds' || name === 'edgeSize' || name === 'edgeSoft') maskKey = '';
 
             refreshShareUI();
 
@@ -2425,6 +2509,12 @@
             const btn = document.getElementById('breath-guide-toggle');
             if (btn) btn.className = params.breathGuide ? 'sec-btn on' : 'sec-btn';
 
+            const orb = document.getElementById('breath-ring');
+            if (orb) {
+                orb.style.setProperty('--orb-size', params.orbSize + 'px');
+                orb.style.setProperty('--orb-alpha', params.orbStrength);
+            }
+
             const lbl = document.getElementById('breath-stage');
             if (lbl) {
                 lbl.style.display = params.breathLabel ? '' : 'none';
@@ -2444,6 +2534,20 @@
 
         function toggleBreathLabel() {
             params.breathLabel = !params.breathLabel;
+            syncBreathGuide();
+        }
+
+        function setOrbSize(v) {
+            params.orbSize = parseInt(v, 10);
+            const out = document.getElementById('orbSize-value');
+            if (out) out.textContent = v;
+            syncBreathGuide();
+        }
+
+        function setOrbStrength(v) {
+            params.orbStrength = parseFloat(v);
+            const out = document.getElementById('orbStrength-value');
+            if (out) out.textContent = v;
             syncBreathGuide();
         }
 

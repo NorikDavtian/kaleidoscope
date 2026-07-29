@@ -163,6 +163,9 @@ contracts with the count.
 | Deep | 6 in · 7 out, no holds |
 | Longer | starts at 4·2·6·1 and stretches to 1.8x over ~5 minutes |
 
+`Orb Size` and `Orb Strength` set how the guide reads against whatever is behind
+it — a pale glow alone disappears on a bright field, so the orb carries a darker
+shell just outside its light one and whichever contrasts is the one you see.
 `Breath Depth` sets how far the swing carries. The guide sits in the middle of
 the canvas — a soft glow rather than an outline, so it sits *in* the artwork
 rather than on top of it — and both the ring and the stage label can be switched
@@ -200,6 +203,17 @@ from the dock or straight from the keyboard.
 
 Keys are ignored while a text field has focus. With the intro up, only Enter,
 Space and Esc do anything, and all three dismiss it.
+
+## Edge
+
+Symmetry carries an optional mask that floats the piece on black: **Disc**,
+**Petal**, **Scallop** or **Bloom**. The boundary follows the mirror count
+rather than being a plain circle, and is always blurred — a hard cut reads as a
+crop, a soft one as the end of the mirrors. Size and softness are adjustable.
+
+The mask is composited onto the visible canvas rather than into the field, so it
+frames the whole frame in every symmetry rather than repeating per cell. It is
+rebuilt only when its shape, size, softness, fold count or the canvas changes.
 
 ## Section controls
 

@@ -553,6 +553,10 @@
         .fine-tune[open] summary::before { content: '▾ '; }
 
         /* ── Breathing ─────────────────────────────────────────────────────── */
+        .edge-label { display: block; font-size: 12px; color: var(--dim); margin: 4px 0 8px; }
+        #edge-controls.off { display: none; }
+        .edge-row { margin-bottom: 14px; }
+
         .breath-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 14px; }
 
         .breath-row button {
@@ -595,20 +599,31 @@
            they are painted once into the layer. */
         #breath-ring {
             position: relative;
-            width: 200px;
-            height: 200px;
+            width: var(--orb-size, 300px);
+            height: var(--orb-size, 300px);
             border-radius: 50%;
+            opacity: var(--orb-alpha, 1);
             will-change: transform;
-            /* Hollow through the middle, dense through the shell, gone by the
-               rim — three stops either side of the peak do the softening. */
-            background: radial-gradient(circle closest-side,
-                transparent 0 44%,
-                rgba(255, 253, 246, 0.03) 55%,
-                rgba(255, 253, 246, 0.10) 64%,
-                rgba(255, 253, 246, 0.24) 72%,
-                rgba(255, 253, 246, 0.09) 82%,
-                rgba(255, 253, 246, 0.02) 90%,
-                transparent 97%);
+            /* Two shells, light over dark. A pale glow alone disappears against
+               a bright field, so a darker one sits just outside it: whichever
+               contrasts with the artwork underneath is the one you see.
+               Hollow through the middle — three stops either side of each peak
+               do the softening, and no `filter` is involved. */
+            background:
+                radial-gradient(circle closest-side,
+                    transparent 0 44%,
+                    rgba(255, 253, 246, 0.04) 55%,
+                    rgba(255, 253, 246, 0.13) 64%,
+                    rgba(255, 253, 246, 0.30) 72%,
+                    rgba(255, 253, 246, 0.11) 81%,
+                    rgba(255, 253, 246, 0.02) 89%,
+                    transparent 96%),
+                radial-gradient(circle closest-side,
+                    transparent 0 62%,
+                    rgba(6, 6, 10, 0.10) 76%,
+                    rgba(6, 6, 10, 0.20) 85%,
+                    rgba(6, 6, 10, 0.07) 92%,
+                    transparent 99%);
         }
 
         /* Two more shells at their own radii, crossing between transparent and
