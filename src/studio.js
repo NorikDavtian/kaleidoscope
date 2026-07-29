@@ -1494,31 +1494,11 @@
         // INTRO — the scope is already running underneath it
         // ═══════════════════════════════════════════════════════════════════════
 
-        // One source for how long the welcome lingers — the ring's duration is
-        // set from it, so the sweep and the timer cannot drift apart.
-        const INTRO_MS = 18000;
-        let introTimer = null;
-
         function enterStudio() {
-            if (introTimer) { clearTimeout(introTimer); introTimer = null; }
             document.getElementById('intro').classList.add('gone');
             document.getElementById('dock').classList.add('up');
         }
 
-        // The studio opens by itself once the ring has drained. Restarting the
-        // CSS animation needs it cleared and the layout flushed, or the browser
-        // coalesces both changes and the ring never replays.
-        function startIntroCountdown() {
-            if (introTimer) clearTimeout(introTimer);
-            const ring = document.querySelector('.ring-run');
-            if (ring) {
-                ring.style.animation = 'none';
-                void ring.getBoundingClientRect();
-                ring.style.animation = '';
-                ring.style.animationDuration = (INTRO_MS / 1000) + 's';
-            }
-            introTimer = setTimeout(enterStudio, INTRO_MS);
-        }
 
         // Clicking the disc itself does nothing — there is a link on it. Clicking
         // past it means you have seen enough.
@@ -1588,7 +1568,6 @@
 
         function showIntro() {
             document.getElementById('intro').classList.remove('gone');
-            startIntroCountdown();
         }
 
         function needsLoop() {
@@ -1635,6 +1614,8 @@
                 if (params.breathGuide) drawOrb();
                 tablesDirty = true;
             }
+
+            if (!document.getElementById('intro').classList.contains('gone')) drawIntroOrb();
 
             if (anySectionAuto()) stepSections(nowMs);
 
@@ -2512,8 +2493,8 @@
         // breath change per frame, so drawing is a rotate, a project and a write.
         // ═══════════════════════════════════════════════════════════════════════
 
-        const ORB_POINTS = 7000;
-        let orbPts = null, orbImg = null, orbCtx = null, orbSide = 0, orbSpin = 0;
+        const ORB_POINTS = 16000;
+        let orbPts = null;
 
         function buildOrbPoints() {
             seedNoise(20240719);            // fixed: the orb should not chase the artwork
@@ -2534,9 +2515,9 @@
                 const fine   = fbm(x * 5.2 - z * 2.3, y * 5.2 + z * 1.9, 3);
                 const d = coarse * 0.7 + fine * 0.45;
 
-                if (d < -0.02) continue;                    // a void
-                const b = Math.min(1, (d + 0.02) * 2.6);
-                if (b < 0.015) continue;
+                if (d < -0.30) continue;                    // a void
+                const b = Math.min(1, (d + 0.30) * 1.5);
+                if (b < 0.010) continue;
 
                 // Sit them in a shell with a little thickness, thicker where the
                 // filaments run, so the surface never reads as a hard sphere.
@@ -2559,32 +2540,32 @@
             d[q + 3] = d[q + 3] + v > 255 ? 255 : d[q + 3] + v;
         }
 
-        function drawOrb() {
-            const el = document.getElementById('breath-ring');
+        // Shared by the breath guide and the welcome. `state` carries each
+        // caller's own canvas, spin and gain so the two never share a phase.
+        function renderOrb(el, state, gain, spinStep, tilt) {
             if (!el || !orbPts) return;
 
             // Backing resolution is capped and CSS scales it up to Orb Size:
             // clearing and uploading the buffer dominates the cost, and it grows
             // with the square of the side. Points are soft anyway, so the slight
             // upscale costs nothing visually.
-            const S = Math.max(80, Math.min(300, Math.round(params.orbSize)));
-            if (orbSide !== S) {
+            const S = state.side;
+            if (el.width !== S) {
                 el.width = S; el.height = S;
-                orbCtx = el.getContext('2d');
-                orbImg = orbCtx.createImageData(S, S);
-                orbSide = S;
+                state.ctx = el.getContext('2d');
+                state.img = state.ctx.createImageData(S, S);
             }
+            if (!state.ctx) { state.ctx = el.getContext('2d'); state.img = state.ctx.createImageData(S, S); }
 
-            const d = orbImg.data;
+            const d = state.img.data;
             d.fill(0);
 
-            orbSpin += 0.0016;
-            const cs = Math.cos(orbSpin), sn = Math.sin(orbSpin);
-            const tilt = 0.38, ct = Math.cos(tilt), st = Math.sin(tilt);
+            state.spin += spinStep;
+            const cs = Math.cos(state.spin), sn = Math.sin(state.spin);
+            const ct = Math.cos(tilt), st = Math.sin(tilt);
 
             const c = S / 2;
             const R = c * 0.92;
-            const gain = params.orbStrength;
             const N = orbPts.length / 4;
 
             for (let i = 0; i < N; i++) {
@@ -2618,7 +2599,24 @@
                 }
             }
 
-            orbCtx.putImageData(orbImg, 0, 0);
+            state.ctx.putImageData(state.img, 0, 0);
+        }
+
+        // Backing resolution is capped and CSS scales it up: clearing and
+        // uploading the buffer dominates the cost and grows with the square of
+        // the side. Points are soft, so the upscale costs nothing visually.
+        const breathOrb = { side: 300, spin: 0, ctx: null, img: null };
+        const introOrb  = { side: 300, spin: 1.9, ctx: null, img: null };
+
+        function drawOrb() {
+            breathOrb.side = Math.max(80, Math.min(300, Math.round(params.orbSize)));
+            renderOrb(document.getElementById('breath-ring'), breathOrb,
+                      params.orbStrength, 0.0016, 0.38);
+        }
+
+        // The welcome runs the same shell, dimmer and slower, as a backdrop.
+        function drawIntroOrb() {
+            renderOrb(document.getElementById('intro-orb'), introOrb, 0.20, 0.0009, -0.26);
         }
 
         function syncBreathGuide() {
@@ -3271,10 +3269,6 @@
             refreshShareUI();
 
             buildOrbPoints();
-
-            if (!document.getElementById('intro').classList.contains('gone')) {
-                startIntroCountdown();
-            }
 
             // Open in motion. Breathing leads, since it rocks the colour rather
             // than scrolling it and holds spin to a trace. Animate runs too, so

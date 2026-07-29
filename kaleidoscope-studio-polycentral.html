@@ -769,40 +769,38 @@
             color: var(--text);
         }
 
-        .intro-ring {
+        #intro-orb {
             position: absolute;
             inset: 0;
             width: 100%;
             height: 100%;
-            transform: rotate(-90deg);   /* start the drain at twelve o'clock */
+            border-radius: 50%;
             pointer-events: none;
         }
 
-        .intro-ring circle { fill: none; stroke-width: 1.6; }
-        .ring-track { stroke: rgba(236, 234, 228, 0.1); }
-
-        .ring-run {
-            /* Muted rather than the accent: it is a timer, not a call to act. */
-            stroke: rgba(236, 234, 228, 0.42);
-            /* 2 * pi * 97 */
-            stroke-dasharray: 609.47;
-            stroke-dashoffset: 0;
-            /* Duration is set from INTRO_MS in script; this is only a fallback. */
-            animation: intro-drain 18s linear forwards;
+        /* A well in the middle of the field. The points stay legible around the
+           rim while the words sit on something calm. */
+        .intro-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            pointer-events: none;
+            background: radial-gradient(circle closest-side,
+                rgba(9, 9, 13, 0.93) 0 40%,
+                rgba(9, 9, 13, 0.72) 62%,
+                rgba(9, 9, 13, 0.30) 82%,
+                transparent 100%);
         }
 
-        @keyframes intro-drain {
-            from { stroke-dashoffset: 0; }
-            to   { stroke-dashoffset: 609.47; }
+        .intro-inner {
+            position: relative;
+            z-index: 2;
+            width: 72%;
+            /* The points run behind the words; this keeps them legible without
+               dimming the field itself. */
+            text-shadow: 0 1px 14px rgba(6, 6, 10, 0.96), 0 0 34px rgba(6, 6, 10, 0.85);
         }
-
-        /* Someone who would rather not watch a timer still gets the ring, just
-           not the sweep. The auto-close is a timer in script either way. */
-        @media (prefers-reduced-motion: reduce) {
-            .ring-run { animation: none; stroke-dashoffset: 0; opacity: 0.35; }
-        }
-
-        .intro-inner { width: 72%; }
 
         .intro-card h1 { font-family: 'Lora', serif; font-size: 31px; font-weight: 500; line-height: 1.14; }
         .intro-card .intro-sub { font-size: 12.5px; color: var(--faint); margin: 7px 0 3px; }
@@ -880,11 +878,9 @@
          the thing itself rather than a description of it. -->
     <div id="intro" onclick="introBackdropClick(event)">
         <div class="intro-card">
-            <!-- Countdown ring. Drains, then the studio opens; see INTRO_MS. -->
-            <svg class="intro-ring" viewBox="0 0 200 200" aria-hidden="true">
-                <circle class="ring-track" cx="100" cy="100" r="97"/>
-                <circle class="ring-run" cx="100" cy="100" r="97"/>
-            </svg>
+            <!-- The same particle shell as the breath guide, dimmer and slower,
+                 sitting behind the text as a backdrop. -->
+            <canvas id="intro-orb" aria-hidden="true"></canvas>
 
             <div class="intro-inner">
                 <h1>Refracted Descent</h1>
@@ -2924,31 +2920,11 @@
         // INTRO — the scope is already running underneath it
         // ═══════════════════════════════════════════════════════════════════════
 
-        // One source for how long the welcome lingers — the ring's duration is
-        // set from it, so the sweep and the timer cannot drift apart.
-        const INTRO_MS = 18000;
-        let introTimer = null;
-
         function enterStudio() {
-            if (introTimer) { clearTimeout(introTimer); introTimer = null; }
             document.getElementById('intro').classList.add('gone');
             document.getElementById('dock').classList.add('up');
         }
 
-        // The studio opens by itself once the ring has drained. Restarting the
-        // CSS animation needs it cleared and the layout flushed, or the browser
-        // coalesces both changes and the ring never replays.
-        function startIntroCountdown() {
-            if (introTimer) clearTimeout(introTimer);
-            const ring = document.querySelector('.ring-run');
-            if (ring) {
-                ring.style.animation = 'none';
-                void ring.getBoundingClientRect();
-                ring.style.animation = '';
-                ring.style.animationDuration = (INTRO_MS / 1000) + 's';
-            }
-            introTimer = setTimeout(enterStudio, INTRO_MS);
-        }
 
         // Clicking the disc itself does nothing — there is a link on it. Clicking
         // past it means you have seen enough.
@@ -3018,7 +2994,6 @@
 
         function showIntro() {
             document.getElementById('intro').classList.remove('gone');
-            startIntroCountdown();
         }
 
         function needsLoop() {
@@ -3065,6 +3040,8 @@
                 if (params.breathGuide) drawOrb();
                 tablesDirty = true;
             }
+
+            if (!document.getElementById('intro').classList.contains('gone')) drawIntroOrb();
 
             if (anySectionAuto()) stepSections(nowMs);
 
@@ -3942,8 +3919,8 @@
         // breath change per frame, so drawing is a rotate, a project and a write.
         // ═══════════════════════════════════════════════════════════════════════
 
-        const ORB_POINTS = 7000;
-        let orbPts = null, orbImg = null, orbCtx = null, orbSide = 0, orbSpin = 0;
+        const ORB_POINTS = 16000;
+        let orbPts = null;
 
         function buildOrbPoints() {
             seedNoise(20240719);            // fixed: the orb should not chase the artwork
@@ -3964,9 +3941,9 @@
                 const fine   = fbm(x * 5.2 - z * 2.3, y * 5.2 + z * 1.9, 3);
                 const d = coarse * 0.7 + fine * 0.45;
 
-                if (d < -0.02) continue;                    // a void
-                const b = Math.min(1, (d + 0.02) * 2.6);
-                if (b < 0.015) continue;
+                if (d < -0.30) continue;                    // a void
+                const b = Math.min(1, (d + 0.30) * 1.5);
+                if (b < 0.010) continue;
 
                 // Sit them in a shell with a little thickness, thicker where the
                 // filaments run, so the surface never reads as a hard sphere.
@@ -3989,32 +3966,32 @@
             d[q + 3] = d[q + 3] + v > 255 ? 255 : d[q + 3] + v;
         }
 
-        function drawOrb() {
-            const el = document.getElementById('breath-ring');
+        // Shared by the breath guide and the welcome. `state` carries each
+        // caller's own canvas, spin and gain so the two never share a phase.
+        function renderOrb(el, state, gain, spinStep, tilt) {
             if (!el || !orbPts) return;
 
             // Backing resolution is capped and CSS scales it up to Orb Size:
             // clearing and uploading the buffer dominates the cost, and it grows
             // with the square of the side. Points are soft anyway, so the slight
             // upscale costs nothing visually.
-            const S = Math.max(80, Math.min(300, Math.round(params.orbSize)));
-            if (orbSide !== S) {
+            const S = state.side;
+            if (el.width !== S) {
                 el.width = S; el.height = S;
-                orbCtx = el.getContext('2d');
-                orbImg = orbCtx.createImageData(S, S);
-                orbSide = S;
+                state.ctx = el.getContext('2d');
+                state.img = state.ctx.createImageData(S, S);
             }
+            if (!state.ctx) { state.ctx = el.getContext('2d'); state.img = state.ctx.createImageData(S, S); }
 
-            const d = orbImg.data;
+            const d = state.img.data;
             d.fill(0);
 
-            orbSpin += 0.0016;
-            const cs = Math.cos(orbSpin), sn = Math.sin(orbSpin);
-            const tilt = 0.38, ct = Math.cos(tilt), st = Math.sin(tilt);
+            state.spin += spinStep;
+            const cs = Math.cos(state.spin), sn = Math.sin(state.spin);
+            const ct = Math.cos(tilt), st = Math.sin(tilt);
 
             const c = S / 2;
             const R = c * 0.92;
-            const gain = params.orbStrength;
             const N = orbPts.length / 4;
 
             for (let i = 0; i < N; i++) {
@@ -4048,7 +4025,24 @@
                 }
             }
 
-            orbCtx.putImageData(orbImg, 0, 0);
+            state.ctx.putImageData(state.img, 0, 0);
+        }
+
+        // Backing resolution is capped and CSS scales it up: clearing and
+        // uploading the buffer dominates the cost and grows with the square of
+        // the side. Points are soft, so the upscale costs nothing visually.
+        const breathOrb = { side: 300, spin: 0, ctx: null, img: null };
+        const introOrb  = { side: 300, spin: 1.9, ctx: null, img: null };
+
+        function drawOrb() {
+            breathOrb.side = Math.max(80, Math.min(300, Math.round(params.orbSize)));
+            renderOrb(document.getElementById('breath-ring'), breathOrb,
+                      params.orbStrength, 0.0016, 0.38);
+        }
+
+        // The welcome runs the same shell, dimmer and slower, as a backdrop.
+        function drawIntroOrb() {
+            renderOrb(document.getElementById('intro-orb'), introOrb, 0.20, 0.0009, -0.26);
         }
 
         function syncBreathGuide() {
@@ -4701,10 +4695,6 @@
             refreshShareUI();
 
             buildOrbPoints();
-
-            if (!document.getElementById('intro').classList.contains('gone')) {
-                startIntroCountdown();
-            }
 
             // Open in motion. Breathing leads, since it rocks the colour rather
             // than scrolling it and holds spin to a trace. Animate runs too, so

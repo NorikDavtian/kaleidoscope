@@ -182,10 +182,12 @@ Breathing runs independently of the Animate button.
 
 ## Opening
 
-The welcome disc sits over the live scope with a ring that drains over eighteen
-seconds, then opens the studio on its own. Click past the disc, or press Enter,
-Space or Esc, to skip — clicking the disc itself does nothing, since it carries
-a link. `I` brings it back.
+The welcome disc sits over the live scope, running the same particle shell as
+the breath guide behind its text — dimmer, slower, and with a well of darkness
+through the middle so the words stay legible against it. It waits: there is no
+timer. Click past the disc, or press Enter, Space or Esc — clicking the disc
+itself does nothing, since it carries a link and a share button. `I` brings it
+back.
 
 The scope opens already in motion, on **Calm** breathing (4·7·8) with Animate
 running. Breathing leads: it rocks the colour forward and back rather than
