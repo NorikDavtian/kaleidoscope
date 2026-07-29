@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "sync-studio": "node scripts/sync-studio.mjs"
+    "build-studio": "node scripts/build-studio.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.658.0",

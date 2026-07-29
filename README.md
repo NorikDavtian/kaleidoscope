@@ -22,9 +22,17 @@ Without S3 credentials the app still runs: generations persist to `.data/` and
 permalinks resolve. Only uploading a shared image needs a bucket, and
 `/api/upload` returns a clear 503 until one is configured.
 
-The single HTML file stays the source of truth for the renderer.
-`npm run sync-studio` splits it into `public/studio/{studio.css,markup.html,studio.js}`,
-which the `Studio` client component mounts. Run it after editing the HTML.
+`src/` is the source of truth. `npm run build-studio` composes it into both
+delivery targets:
+
+| Source | Built into |
+| --- | --- |
+| `src/head.html` | |
+| `src/studio.css` | the standalone HTML, and `public/studio/studio.css` |
+| `src/studio.html` | the standalone HTML, and `public/studio/markup.html` |
+| `src/studio.js` | the standalone HTML, and `public/studio/studio.js` |
+
+Edit `src/`, run the build, never edit the generated files.
 
 ### App layout
 
@@ -36,7 +44,7 @@ which the `Studio` client component mounts. Run it after editing the HTML.
 | `app/api/share` | Stores a generation; `GET /api/share/[id]` reads it back. |
 | `lib/s3.ts` | S3 client. Works with AWS, R2, MinIO, B2 via `S3_ENDPOINT`. |
 | `lib/shareStore.ts` | Generation records. Falls back to `.data/` on disk when S3 is unconfigured, so permalinks work locally with no credentials. |
-| `scripts/sync-studio.mjs` | Splits the HTML into the served assets. |
+| `scripts/build-studio.mjs` | Composes `src/` into the standalone HTML and the served assets. |
 
 The bucket needs CORS allowing `PUT` from your origin for uploads, and `GET`
 for reading a shared source back — the renderer samples image pixels, so a
@@ -157,6 +165,25 @@ contracts with the count.
 
 `Breath Depth` sets how far the swing carries. It runs independently of the
 Animate button.
+
+## Dock and keys
+
+The controls live in a dock rather than a sidebar: one panel at a time, opened
+from the dock or straight from the keyboard.
+
+| Key | |
+| --- | --- |
+| `1`–`8` | Source · Symmetry · Colour · Motion · Breathing · Parameters · Seed · Export |
+| `R` | Randomize |
+| `A` | Animate |
+| `F` | Fullscreen |
+| `H` | Cinema — hides the dock, sheet, source card and status |
+| `S` | Save a PNG |
+| `I` | About |
+| `Esc` | Close the panel, or leave cinema |
+
+Keys are ignored while a text field has focus. With the intro up, only Enter,
+Space and Esc do anything, and all three dismiss it.
 
 ## Section controls
 

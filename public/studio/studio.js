@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════════════════════════
         // REFRACTED DESCENT — PARAMETERS
         // ═══════════════════════════════════════════════════════════════════════
 
@@ -1462,9 +1462,60 @@
 
         function enterStudio() {
             document.getElementById('intro').classList.add('gone');
-            document.getElementById('sidebar').classList.remove('hidden');
-            document.getElementById('panel-toggle').classList.remove('show');
+            document.getElementById('dock').classList.add('up');
         }
+
+        // Fullscreen. The canvas already fills the viewport, so this only has to
+        // take the browser chrome out of the way and keep the icon honest.
+        function toggleFullscreen() {
+            const el = document.documentElement;
+            if (!document.fullscreenElement) {
+                (el.requestFullscreen || el.webkitRequestFullscreen || function () {}).call(el);
+            } else {
+                (document.exitFullscreen || document.webkitExitFullscreen || function () {}).call(document);
+            }
+        }
+
+        function syncFullscreenIcon() {
+            const on = !!document.fullscreenElement;
+            const btn = document.getElementById('dock-fs');
+            if (!btn) return;
+            btn.className = 'dock-btn' + (on ? ' on' : '');
+        }
+
+        document.addEventListener('fullscreenchange', syncFullscreenIcon);
+        document.addEventListener('webkitfullscreenchange', syncFullscreenIcon);
+
+        // Keyboard. Ignored while a field has focus, and while the intro is up
+        // apart from the key that dismisses it.
+        window.addEventListener('keydown', function (e) {
+            const t = e.target;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+            const introUp = !document.getElementById('intro').classList.contains('gone');
+            if (introUp) {
+                if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+                    e.preventDefault();
+                    enterStudio();
+                }
+                return;
+            }
+
+            const n = parseInt(e.key, 10);
+            if (n >= 1 && n <= PANELS.length) { e.preventDefault(); openPanel(PANELS[n - 1]); return; }
+
+            switch (e.key.toLowerCase()) {
+                case 'escape': e.preventDefault(); if (cinema) toggleCinema(false); else closePanel(); break;
+                case 'h':      e.preventDefault(); toggleCinema(); break;
+                case 'f':      e.preventDefault(); toggleFullscreen(); break;
+                case 'r':      e.preventDefault(); randomSeedAndUpdate(); break;
+                case 'a':      e.preventDefault(); toggleAnimate(); break;
+                case 's':      e.preventDefault(); downloadPNG(); break;
+                case 'i':      e.preventDefault(); showIntro(); break;
+                case '?':      e.preventDefault(); showIntro(); break;
+            }
+        });
 
         function showIntro() {
             document.getElementById('intro').classList.remove('gone');
@@ -1712,24 +1763,57 @@
             resizeTimer = setTimeout(redraw, 120);
         }
 
-        function togglePanel() {
-            const sb = document.getElementById('sidebar');
-            const tg = document.getElementById('panel-toggle');
-            const hidden = sb.classList.toggle('hidden');
-            tg.className = hidden ? 'panel-toggle show' : 'panel-toggle';
+        // ═══════════════════════════════════════════════════════════════════════
+        // DOCK
+        //
+        // One panel at a time, opened from the dock or by number key. Nothing is
+        // ever more than one keystroke away, and the artwork keeps the screen.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const PANELS = ['source', 'symmetry', 'colour', 'motion',
+                        'breathing', 'params', 'seed', 'share'];
+        let openPanelName = null;
+
+        function openPanel(name) {
+            if (openPanelName === name) { closePanel(); return; }
+            openPanelName = name;
+            PANELS.forEach(function (k) {
+                const p = document.getElementById('panel-' + k);
+                if (p) p.className = 'control-section' + (k === name ? ' on' : '');
+                const d = document.getElementById('dock-' + k);
+                if (d) d.className = 'dock-btn' + (k === name ? ' on' : '');
+            });
+            document.getElementById('sheet').classList.remove('hidden');
         }
+
+        function closePanel() {
+            openPanelName = null;
+            PANELS.forEach(function (k) {
+                const d = document.getElementById('dock-' + k);
+                if (d) d.className = 'dock-btn';
+            });
+            document.getElementById('sheet').classList.add('hidden');
+        }
+
+        // Cinema mode: everything but the artwork gets out of the way.
+        let cinema = false;
+
+        function toggleCinema(force) {
+            cinema = (force === undefined) ? !cinema : force;
+            document.body.classList.toggle('cinema', cinema);
+            const d = document.getElementById('dock-cinema');
+            if (d) d.className = 'dock-btn' + (cinema ? ' on' : '');
+            if (cinema) closePanel();
+        }
+
 
         function toggleAnimate() {
             animating = !animating;
-            const btn = document.getElementById('play-btn');
-            const lbl = btn.querySelector('em');
+            const btn = document.getElementById('dock-play');
+            if (btn) btn.className = 'dock-btn' + (animating ? ' on' : '');
             if (animating) {
-                btn.className = 'tool playing';
-                lbl.textContent = 'Pause';
                 loop();
             } else {
-                btn.className = 'tool';
-                lbl.textContent = 'Animate';
                 if (!needsLoop()) noLoop();
                 redraw();
             }
