@@ -399,6 +399,15 @@
         .button-row .button { flex: 1; }
 
         /* ── Source ────────────────────────────────────────────────────────── */
+        .lock-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--faint);
+            margin-bottom: 7px;
+        }
+
         .thumb-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 12px; }
 
         .thumb {

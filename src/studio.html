@@ -77,6 +77,13 @@
                 <button id="src-img" onclick="setSource('image')">Image</button>
             </div>
 
+            <div class="lock-row">
+                <span>Which image</span>
+                <button class="sec-btn" id="img-lock" onclick="toggleImageLock()"
+                        title="Lock the chosen image — Randomize and drift keep it, but everything else in Source still moves">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg>
+                </button>
+            </div>
             <div class="thumb-grid" id="thumb-grid"></div>
 
             <input type="file" id="file-input" accept="image/*" style="display:none" onchange="onFilePicked(this.files[0])">

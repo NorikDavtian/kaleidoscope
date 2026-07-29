@@ -197,6 +197,10 @@ Every section header carries three small controls:
 
 Lock and Auto are mutually exclusive — pinning a section switches its drift off.
 
+Source carries a second, narrower lock beside the thumbnails: **Which image**
+pins the chosen picture alone, so Randomize and drift keep it while the zoom,
+pan, warp and mix around it stay free. The section lock holds all of that too.
+
 Continuous sections (Motion, Parameters) ease toward a fresh random target every
 few seconds, so the image morphs rather than jumping. The sections that can only
 step — Symmetry, Seed, Source, Colour — wait a random interval and then

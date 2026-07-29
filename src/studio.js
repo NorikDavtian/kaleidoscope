@@ -71,6 +71,10 @@
         let activeBase = null;
         let srcThumbURL = null, srcName = '', srcNote = '';
         let srcCanvas = null;   // whatever the sampler / GPU is reading from
+        // Pins the chosen image alone. The Source section lock is broader — it
+        // holds the zoom, pan and mix too — so this exists for the common case
+        // of wanting one picture while everything around it keeps moving.
+        let imageLocked = false;
         let plateAnim = false, platePhase = 0;
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -702,6 +706,12 @@
         // The card says what the scope is reading, which matters for a moment
         // after choosing and then just sits on the artwork. Show it, then let it
         // go. Picking another source brings it back.
+        function toggleImageLock() {
+            imageLocked = !imageLocked;
+            const el = document.getElementById('img-lock');
+            if (el) el.className = imageLocked ? 'sec-btn on' : 'sec-btn';
+        }
+
         function toggleSourceCard(on) {
             const el = document.getElementById('source-card');
             if (!el) return;
@@ -2484,6 +2494,7 @@
                 params.seed = Math.floor(Math.random() * 999999) + 1;
                 updateSeedDisplay();
             } else if (name === 'source') {
+                if (imageLocked) { scheduleRender(); return; }
                 const avail = BASE_PLATES.filter(function (x) { return !x.missing; });
                 const b = avail[(Math.random() * avail.length) | 0];
                 useBasePlate(b.id, b.name);
@@ -2553,7 +2564,7 @@
                         updateSeedDisplay();
                         touched = true;
                     } else if (name === 'source') {
-                        if (params.source === 'image' && activeBase !== null) {
+                        if (params.source === 'image' && activeBase !== null && !imageLocked) {
                             const avail = BASE_PLATES.filter(function (x) { return !x.missing; });
                             const b = avail[(Math.random() * avail.length) | 0];
                             useBasePlate(b.id, b.name);
@@ -2759,8 +2770,8 @@
 
             if (locked('source')) { scheduleRender(); return; }
 
-            // Swap plates only if we're on a built-in one.
-            if (params.source === 'image' && activeBase !== null) {
+            // Swap plates only if we're on a built-in one and it is not pinned.
+            if (params.source === 'image' && activeBase !== null && !imageLocked) {
                 const avail = BASE_PLATES.filter(function (x) { return !x.missing; });
                 const b = avail[ri(0, avail.length - 1)];
                 useBasePlate(b.id, b.name);
