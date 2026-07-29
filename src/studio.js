@@ -2511,8 +2511,12 @@
 
             const orb = document.getElementById('breath-ring');
             if (orb) {
+                const st = params.orbStrength;
                 orb.style.setProperty('--orb-size', params.orbSize + 'px');
-                orb.style.setProperty('--orb-alpha', params.orbStrength);
+                // Up to 1 it fades in; past 1 the shells thicken and deepen,
+                // because opacity clamps and would waste half the slider.
+                orb.style.setProperty('--orb-alpha', Math.min(1, st));
+                orb.style.setProperty('--orb-w', Math.max(0, Math.min(1, st - 1)));
             }
 
             const lbl = document.getElementById('breath-stage');

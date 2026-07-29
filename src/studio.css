@@ -608,21 +608,25 @@
                a bright field, so a darker one sits just outside it: whichever
                contrasts with the artwork underneath is the one you see.
                Hollow through the middle — three stops either side of each peak
-               do the softening, and no `filter` is involved. */
+               do the softening, so the edges stay round however thick it gets,
+               and no `filter` is involved.
+               Past a strength of 1 the shells widen and deepen rather than only
+               brightening: opacity alone clamps, so the top of that slider would
+               otherwise do nothing at all. */
             background:
                 radial-gradient(circle closest-side,
-                    transparent 0 44%,
-                    rgba(255, 253, 246, 0.04) 55%,
-                    rgba(255, 253, 246, 0.13) 64%,
-                    rgba(255, 253, 246, 0.30) 72%,
-                    rgba(255, 253, 246, 0.11) 81%,
-                    rgba(255, 253, 246, 0.02) 89%,
-                    transparent 96%),
+                    transparent 0 calc(44% - 20% * var(--orb-w, 0)),
+                    rgba(255, 253, 246, calc(0.04 + 0.13 * var(--orb-w, 0))) calc(55% - 14% * var(--orb-w, 0)),
+                    rgba(255, 253, 246, calc(0.13 + 0.26 * var(--orb-w, 0))) calc(64% - 7% * var(--orb-w, 0)),
+                    rgba(255, 253, 246, calc(0.30 + 0.50 * var(--orb-w, 0))) 72%,
+                    rgba(255, 253, 246, calc(0.11 + 0.34 * var(--orb-w, 0))) calc(81% + 4% * var(--orb-w, 0)),
+                    rgba(255, 253, 246, calc(0.02 + 0.18 * var(--orb-w, 0))) calc(89% + 4% * var(--orb-w, 0)),
+                    transparent 97%),
                 radial-gradient(circle closest-side,
-                    transparent 0 62%,
-                    rgba(6, 6, 10, 0.10) 76%,
-                    rgba(6, 6, 10, 0.20) 85%,
-                    rgba(6, 6, 10, 0.07) 92%,
+                    transparent 0 calc(62% - 18% * var(--orb-w, 0)),
+                    rgba(6, 6, 10, calc(0.10 + 0.16 * var(--orb-w, 0))) calc(76% - 8% * var(--orb-w, 0)),
+                    rgba(6, 6, 10, calc(0.20 + 0.34 * var(--orb-w, 0))) 85%,
+                    rgba(6, 6, 10, calc(0.07 + 0.22 * var(--orb-w, 0))) calc(92% + 3% * var(--orb-w, 0)),
                     transparent 99%);
         }
 
