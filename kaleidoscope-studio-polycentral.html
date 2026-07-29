@@ -1138,6 +1138,15 @@
                 </button>
             </div>
 
+            <label class="edge-label">Orb colour</label>
+            <div class="breath-row edge-row">
+                <button id="tint-white" class="active" onclick="setOrbTint('white')">White</button>
+                <button id="tint-palette" onclick="setOrbTint('palette')">Palette</button>
+                <button id="tint-warm" onclick="setOrbTint('warm')">Warm</button>
+                <button id="tint-cool" onclick="setOrbTint('cool')">Cool</button>
+                <button id="tint-depth" onclick="setOrbTint('depth')">Depth</button>
+            </div>
+
             <div class="control-group" id="orb-size-row">
                 <label>Orb Size</label>
                 <div class="slider-container">
@@ -1425,6 +1434,7 @@
             breathLabelSize: 12,
             orbSize: 300,     // diameter of the breath orb, in px
             orbStrength: 1,   // how strongly it reads against the artwork
+            orbTint: 'white', // white | palette | warm | cool | depth
             edgeMask: 'off',  // off | circle | petal | scallop | bloom
             edgeSize: 0.86,   // how far out the shape reaches
             edgeSoft: 46,     // px of blur on its boundary — never a clean cut
@@ -3964,11 +3974,13 @@
             seedNoise(params.seed);         // hand the field's noise back
         }
 
-        function splat(d, S, x, y, v) {
+        function splat(d, S, x, y, v, tr, tg, tb) {
             if (x < 0 || y < 0 || x >= S || y >= S) return;
             const q = (y * S + x) * 4;
-            const lit = d[q] + v > 255 ? 255 : d[q] + v;
-            d[q] = lit; d[q + 1] = lit; d[q + 2] = lit;
+            const r = d[q] + v * tr, g = d[q + 1] + v * tg, b2 = d[q + 2] + v * tb;
+            d[q]     = r  > 255 ? 255 : r;
+            d[q + 1] = g  > 255 ? 255 : g;
+            d[q + 2] = b2 > 255 ? 255 : b2;
             d[q + 3] = d[q + 3] + v > 255 ? 255 : d[q + 3] + v;
         }
 
@@ -3998,6 +4010,26 @@
 
             const c = S / 2;
             const R = c * 0.80;      // room for the shell's thickness inside the disc
+
+            // Eight tints, chosen once per frame. Points index into them so the
+            // colour is stable per point rather than flickering as it turns.
+            const TINTS = [];
+            const mode = params.orbTint;
+            if (mode === 'palette') {
+                for (let i = 0; i < 8; i++) {
+                    const col = hexToRgb(params.colorPalette[i % 5]);
+                    // Normalised, or dark palette stops would just dim the orb.
+                    const mx = Math.max(col[0], col[1], col[2]) || 1;
+                    TINTS.push([col[0] / mx, col[1] / mx, col[2] / mx]);
+                }
+            } else if (mode === 'warm') {
+                for (let i = 0; i < 8; i++) TINTS.push([1, 0.74 + (i % 3) * 0.05, 0.46 + (i % 4) * 0.04]);
+            } else if (mode === 'cool') {
+                for (let i = 0; i < 8; i++) TINTS.push([0.54 + (i % 4) * 0.04, 0.80, 1]);
+            } else {
+                for (let i = 0; i < 8; i++) TINTS.push([1, 1, 1]);
+            }
+            const byDepth = mode === 'depth';
             const N = orbPts.length / 4;
 
             for (let i = 0; i < N; i++) {
@@ -4034,13 +4066,26 @@
                 if (v <= 0) continue;
                 if (v > 205) v = 205;    // never let a single point reach white
 
-                splat(d, S, px, py, v);
+                let tr, tg, tb;
+                if (byDepth) {
+                    // Warm toward the viewer, cool away — reinforces the volume
+                    // the shading already gives.
+                    const f = (nz + 1) * 0.5;
+                    tr = 0.52 + 0.48 * f;
+                    tg = 0.74 + 0.16 * f;
+                    tb = 1 - 0.36 * f;
+                } else {
+                    const t = TINTS[i & 7];
+                    tr = t[0]; tg = t[1]; tb = t[2];
+                }
+
+                splat(d, S, px, py, v, tr, tg, tb);
                 // Only the strongest get one dim neighbour, so the filaments
                 // carry without the field welding itself into a solid mass.
                 if (v > 120) {
                     const h = v * 0.30;
-                    splat(d, S, px + 1, py, h);
-                    splat(d, S, px, py + 1, h);
+                    splat(d, S, px + 1, py, h, tr, tg, tb);
+                    splat(d, S, px, py + 1, h, tr, tg, tb);
                 }
             }
 
@@ -4090,6 +4135,17 @@
         function toggleBreathLabel() {
             params.breathLabel = !params.breathLabel;
             syncBreathGuide();
+        }
+
+        const ORB_TINTS = ['white', 'palette', 'warm', 'cool', 'depth'];
+
+        function setOrbTint(mode) {
+            params.orbTint = mode;
+            ORB_TINTS.forEach(function (k) {
+                const el = document.getElementById('tint-' + k);
+                if (el) el.className = (k === mode) ? 'active' : '';
+            });
+            drawOrb();
         }
 
         function setOrbSize(v) {
