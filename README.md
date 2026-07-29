@@ -82,10 +82,8 @@ resolution, which is what motivated the move to the GPU.
 
 ## Roadmap
 
-- **Video and camera input.** Feed a live camera or a video file into the scope
-  as the source, the way a teleidoscope uses its environment. The source is
-  already a texture uploaded per frame, so this is mostly plumbing plus a
-  `getUserMedia` permission flow.
+- **Camera input.** Video files already work as sources; a live camera is the
+  same path plus a `getUserMedia` permission flow.
 - Curated public-domain artwork sources with on-canvas attribution.
 - The remaining two of Brewster's four polycentral shapes: the 90-45-45 and
   90-60-30 triangles.
@@ -107,6 +105,18 @@ file is opened standalone.
 Built-in plates travel by id. Standalone, a custom upload stays on your machine
 and does not travel with the link. Under the app it is stored, and the link
 becomes `/g/<id>` and carries the image too.
+
+## Sources
+
+Beyond the nine painted plates, `BASE_PLATES` entries can carry:
+
+- `src` — a photograph. Paths resolve against several roots so one file works
+  whether served by the app or opened off disk.
+- `video` — an MP4, drawn to a canvas and re-uploaded to the GPU each frame.
+  Give it a `poster` for the thumbnail.
+- `anim: true` — repainted procedurally each frame (see the Wink plate).
+
+Any entry whose file is missing removes itself from the grid.
 
 ## Seeing an image in the mirrors
 
@@ -130,6 +140,23 @@ show up in the reference. For a recognisable subject:
 
 Note that Zoom runs the opposite way to the word: a *higher* value fits more of
 the image into each cell, so features come out smaller. Lower magnifies.
+
+## Breathing
+
+A meditation mode. The colour ramp runs forward on the inhale and back on the
+exhale — rocking rather than scrolling, so it has somewhere to come to rest —
+and the whole field swells and settles with it. A ring on the canvas expands and
+contracts with the count.
+
+| Pattern | Seconds |
+| --- | --- |
+| Box | 4 in · 4 hold · 4 out · 4 hold |
+| Calm | 4 in · 7 hold · 8 out |
+| Deep | 6 in · 7 out, no holds |
+| Longer | starts at 4·2·6·1 and stretches to 1.8x over ~5 minutes |
+
+`Breath Depth` sets how far the swing carries. It runs independently of the
+Animate button.
 
 ## Section controls
 

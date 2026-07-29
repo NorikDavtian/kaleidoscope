@@ -53,6 +53,11 @@
         </div>
     </div>
 
+    <div id="breath-guide" class="off">
+        <div id="breath-ring"></div>
+        <div id="breath-stage"></div>
+    </div>
+
     <button class="panel-toggle" id="panel-toggle" onclick="togglePanel()">☰</button>
     <div id="status">rendering</div>
 
@@ -231,8 +236,8 @@
             <div class="control-group">
                 <label>Transition BPM</label>
                 <div class="slider-container">
-                    <input type="range" id="bpm" min="8" max="160" step="1" value="30" oninput="updateParam('bpm', this.value)">
-                    <span class="value-display" id="bpm-value">30</span>
+                    <input type="range" id="bpm" min="1" max="160" step="1" value="16" oninput="updateParam('bpm', this.value)">
+                    <span class="value-display" id="bpm-value">16</span>
                 </div>
             </div>
 
@@ -245,6 +250,27 @@
             </div>
 
             <div class="hint">Drag the artwork to turn it by hand. Let go and it coasts. Colour Flow moves the generated field's palette, so with an image source it only shows once Field Mix is above 0 — Spin turns the mirrors either way.</div>
+        </div>
+
+        <!-- Breathing (FIXED) -->
+        <div class="control-section">
+            <h3>Breathing</h3>
+            <div class="breath-row">
+                <button id="breath-off" class="active" onclick="setBreath('off')">Off</button>
+                <button id="breath-box" onclick="setBreath('box')">Box<em>4·4·4·4</em></button>
+                <button id="breath-calm" onclick="setBreath('calm')">Calm<em>4·7·8</em></button>
+                <button id="breath-deep" onclick="setBreath('deep')">Deep<em>6·7</em></button>
+                <button id="breath-progressive" onclick="setBreath('progressive')">Longer<em>lengthens</em></button>
+            </div>
+
+            <div class="control-group">
+                <label>Breath Depth</label>
+                <div class="slider-container">
+                    <input type="range" id="breathDepth" min="0" max="1" step="0.01" value="0.6" oninput="updateParam('breathDepth', this.value)">
+                    <span class="value-display" id="breathDepth-value">0.6</span>
+                </div>
+            </div>
+            <div class="hint">The colour runs forward as you breathe in and back as you breathe out, and the whole field swells with it. Follow the ring on the canvas.</div>
         </div>
 
         <!-- Parameters Section (VARIABLE) -->

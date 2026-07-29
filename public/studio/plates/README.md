@@ -3,16 +3,20 @@
 Files here appear as built-in sources in the studio, ahead of the painted ones.
 They are referenced by `BASE_PLATES` in `kaleidoscope-studio-polycentral.html`:
 
-| Expected file | Appears as |
+| File | Appears as |
 | --- | --- |
 | `spaceship.jpg` | Spaceship |
-| `masks.jpg` | Masks |
-| `corsairs.jpg` | Corsairs |
-| `companions.jpg` | Companions |
 | `syndicate.jpg` | Syndicate |
+| `decks.jpg` | Decks |
+| `plumage.jpg` | Plumage |
+| `companions.jpg` | Companions |
 
 Any entry whose file is missing removes itself from the grid, so the studio
 works with none, some, or all of them present.
+
+These are re-encoded from the originals: JPEG, quality 4, long edge capped at
+1600px. The full-resolution sources are kept out of the repo in
+`.data/plate-originals/`.
 
 Two things to know:
 

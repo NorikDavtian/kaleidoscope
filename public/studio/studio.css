@@ -526,6 +526,66 @@
 
         .intro-card .button { padding: 14px 16px; font-size: 15px; border-radius: 10px; }
 
+        /* ── Breathing ─────────────────────────────────────────────────────── */
+        .breath-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-bottom: 16px; }
+
+        .breath-row button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 8px 2px 6px;
+            border: 1px solid var(--anthropic-light-gray);
+            border-radius: 7px;
+            background: white;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            font-size: 11px;
+            color: var(--anthropic-mid-gray);
+            transition: all 0.15s ease;
+        }
+
+        .breath-row button em { font-style: normal; font-size: 8.5px; opacity: 0.75; }
+        .breath-row button:hover { border-color: var(--anthropic-orange); }
+        .breath-row button.active { border-color: var(--anthropic-orange); background: rgba(217, 119, 87, 0.07); color: var(--anthropic-dark); font-weight: 500; }
+
+        #breath-guide {
+            position: fixed;
+            left: 50%;
+            bottom: 46px;
+            transform: translateX(-50%);
+            z-index: 13;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            pointer-events: none;
+        }
+
+        #breath-guide.off { display: none; }
+
+        #breath-ring {
+            width: 84px;
+            height: 84px;
+            border-radius: 50%;
+            border: 2px solid rgba(250, 249, 245, 0.75);
+            box-shadow: 0 0 26px rgba(250, 249, 245, 0.28), inset 0 0 22px rgba(250, 249, 245, 0.16);
+            /* Scale is set per frame from the breath, so no CSS timing here —
+               a transition would fight the animation and lag behind it. */
+        }
+
+        #breath-stage {
+            font-size: 13px;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: rgba(250, 249, 245, 0.88);
+            text-shadow: 0 1px 12px rgba(0, 0, 0, 0.7);
+        }
+
+        @media (max-width: 640px) {
+            .breath-row { grid-template-columns: repeat(3, 1fr); }
+        }
+
         /* ── Full-screen drop target ───────────────────────────────────────── */
         #drop-veil {
             position: fixed;

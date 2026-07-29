@@ -25,7 +25,9 @@
             rotation: 350,
             flow: 1,          // palette phase drift per frame
             spin: 0.3,        // rotation per frame
-            bpm: 30,          // beat the automatic transitions are locked to
+            bpm: 16,          // beat the automatic transitions are locked to
+            breath: 'off',    // off | box | calm | deep | progressive
+            breathDepth: 0.6, // how far the breath swings the colour and scale
             imgZoom: 1.04,    // how much of the source image one wedge covers
             imgPanX: 0.51,     // centre of the sampled patch, in source uv
             imgPanY: 0.69,
@@ -166,10 +168,12 @@
         // load simply drop out of the grid.
         const BASE_PLATES = [
             { id: 'spaceship', name: 'Spaceship', src: 'plates/spaceship.jpg' },
-            { id: 'masks',     name: 'Masks',     src: 'plates/masks.jpg' },
-            { id: 'corsairs',  name: 'Corsairs',  src: 'plates/corsairs.jpg' },
-            { id: 'companions',name: 'Companions',src: 'plates/companions.jpg' },
             { id: 'syndicate', name: 'Syndicate', src: 'plates/syndicate.jpg' },
+            { id: 'decks',     name: 'Decks',     src: 'plates/decks.jpg' },
+            { id: 'plumage',   name: 'Plumage',   src: 'plates/plumage.jpg' },
+            { id: 'companions',name: 'Companions',src: 'plates/companions.jpg' },
+            { id: 'drift',     name: 'Drift',     video: 'plates/drift.mp4',
+              poster: 'plates/drift-poster.jpg' },
             { id: 'stilllife', name: 'Still Life' },
             { id: 'meadow',    name: 'Meadow' },
             { id: 'linocut',   name: 'Linocut' },
@@ -196,6 +200,62 @@
                     done(img);
                 }, attempt);
             };
+            attempt();
+        }
+
+        let plateVideo = null, videoCv = null, videoCtx = null, videoLive = false;
+
+        // A video source is the animated plate with its frames coming from a
+        // file: draw the current frame to a canvas, hand that to the GPU, and
+        // let the existing per-frame re-upload do the rest.
+        function useVideoPlate(meta, name) {
+            if (!plateVideo) {
+                plateVideo = document.createElement('video');
+                plateVideo.muted = true;              // required for autoplay
+                plateVideo.loop = true;
+                plateVideo.autoplay = true;
+                plateVideo.playsInline = true;
+                plateVideo.setAttribute('playsinline', '');
+                plateVideo.crossOrigin = 'anonymous';
+                plateVideo.style.display = 'none';
+                document.body.appendChild(plateVideo);
+            }
+
+            let i = 0;
+            const attempt = function () {
+                if (i >= PLATE_ROOTS.length) {
+                    console.warn('Video plate missing: ' + meta.video);
+                    return;
+                }
+                plateVideo.src = PLATE_ROOTS[i++] + meta.video;
+                plateVideo.load();
+            };
+
+            plateVideo.onerror = attempt;
+            plateVideo.onloadeddata = function () {
+                const w = plateVideo.videoWidth, h = plateVideo.videoHeight;
+                if (!w || !h) return;
+                if (!videoCv) { videoCv = document.createElement('canvas'); videoCtx = videoCv.getContext('2d'); }
+                videoCv.width = w; videoCv.height = h;
+                videoCtx.drawImage(plateVideo, 0, 0, w, h);
+
+                if (srcHolder) { srcHolder.remove(); srcHolder = null; }
+                srcPixels = null;                     // the CPU path cannot follow a video
+                srcW = w; srcH = h;
+                srcCanvas = videoCv;
+                srcTexDirty = true;
+                videoLive = true;
+                plateAnim = true;
+                activeBase = meta.id;
+                markActiveThumb(meta.id);
+                document.getElementById('drop-label').textContent = 'Or use your own';
+                setSourceMeta(videoCv.toDataURL('image/jpeg', 0.7), name,
+                    w + ' × ' + h + ' · built-in video');
+                setSource('image');
+                plateVideo.play().catch(function () {});
+                loop();
+            };
+
             attempt();
         }
 
@@ -504,7 +564,10 @@
                 const im = document.createElement('img');
                 im.alt = b.name;
 
-                if (b.src) {
+                if (b.video) {
+                    im.onerror = function () { btn.remove(); b.missing = true; };
+                    im.src = PLATE_ROOTS[0] + (b.poster || '');
+                } else if (b.src) {
                     // A missing photograph should not leave a broken tile behind.
                     let root = 0;
                     im.onerror = function () {
@@ -549,8 +612,12 @@
         function useBasePlate(id, name) {
             const meta = plateById(id);
 
+            if (meta && meta.video) { useVideoPlate(meta, name); return; }
+
             if (meta && meta.src) {
                 plateAnim = false;
+                videoLive = false;
+                if (plateVideo) plateVideo.pause();
                 loadPlateBitmap(meta, function (img) {
                     if (srcHolder) srcHolder.remove();
                     srcHolder = createGraphics(img.width, img.height);
@@ -571,6 +638,8 @@
             }
 
             plateAnim = !!(meta && meta.anim);
+            videoLive = false;
+            if (plateVideo) plateVideo.pause();
             if (srcHolder) srcHolder.remove();
             // Animated plates stay square and small: the surface is repainted
             // and re-uploaded to the GPU on every frame.
@@ -1014,7 +1083,10 @@
             gl.uniform1i(P.u.uUseImage, useImage);
             gl.uniform1f(P.u.uMix, useImage ? params.mix : 1);
             gl.uniform1f(P.u.uSeam, params.seam);
-            gl.uniform1f(P.u.uShift, params.shift + animPhase + 1000);
+            // Forward on the inhale, back on the exhale — the ramp rocks rather
+            // than scrolls, so it has somewhere to come to rest.
+            const swing = (breathValue - 0.5) * params.breathDepth * 0.5;
+            gl.uniform1f(P.u.uShift, params.shift + animPhase + swing + 1000);
             for (let i = 0; i < 5; i++) {
                 const c = hexToRgb(params.colorPalette[i]);
                 gl.uniform3f(P.u['uPal' + i], c[0] / 255, c[1] / 255, c[2] / 255);
@@ -1402,6 +1474,7 @@
 
         function needsLoop() {
             return animating || dragging || Math.abs(dragVel) > 0.0004 ||
+                   params.breath !== 'off' ||
                    (plateAnim && params.source === 'image') ||
                    anySectionAuto() || fadeAmt > 0;
         }
@@ -1421,13 +1494,32 @@
                 dragVel = 0;
             }
 
-            if (anySectionAuto()) stepSections(performance.now());
+            const nowMs = performance.now();
+            if (breathLast === 0) breathLast = nowMs;
+            const breathDt = Math.min(0.25, (nowMs - breathLast) / 1000);
+            breathLast = nowMs;
+            if (params.breath !== 'off') {
+                stepBreath(breathDt);
+                const g = document.getElementById('breath-stage');
+                if (g && g.textContent !== breathStage) g.textContent = breathStage;
+                const ring = document.getElementById('breath-ring');
+                if (ring) ring.style.transform = 'scale(' + (0.55 + breathValue * 0.45) + ')';
+                tablesDirty = true;
+            }
 
-            if (plateAnim && params.source === 'image' && srcHolder && activeBase) {
-                platePhase += 0.011;              // ~1.5 s per wink at 60fps
-                drawPlate(srcHolder, activeBase, srcHolder.width, srcHolder.height, platePhase);
-                srcTexDirty = true;
-                fieldDirty = true;                // the sampled source moved
+            if (anySectionAuto()) stepSections(nowMs);
+
+            if (plateAnim && params.source === 'image') {
+                if (videoLive && plateVideo && plateVideo.readyState >= 2) {
+                    videoCtx.drawImage(plateVideo, 0, 0, videoCv.width, videoCv.height);
+                    srcTexDirty = true;
+                    fieldDirty = true;
+                } else if (srcHolder && activeBase) {
+                    platePhase += 0.011;          // ~1.5 s per wink at 60fps
+                    drawPlate(srcHolder, activeBase, srcHolder.width, srcHolder.height, platePhase);
+                    srcTexDirty = true;
+                    fieldDirty = true;            // the sampled source moved
+                }
             }
 
             if (!fieldCanvas()) { if (!needsLoop()) noLoop(); return; }
@@ -1454,7 +1546,8 @@
             } else {
                 // The buffer is square; drawn at the viewport diagonal it covers
                 // the frame at any rotation, so spin never exposes a corner.
-                const D = Math.sqrt(width * width + height * height);
+                const puff = 1 + (breathValue - 0.5) * params.breathDepth * 0.09;
+                const D = Math.sqrt(width * width + height * height) * puff;
                 ctx.save();
                 ctx.translate(width / 2, height / 2);
                 if (spinAngle !== 0) ctx.rotate(spinAngle);
@@ -1640,7 +1733,9 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         function setSource(mode) {
-            if (mode === 'image' && !srcPixels) {
+            // Guard on the canvas, not on srcPixels: a video source has no CPU
+            // pixel buffer, and testing srcPixels bounced it to a painted plate.
+            if (mode === 'image' && !srcCanvas) {
                 useBasePlate('stilllife', 'Still Life');
                 return;
             }
@@ -1672,6 +1767,8 @@
                     srcCanvas = loaded.canvas;
                     srcTexDirty = true;
                     plateAnim = false;
+                    videoLive = false;
+                    if (plateVideo) plateVideo.pause();
                     activeBase = null;
                     markActiveThumb(null);
 
@@ -1716,6 +1813,8 @@
                 srcCanvas = loaded.canvas;
                 srcTexDirty = true;
                 plateAnim = false;
+                videoLive = false;
+                if (plateVideo) plateVideo.pause();
                 activeBase = null;
                 markActiveThumb(null);
                 setSourceMeta(url, 'Shared source', 'Loaded with this generation');
@@ -1797,7 +1896,7 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         const INT_PARAMS = ['folds', 'octaves', 'rotation', 'imgAngle', 'bpm'];
-        const COLOUR_ONLY = ['shift', 'seam', 'mix'];
+        const COLOUR_ONLY = ['shift', 'seam', 'mix', 'breathDepth'];
         const MOTION_ONLY = ['flow', 'spin', 'trail', 'cellSize', 'bpm'];
         const IMG_PARAMS = ['imgZoom', 'imgPanX', 'imgPanY', 'imgAngle', 'imgWarp'];
 
@@ -2067,6 +2166,78 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════════
+        // BREATHING
+        //
+        // A slow oscillation you can breathe along with. The colour ramp runs
+        // forward on the inhale and back on the exhale rather than drifting one
+        // way, and the whole field swells and settles with it, so the motion has
+        // somewhere to rest instead of scrolling forever.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        // [inhale, hold, exhale, hold] in seconds.
+        const BREATH_PATTERNS = {
+            box:         [4, 4, 4, 4],      // equal — steadying
+            calm:        [4, 7, 8, 0],      // long exhale — settling
+            deep:        [6, 0, 7, 0],      // no holds — easiest to follow
+            progressive: [4, 2, 6, 1]       // lengthens as you go
+        };
+
+        let breathT = 0, breathValue = 0, breathStage = '';
+
+        function breathCycle() {
+            const pat = BREATH_PATTERNS[params.breath];
+            if (!pat) return null;
+            if (params.breath !== 'progressive') return pat;
+            // Stretch up to 1.8x over about five minutes, then hold there.
+            const k = 1 + Math.min(0.8, breathT / 320);
+            return [pat[0] * k, pat[1] * k, pat[2] * k, pat[3] * k];
+        }
+
+        function stepBreath(dt) {
+            const pat = breathCycle();
+            if (!pat) { breathValue = 0; breathStage = ''; return false; }
+
+            const total = pat[0] + pat[1] + pat[2] + pat[3];
+            breathT += dt;
+            let t = breathT % total;
+
+            const ease = function (u) { return u * u * (3 - 2 * u); };
+
+            if (t < pat[0]) {
+                breathValue = ease(t / pat[0]);
+                breathStage = 'Breathe in';
+            } else if (t < pat[0] + pat[1]) {
+                breathValue = 1;
+                breathStage = 'Hold';
+            } else if (t < pat[0] + pat[1] + pat[2]) {
+                breathValue = 1 - ease((t - pat[0] - pat[1]) / pat[2]);
+                breathStage = 'Breathe out';
+            } else {
+                breathValue = 0;
+                breathStage = pat[3] > 0.05 ? 'Hold' : 'Breathe in';
+            }
+            return true;
+        }
+
+        function setBreath(mode) {
+            params.breath = mode;
+            breathT = 0;
+            ['off', 'box', 'calm', 'deep', 'progressive'].forEach(function (m) {
+                const el = document.getElementById('breath-' + m);
+                if (el) el.className = (m === mode) ? 'active' : '';
+            });
+            const guide = document.getElementById('breath-guide');
+            if (guide) guide.className = mode === 'off' ? 'off' : '';
+            if (mode === 'off') {
+                breathValue = 0;
+                if (!needsLoop()) noLoop(); else loop();
+                redraw();
+            } else {
+                loop();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
         // PER-SECTION LOCK + AUTO
         //
         // Each section can be pinned (Randomize leaves it alone) or set drifting
@@ -2099,12 +2270,13 @@
             colour:   { palette: true, every: [6, 14], ease: [4, 10] }
         };
 
-        function beatMs() { return 60000 / Math.max(8, params.bpm || 30); }
+        // 1 BPM is a one-minute beat, so a Parameters morph can run six minutes.
+        function beatMs() { return 60000 / Math.max(1, params.bpm || 30); }
         function beats(range) {
             return range[0] + Math.random() * (range[1] - range[0]);
         }
 
-        let beatClock = 0, beatLast = 0;
+        let beatClock = 0, beatLast = 0, breathLast = 0;
         function advanceBeatClock(now) {
             if (!beatLast) { beatLast = now; return; }
             const dt = Math.min(250, now - beatLast);   // ignore tab-away gaps
