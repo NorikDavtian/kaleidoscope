@@ -772,15 +772,18 @@
         #intro-orb {
             position: absolute;
             inset: 0;
+            z-index: 1;
             width: 100%;
             height: 100%;
             border-radius: 50%;
             pointer-events: none;
         }
 
-        /* A well in the middle of the field. The points stay legible around the
-           rim while the words sit on something calm. */
+        /* The well sits behind the particles, not over them: painted on top it
+           swallowed the middle of the sphere and left only a rim. Stacking is
+           explicit because both are positioned — well 0, points 1, words 2. */
         .intro-card::after {
+            z-index: 0;
             content: '';
             position: absolute;
             inset: 0;
@@ -3919,7 +3922,12 @@
         // breath change per frame, so drawing is a rotate, a project and a write.
         // ═══════════════════════════════════════════════════════════════════════
 
-        const ORB_POINTS = 12000;
+        const ORB_POINTS = 14000;
+
+        // Light from the upper left but mostly frontal, and with a high ambient
+        // floor. Pushed further off-axis it looks correct and reads wrong: half
+        // the shell drops into shadow and the orb seems to only half exist.
+        const LX = -0.34, LY = -0.36, LZ = 0.87;
 
         // Value noise in three dimensions. The previous version sampled the 2D
         // field on projections of the sphere, which is not isotropic — it gave
@@ -3969,17 +3977,23 @@
 
                 // Sampled in three dimensions on the direction itself, so the
                 // structure is the same whichever way the shell is turned.
-                const coarse = fbm3(x * 2.1, y * 2.1, z * 2.1, 3);
-                const fine   = fbm3(x * 6.4, y * 6.4, z * 6.4, 2);
-                const d = coarse + fine * 0.35;
+                // Frequency matters more than it looks. The direction only spans
+                // [-1,1], so sampling at 2.1 put the whole sphere inside about
+                // four cells of the noise lattice — one lobe then swallowed an
+                // entire side and the silhouette came out a dome rather than a
+                // circle. These are high enough that the structure is filaments
+                // across the surface, not one blob shaping the outline.
+                const coarse = fbm3(x * 9, y * 9, z * 9, 3);
+                const fine   = fbm3(x * 22, y * 22, z * 22, 2);
+                const d = coarse + fine * 0.4;
 
-                if (d < -0.06) continue;                    // a void
-                const b = Math.min(1, (d + 0.06) * 1.9);
+                if (d < -0.20) continue;                    // a void
+                const b = Math.min(1, (d + 0.20) * 1.7);
                 if (b < 0.02) continue;
 
-                // A thin shell. Letting the radius wander as far as it did
-                // filled the volume, which is why it stopped reading as hollow.
-                const rad = 0.95 + fine * 0.05 + (rnd() - 0.5) * 0.02;
+                // A shell with a little thickness. Razor-thin only ever reads as
+                // a rim under an orthographic projection.
+                const rad = 0.90 + fine * 0.07 + (rnd() - 0.5) * 0.05;
                 pts[n * 4]     = x * rad;
                 pts[n * 4 + 1] = y * rad;
                 pts[n * 4 + 2] = z * rad;
@@ -4043,8 +4057,20 @@
                 // what makes a flat scatter of points look like a sphere.
                 // Depth cue: the far side reads dimmer, which is what makes a
                 // flat scatter of points look like a sphere.
-                const depth = 0.30 + 0.70 * ((z2 + 1) * 0.5);
-                let v = orbPts[o + 3] * depth * gain * 330;
+                // Orthographically, a shell bunches at the limb and thins in the
+                // middle, which reads as a ring however dense it is. What makes
+                // it a ball is light from somewhere other than the camera — a
+                // headlight along z flattens it straight back out — plus dimming
+                // the far hemisphere the way a solid surface would occlude it.
+                const inv = 1 / (Math.sqrt(x1 * x1 + y1 * y1 + z2 * z2) || 1);
+                const nx = x1 * inv, ny = y1 * inv, nz = z2 * inv;
+
+                let lam = nx * LX + ny * LY + nz * LZ;
+                if (lam < 0) lam = 0;
+                const shade = 0.46 + 0.54 * lam;            // a gradient, not a terminator
+                const facing = nz > 0 ? 1 : 0.34;           // far side, partly occluded
+
+                let v = orbPts[o + 3] * shade * facing * gain * 430;
                 if (v <= 0) continue;
                 if (v > 205) v = 205;    // never let a single point reach white
 
@@ -4075,7 +4101,7 @@
 
         // The welcome runs the same shell, dimmer and slower, as a backdrop.
         function drawIntroOrb() {
-            renderOrb(document.getElementById('intro-orb'), introOrb, 0.20, 0.0009, -0.26);
+            renderOrb(document.getElementById('intro-orb'), introOrb, 0.30, 0.0009, -0.26);
         }
 
         function syncBreathGuide() {

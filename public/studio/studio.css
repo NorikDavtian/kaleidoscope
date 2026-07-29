@@ -754,15 +754,18 @@
         #intro-orb {
             position: absolute;
             inset: 0;
+            z-index: 1;
             width: 100%;
             height: 100%;
             border-radius: 50%;
             pointer-events: none;
         }
 
-        /* A well in the middle of the field. The points stay legible around the
-           rim while the words sit on something calm. */
+        /* The well sits behind the particles, not over them: painted on top it
+           swallowed the middle of the sphere and left only a rim. Stacking is
+           explicit because both are positioned — well 0, points 1, words 2. */
         .intro-card::after {
+            z-index: 0;
             content: '';
             position: absolute;
             inset: 0;
