@@ -176,8 +176,8 @@ it, since clearing and uploading the buffer dominates and grows with the square
 of the side.
 `Breath Depth` sets how far the swing carries. The guide sits in the middle of
 the canvas — a soft glow rather than an outline, so it sits *in* the artwork
-rather than on top of it — and both the orb and the stage label can be switched
-off independently from the Breathing panel. The label sits below the orb, at its
+rather than on top of it — and the orb and the stage label switch on and off
+independently — the orb is off by default, leaving just the count. The label sits below the orb, at its
 centre, or pinned near the bottom of the frame, at whatever size suits.
 Breathing runs independently of the Animate button.
 
@@ -190,11 +190,9 @@ timer. Click past the disc, or press Enter, Space or Esc — clicking the disc
 itself does nothing, since it carries a link and a share button. `I` brings it
 back.
 
-The scope opens already in motion, on **Calm** breathing (4·7·8) with Animate
-running. Breathing leads: it rocks the colour forward and back rather than
-scrolling it one way, and holds spin to a trace. The two do not stack — while
-breathing is on it owns the flow — but having Animate on underneath means
-switching Breathing off leaves movement rather than a still frame.
+The scope opens already in motion, on Animate. Breathing is off by default; when
+switched on it takes over the flow, rocking the colour forward and back rather
+than scrolling it one way and holding spin to a trace. The two never stack.
 
 ## Dock and keys
 

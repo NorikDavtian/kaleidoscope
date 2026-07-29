@@ -27,9 +27,9 @@
             flow: 1,          // palette phase drift per frame
             spin: 0.3,        // rotation per frame
             bpm: 16,          // beat the automatic transitions are locked to
-            breath: 'calm',   // off | box | calm | deep | progressive
+            breath: 'off',    // off | box | calm | deep | progressive
             breathDepth: 0.6, // how far the breath swings the colour and scale
-            breathGuide: true,// show the ring to breathe along with
+            breathGuide: false,// show the orb to breathe along with
             breathLabel: true,// and the stage text under it
             breathLabelSize: 12,
             breathLabelPos: 'below',  // below | centre | bottom
@@ -2728,8 +2728,14 @@
             const intro = document.getElementById('intro');
             const introUp = intro && !intro.classList.contains('gone');
             // The welcome runs its own shell; two at once read as a ghost.
-            const on = params.breath !== 'off' && params.breathGuide && !introUp;
-            if (guide) guide.className = on ? '' : 'off';
+            const live = params.breath !== 'off' && !introUp;
+            // The container carries both the orb and the label, so it stays up
+            // while either is wanted — the ring's toggle used to take the label
+            // down with it.
+            if (guide) guide.className = (live && (params.breathGuide || params.breathLabel)) ? '' : 'off';
+
+            const orbEl = document.getElementById('breath-ring');
+            if (orbEl) orbEl.style.display = params.breathGuide ? '' : 'none';
 
             const btn = document.getElementById('breath-guide-toggle');
             if (btn) btn.className = params.breathGuide ? 'sec-btn on' : 'sec-btn';
@@ -3398,10 +3404,8 @@
 
             buildOrbPoints();
 
-            // Open in motion. Breathing leads, since it rocks the colour rather
-            // than scrolling it and holds spin to a trace. Animate runs too, so
-            // switching Breathing off leaves movement rather than a still frame
-            // — while breathing is on it owns the flow and the two do not stack.
+            // Open in motion on Animate alone. Breathing is off by default and
+            // takes over the flow when switched on, so the two never stack.
             setBreath(params.breath);
             if (!animating) toggleAnimate();
         });
