@@ -22,6 +22,19 @@
             color: var(--text);
         }
 
+        /* Animated sources live in the document so their frames advance, but
+           must never be seen or interactive. */
+        img.anim-src {
+            position: fixed;
+            left: -4px;
+            top: -4px;
+            width: 2px;
+            height: 2px;
+            opacity: 0.01;
+            pointer-events: none;
+            z-index: -1;
+        }
+
         /* ── Full-bleed canvas ─────────────────────────────────────────────── */
         #canvas-wrap { position: fixed; inset: 0; z-index: 0; }
         #canvas-wrap canvas { display: block; width: 100% !important; height: 100% !important; }
@@ -30,13 +43,16 @@
            One section at a time, floating above the dock. Flat throughout: no
            borders, no shadows — separation comes from background steps and
            space, which is quieter over moving artwork. */
+        /* Down the left rather than across the middle: the artwork's centre is
+           the whole point, and a sheet parked over it hides the thing being
+           adjusted. */
         #sheet {
             position: fixed;
-            left: 50%;
-            bottom: 96px;
-            transform: translateX(-50%);
-            width: min(360px, calc(100vw - 32px));
-            max-height: min(62vh, 560px);
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: min(330px, calc(100vw - 32px));
+            max-height: min(82vh, 720px);
             z-index: 12;
             background: var(--panel);
             backdrop-filter: blur(22px) saturate(140%);
@@ -57,7 +73,7 @@
         #sheet.hidden {
             opacity: 0;
             pointer-events: none;
-            transform: translateX(-50%) translateY(10px);
+            transform: translateY(-50%) translateX(-12px);
         }
 
         /* Centred on the header row, so it lines up with the section's own
@@ -247,8 +263,29 @@
             height: 3px;
             background: var(--surface-2);
             border-radius: 2px;
-            outline: none;
             -webkit-appearance: none;
+            appearance: none;
+        }
+
+        /* Keyboard focus has to be visible — the thumb alone gave no indication
+           of which control was active when tabbing. */
+        .slider-container input[type="range"]:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 6px;
+            border-radius: 4px;
+        }
+
+        .slider-container input[type="range"]:focus-visible::-webkit-slider-thumb {
+            transform: scale(1.35);
+            box-shadow: 0 0 0 4px var(--accent-bg);
+        }
+
+        .sec-btn:focus-visible, .shape:focus-visible, .tool:focus-visible,
+        .breath-row button:focus-visible, .thumb:focus-visible,
+        .dock-btn:focus-visible, .button:focus-visible, .sheet-close:focus-visible,
+        .pal-tile:focus-visible, .seed-step:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
         }
 
         .slider-container input[type="range"]::-webkit-slider-thumb {
@@ -275,7 +312,7 @@
         .value-display {
             font-family: 'Courier New', monospace;
             font-size: 11px;
-            color: var(--faint);
+            color: var(--dim);
             min-width: 46px;
             text-align: right;
         }
@@ -443,7 +480,22 @@
             text-align: center;
         }
 
-        .thumb-seed .seed-num i { font-style: normal; color: var(--text); }
+        .thumb-seed .seed-num input {
+            width: 52px;
+            border: none;
+            background: none;
+            padding: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+            color: var(--text);
+            text-align: left;
+            cursor: text;
+        }
+
+        .thumb-seed .seed-num input:focus {
+            outline: none;
+            color: var(--accent);
+        }
 
         .thumb-seed .seed-step {
             width: 19px;
@@ -917,7 +969,7 @@
         .intro-share:hover { background: var(--surface-2); color: var(--text); }
 
         @media (max-width: 640px) {
-            #sheet { bottom: 88px; max-height: 58vh; }
+            #sheet { left: 12px; right: 12px; width: auto; max-height: 66vh; }
             .dock-btn { width: 38px; height: 38px; }
             .dock-tip { display: none; }
             .intro-card { width: min(86vmin, 350px); height: min(86vmin, 350px); }

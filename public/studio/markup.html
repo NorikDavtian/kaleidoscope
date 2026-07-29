@@ -79,7 +79,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label>Zoom</label>
+                    <label for="imgZoom">Zoom</label>
                     <div class="slider-container">
                         <input type="range" id="imgZoom" min="0.05" max="3" step="0.01" value="1.04" oninput="updateParam('imgZoom', this.value)">
                         <span class="value-display" id="imgZoom-value">1.04</span>
@@ -87,7 +87,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label>Pan X</label>
+                    <label for="imgPanX">Pan X</label>
                     <div class="slider-container">
                         <input type="range" id="imgPanX" min="0" max="1" step="0.01" value="0.51" oninput="updateParam('imgPanX', this.value)">
                         <span class="value-display" id="imgPanX-value">0.51</span>
@@ -95,7 +95,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label>Pan Y</label>
+                    <label for="imgPanY">Pan Y</label>
                     <div class="slider-container">
                         <input type="range" id="imgPanY" min="0" max="1" step="0.01" value="0.69" oninput="updateParam('imgPanY', this.value)">
                         <span class="value-display" id="imgPanY-value">0.69</span>
@@ -103,7 +103,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label>Source Angle</label>
+                    <label for="imgAngle">Source Angle</label>
                     <div class="slider-container">
                         <input type="range" id="imgAngle" min="0" max="359" step="1" value="223" oninput="updateParam('imgAngle', this.value)">
                         <span class="value-display" id="imgAngle-value">223</span>
@@ -111,7 +111,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label>Image Warp</label>
+                    <label for="imgWarp">Image Warp</label>
                     <div class="slider-container">
                         <input type="range" id="imgWarp" min="0" max="1.5" step="0.01" value="0.04" oninput="updateParam('imgWarp', this.value)">
                         <span class="value-display" id="imgWarp-value">0.04</span>
@@ -119,7 +119,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label>Field Mix</label>
+                    <label for="mix">Field Mix</label>
                     <div class="slider-container">
                         <input type="range" id="mix" min="0" max="1" step="0.01" value="0.18" oninput="updateParam('mix', this.value)">
                         <span class="value-display" id="mix-value">0.18</span>
@@ -157,14 +157,14 @@
 
             <div id="edge-controls" class="off">
                 <div class="control-group">
-                    <label>Edge Size</label>
+                    <label for="edgeSize">Edge Size</label>
                     <div class="slider-container">
                         <input type="range" id="edgeSize" min="0.4" max="1.3" step="0.01" value="0.86" oninput="updateParam('edgeSize', this.value)">
                         <span class="value-display" id="edgeSize-value">0.86</span>
                     </div>
                 </div>
                 <div class="control-group">
-                    <label>Edge Softness</label>
+                    <label for="edgeSoft">Edge Softness</label>
                     <div class="slider-container">
                         <input type="range" id="edgeSoft" min="1" max="160" step="1" value="46" oninput="updateParam('edgeSoft', this.value)">
                         <span class="value-display" id="edgeSoft-value">46</span>
@@ -175,7 +175,7 @@
 
             <div id="tess-controls" class="off">
                 <div class="control-group">
-                    <label>Cell Size</label>
+                    <label for="cellSize">Cell Size</label>
                     <div class="slider-container">
                         <input type="range" id="cellSize" min="110" max="520" step="1" value="219" oninput="updateParam('cellSize', this.value)">
                         <span class="value-display" id="cellSize-value">219</span>
@@ -183,7 +183,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label>Cell Drift</label>
+                    <label for="cellSpin">Cell Drift</label>
                     <div class="slider-container">
                         <input type="range" id="cellSpin" min="0" max="0.5" step="0.01" value="0.08" oninput="updateParam('cellSpin', this.value)">
                         <span class="value-display" id="cellSpin-value">0.08</span>
@@ -243,7 +243,7 @@
             <h3>Motion<span class="sec-tools"><button class="sec-btn" id="sec-motion-lock" title="Lock motion — Randomize leaves it alone" onclick="toggleSection('motion','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize motion only" onclick="randomSection('motion')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-motion-auto" title="Let motion drift on its own" onclick="toggleSection('motion','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
 
             <div class="control-group">
-                <label>Colour Flow</label>
+                <label for="flow">Colour Flow</label>
                 <div class="slider-container">
                     <input type="range" id="flow" min="-4" max="4" step="0.1" value="1" oninput="updateParam('flow', this.value)">
                     <span class="value-display" id="flow-value">1</span>
@@ -251,7 +251,7 @@
             </div>
 
             <div class="control-group">
-                <label>Spin</label>
+                <label for="spin">Spin</label>
                 <div class="slider-container">
                     <input type="range" id="spin" min="-3" max="3" step="0.05" value="0.3" oninput="updateParam('spin', this.value)">
                     <span class="value-display" id="spin-value">0.3</span>
@@ -259,7 +259,7 @@
             </div>
 
             <div class="control-group">
-                <label>Transition BPM</label>
+                <label for="bpm">Transition BPM</label>
                 <div class="slider-container">
                     <input type="range" id="bpm" min="1" max="160" step="1" value="16" oninput="updateParam('bpm', this.value)">
                     <span class="value-display" id="bpm-value">16</span>
@@ -267,7 +267,7 @@
             </div>
 
             <div class="control-group">
-                <label>Trail</label>
+                <label for="trail">Trail</label>
                 <div class="slider-container">
                     <input type="range" id="trail" min="0" max="0.92" step="0.02" value="0" oninput="updateParam('trail', this.value)">
                     <span class="value-display" id="trail-value">0</span>
@@ -303,7 +303,7 @@
             </div>
 
             <div class="control-group" id="backdrop-alpha-row">
-                <label>Backdrop Opacity</label>
+                <label for="orbBackdropAlpha">Backdrop Opacity</label>
                 <div class="slider-container">
                     <input type="range" id="orbBackdropAlpha" min="0" max="2" step="0.05" value="1" oninput="setBackdropAlpha(this.value)">
                     <span class="value-display" id="orbBackdropAlpha-value">1</span>
@@ -328,7 +328,7 @@
             </div>
 
             <div class="control-group" id="orb-size-row">
-                <label>Orb Size</label>
+                <label for="orbSize">Orb Size</label>
                 <div class="slider-container">
                     <input type="range" id="orbSize" min="120" max="620" step="10" value="300" oninput="setOrbSize(this.value)">
                     <span class="value-display" id="orbSize-value">300</span>
@@ -336,7 +336,7 @@
             </div>
 
             <div class="control-group" id="orb-strength-row">
-                <label>Orb Strength</label>
+                <label for="orbStrength">Orb Strength</label>
                 <div class="slider-container">
                     <input type="range" id="orbStrength" min="0" max="2" step="0.05" value="1" oninput="setOrbStrength(this.value)">
                     <span class="value-display" id="orbStrength-value">1</span>
@@ -358,7 +358,7 @@
             </div>
 
             <div class="control-group" id="label-size-row">
-                <label>Label Size</label>
+                <label for="breathLabelSize">Label Size</label>
                 <div class="slider-container">
                     <input type="range" id="breathLabelSize" min="9" max="34" step="1" value="12" oninput="setLabelSize(this.value)">
                     <span class="value-display" id="breathLabelSize-value">12</span>
@@ -366,7 +366,7 @@
             </div>
 
             <div class="control-group">
-                <label>Breath Depth</label>
+                <label for="breathDepth">Breath Depth</label>
                 <div class="slider-container">
                     <input type="range" id="breathDepth" min="0" max="1" step="0.01" value="0.6" oninput="updateParam('breathDepth', this.value)">
                     <span class="value-display" id="breathDepth-value">0.6</span>
@@ -379,7 +379,7 @@
             <h3>Parameters<span class="sec-tools"><button class="sec-btn" id="sec-params-lock" title="Lock parameters — Randomize leaves it alone" onclick="toggleSection('params','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize parameters only" onclick="randomSection('params')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-params-auto" title="Let parameters drift on its own" onclick="toggleSection('params','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
 
             <div class="control-group">
-                <label>Mirror Folds</label>
+                <label for="folds">Mirror Folds</label>
                 <div class="slider-container">
                     <input type="range" id="folds" min="3" max="24" step="1" value="5" oninput="updateParam('folds', this.value)">
                     <span class="value-display" id="folds-value">5</span>
@@ -387,7 +387,7 @@
             </div>
 
             <div class="control-group">
-                <label>Moiré Depth</label>
+                <label for="moire">Moiré Depth</label>
                 <div class="slider-container">
                     <input type="range" id="moire" min="0" max="2" step="0.01" value="0.01" oninput="updateParam('moire', this.value)">
                     <span class="value-display" id="moire-value">0.01</span>
@@ -395,7 +395,7 @@
             </div>
 
             <div class="control-group">
-                <label>Fringe Frequency</label>
+                <label for="mfreq">Fringe Frequency</label>
                 <div class="slider-container">
                     <input type="range" id="mfreq" min="1" max="48" step="0.1" value="3.3" oninput="updateParam('mfreq', this.value)">
                     <span class="value-display" id="mfreq-value">3.3</span>
@@ -403,7 +403,7 @@
             </div>
 
             <div class="control-group">
-                <label>Fringe Detune</label>
+                <label for="detune">Fringe Detune</label>
                 <div class="slider-container">
                     <input type="range" id="detune" min="0.4" max="2.6" step="0.01" value="1.48" oninput="updateParam('detune', this.value)">
                     <span class="value-display" id="detune-value">1.48</span>
@@ -411,7 +411,7 @@
             </div>
 
             <div class="control-group">
-                <label>Descent (radial depth)</label>
+                <label for="descent">Descent (radial depth)</label>
                 <div class="slider-container">
                     <input type="range" id="descent" min="0.4" max="9" step="0.1" value="2.9" oninput="updateParam('descent', this.value)">
                     <span class="value-display" id="descent-value">2.9</span>
@@ -419,7 +419,7 @@
             </div>
 
             <div class="control-group">
-                <label>Angular Detail</label>
+                <label for="angular">Angular Detail</label>
                 <div class="slider-container">
                     <input type="range" id="angular" min="0.2" max="5" step="0.1" value="2" oninput="updateParam('angular', this.value)">
                     <span class="value-display" id="angular-value">2</span>
@@ -427,7 +427,7 @@
             </div>
 
             <div class="control-group">
-                <label>Spiral Twist</label>
+                <label for="twist">Spiral Twist</label>
                 <div class="slider-container">
                     <input type="range" id="twist" min="-2.5" max="2.5" step="0.01" value="0.73" oninput="updateParam('twist', this.value)">
                     <span class="value-display" id="twist-value">0.73</span>
@@ -435,7 +435,7 @@
             </div>
 
             <div class="control-group">
-                <label>Domain Warp</label>
+                <label for="warp">Domain Warp</label>
                 <div class="slider-container">
                     <input type="range" id="warp" min="0" max="8" step="0.1" value="2.3" oninput="updateParam('warp', this.value)">
                     <span class="value-display" id="warp-value">2.3</span>
@@ -443,7 +443,7 @@
             </div>
 
             <div class="control-group">
-                <label>Fractal Octaves</label>
+                <label for="octaves">Fractal Octaves</label>
                 <div class="slider-container">
                     <input type="range" id="octaves" min="1" max="5" step="1" value="3" oninput="updateParam('octaves', this.value)">
                     <span class="value-display" id="octaves-value">3</span>
@@ -451,7 +451,7 @@
             </div>
 
             <div class="control-group">
-                <label>Colour Bands</label>
+                <label for="bands">Colour Bands</label>
                 <div class="slider-container">
                     <input type="range" id="bands" min="0.5" max="8" step="0.1" value="0.7" oninput="updateParam('bands', this.value)">
                     <span class="value-display" id="bands-value">0.7</span>
@@ -459,7 +459,7 @@
             </div>
 
             <div class="control-group">
-                <label>Ring Cadence</label>
+                <label for="rings">Ring Cadence</label>
                 <div class="slider-container">
                     <input type="range" id="rings" min="0" max="6" step="0.1" value="0.9" oninput="updateParam('rings', this.value)">
                     <span class="value-display" id="rings-value">0.9</span>
@@ -467,7 +467,7 @@
             </div>
 
             <div class="control-group">
-                <label>Palette Shift</label>
+                <label for="shift">Palette Shift</label>
                 <div class="slider-container">
                     <input type="range" id="shift" min="0" max="1" step="0.01" value="0.26" oninput="updateParam('shift', this.value)">
                     <span class="value-display" id="shift-value">0.26</span>
@@ -475,7 +475,7 @@
             </div>
 
             <div class="control-group">
-                <label>Seam Glow</label>
+                <label for="seam">Seam Glow</label>
                 <div class="slider-container">
                     <input type="range" id="seam" min="0" max="1" step="0.01" value="0.09" oninput="updateParam('seam', this.value)">
                     <span class="value-display" id="seam-value">0.09</span>
@@ -483,7 +483,7 @@
             </div>
 
             <div class="control-group">
-                <label>Contrast</label>
+                <label for="contrast">Contrast</label>
                 <div class="slider-container">
                     <input type="range" id="contrast" min="0.4" max="2.5" step="0.05" value="0.9" oninput="updateParam('contrast', this.value)">
                     <span class="value-display" id="contrast-value">0.9</span>
@@ -491,7 +491,7 @@
             </div>
 
             <div class="control-group">
-                <label>Base Rotation</label>
+                <label for="rotation">Base Rotation</label>
                 <div class="slider-container">
                     <input type="range" id="rotation" min="0" max="360" step="1" value="350" oninput="updateParam('rotation', this.value)">
                     <span class="value-display" id="rotation-value">350</span>

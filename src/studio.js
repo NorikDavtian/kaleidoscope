@@ -192,7 +192,7 @@
             { id: 'companions',name: 'Companions',src: 'plates/companions.jpg' },
             { id: 'drift',     name: 'Drift',     video: 'plates/drift.mp4',
               poster: 'plates/drift-poster.jpg' },
-            { id: 'prism',     name: 'Prism',     src: 'plates/prism.webp' },
+            { id: 'prism',     name: 'Prism',     src: 'plates/prism.webp', animated: true },
             { id: 'smiley',    name: 'Smiley' },
             { id: 'faces',     name: 'Faces' },
             { id: 'wink',      name: 'Wink', anim: true }
@@ -209,6 +209,7 @@
                 if (i >= PLATE_ROOTS.length) { if (fail) fail(); return; }
                 const url = PLATE_ROOTS[i++] + plate.src;
                 loadImage(url, function (img) {
+                    plate.resolvedURL = url;
                     plateBitmaps[plate.id] = img;
                     done(img);
                 }, attempt);
@@ -269,6 +270,56 @@
                 loop();
             };
 
+            attempt();
+        }
+
+        let animImg = null, animCv = null, animCtx = null, animLive = false;
+
+        // An animated GIF or WebP keeps playing inside an <img>; p5's loadImage
+        // decodes a single frame and stops. So these are held as an element and
+        // drawn to a canvas per frame, the same way the video plate works.
+        function useAnimatedPlate(meta, name) {
+            document.querySelectorAll('img.anim-src').forEach(function (n) { n.remove(); });
+            let i = 0;
+            const attempt = function () {
+                if (i >= PLATE_ROOTS.length) {
+                    console.warn('Animated plate missing: ' + meta.src);
+                    return;
+                }
+                const url = PLATE_ROOTS[i++] + meta.src;
+                const im = new Image();
+                im.crossOrigin = 'anonymous';
+                // It has to be in the document to advance its frames — a
+                // detached <img> decodes once and never animates. Kept at a
+                // pixel and invisible rather than display:none, which stops it
+                // just the same.
+                im.className = 'anim-src';
+                document.body.appendChild(im);
+                im.onerror = attempt;
+                im.onload = function () {
+                    meta.resolvedURL = url;
+                    animImg = im;
+                    if (!animCv) { animCv = document.createElement('canvas'); animCtx = animCv.getContext('2d'); }
+                    animCv.width = im.naturalWidth; animCv.height = im.naturalHeight;
+                    animCtx.drawImage(im, 0, 0);
+
+                    if (srcHolder) { srcHolder.remove(); srcHolder = null; }
+                    srcPixels = null;              // the CPU path cannot follow it
+                    srcW = im.naturalWidth; srcH = im.naturalHeight;
+                    srcCanvas = animCv;
+                    srcTexDirty = true;
+                    animLive = true;
+                    videoLive = false;
+                    plateAnim = true;
+                    activeBase = meta.id;
+                    markActiveThumb(meta.id);
+                    setDropLabel('Upload');
+                    setSourceMeta(url, name, srcW + ' × ' + srcH + ' · built-in animation');
+                    setSource('image');
+                    loop();
+                };
+                im.src = url;
+            };
             attempt();
         }
 
@@ -443,7 +494,8 @@
                   '<span class="seed-step" data-step="-1">\u2212</span>' +
                   '<span class="seed-step" data-step="1">+</span>' +
                 '</span>' +
-                '<span class="seed-num">Seed #<i id="seed-readout">' + params.seed + '</i></span>';
+                '<span class="seed-num">Seed #<input id="seed-input" type="text" ' +
+                  'inputmode="numeric" value="' + params.seed + '" aria-label="Seed number"></span>';
             none.onclick = function (ev) {
                 const step = ev.target.closest('.seed-step');
                 if (step) {
@@ -451,8 +503,17 @@
                     if (step.dataset.step === '1') nextSeed(); else previousSeed();
                     return;
                 }
+                // Typing into the seed should not also swap the source.
+                if (ev.target.id === 'seed-input') { ev.stopPropagation(); return; }
                 setSource('generated');
             };
+
+            const seedIn = none.querySelector('#seed-input');
+            seedIn.addEventListener('change', updateSeed);
+            seedIn.addEventListener('keydown', function (ev) {
+                ev.stopPropagation();          // 1-8 open panels otherwise
+                if (ev.key === 'Enter') seedIn.blur();
+            });
             grid.appendChild(none);
 
             const up = document.createElement('button');
@@ -519,7 +580,7 @@
             if (up) up.classList.toggle('active', id === 'upload');
         }
 
-        function adoptPlateSurface(surface, id, name, note) {
+        function adoptPlateSurface(surface, id, name, note, previewURL) {
             srcPixels = surface.pixels;
             srcW = surface.width;
             srcH = surface.height;
@@ -528,7 +589,7 @@
             activeBase = id;
             markActiveThumb(id);
             setDropLabel('Upload');
-            setSourceMeta(thumbURL(surface.canvas), name, note);
+            setSourceMeta(previewURL || thumbURL(surface.canvas), name, note);
             setSource('image');
         }
 
@@ -536,10 +597,12 @@
             const meta = plateById(id);
 
             if (meta && meta.video) { useVideoPlate(meta, name); return; }
+            if (meta && meta.src && meta.animated) { useAnimatedPlate(meta, name); return; }
 
             if (meta && meta.src) {
                 plateAnim = false;
                 videoLive = false;
+                animLive = false;
                 if (plateVideo) plateVideo.pause();
                 loadPlateBitmap(meta, function (img) {
                     if (srcHolder) srcHolder.remove();
@@ -553,7 +616,8 @@
                         console.warn('Cannot read pixels from ' + meta.src + ' — serve the page over http.');
                         return;
                     }
-                    adoptPlateSurface(srcHolder, id, name, img.width + ' × ' + img.height + ' · built-in image');
+                    adoptPlateSurface(srcHolder, id, name,
+                        img.width + ' × ' + img.height + ' · built-in image', meta.resolvedURL);
                 }, function () {
                     console.warn('Plate image missing: ' + meta.src);
                 });
@@ -562,6 +626,7 @@
 
             plateAnim = !!(meta && meta.anim);
             videoLive = false;
+            animLive = false;
             if (plateVideo) plateVideo.pause();
             if (srcHolder) srcHolder.remove();
             // Animated plates stay square and small: the surface is repainted
@@ -1558,7 +1623,11 @@
             if (anySectionAuto()) stepSections(nowMs);
 
             if (plateAnim && params.source === 'image') {
-                if (videoLive && plateVideo && plateVideo.readyState >= 2) {
+                if (animLive && animImg) {
+                    animCtx.drawImage(animImg, 0, 0, animCv.width, animCv.height);
+                    srcTexDirty = true;
+                    fieldDirty = true;
+                } else if (videoLive && plateVideo && plateVideo.readyState >= 2) {
                     videoCtx.drawImage(plateVideo, 0, 0, videoCv.width, videoCv.height);
                     srcTexDirty = true;
                     fieldDirty = true;
@@ -1955,6 +2024,7 @@
                     srcTexDirty = true;
                     plateAnim = false;
                     videoLive = false;
+                    animLive = false;
                     if (plateVideo) plateVideo.pause();
                     activeBase = null;
                     markActiveThumb('upload');
@@ -2001,6 +2071,7 @@
                 srcTexDirty = true;
                 plateAnim = false;
                 videoLive = false;
+                animLive = false;
                 if (plateVideo) plateVideo.pause();
                 activeBase = null;
                 markActiveThumb(null);
@@ -3063,13 +3134,15 @@
             if (inp) inp.value = params.seed;
             const out = document.getElementById('seed-readout');
             if (out) out.textContent = params.seed;
+            const tile = document.getElementById('seed-input');
+            if (tile && document.activeElement !== tile) tile.value = params.seed;
             refreshShareUI();
         }
 
         function updateSeed() {
             const input = document.getElementById('seed-input');
             if (!input) return;
-            const newSeed = parseInt(input.value);
+            const newSeed = parseInt(input.value, 10);
             if (newSeed && newSeed > 0) {
                 params.seed = newSeed;
                 scheduleRender();

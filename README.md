@@ -122,6 +122,9 @@ Beyond the nine painted plates, `BASE_PLATES` entries can carry:
   whether served by the app or opened off disk.
 - `video` — an MP4, drawn to a canvas and re-uploaded to the GPU each frame.
   Give it a `poster` for the thumbnail.
+- `animated: true` alongside `src` — an animated GIF or WebP. Held as an <img>
+  in the document, since a detached one decodes a single frame and never
+  advances, and drawn to a canvas per frame like the video.
 - `anim: true` — repainted procedurally each frame (see the Wink plate).
 
 Any entry whose file is missing removes itself from the grid.
@@ -202,6 +205,9 @@ from the dock or straight from the keyboard.
 | Key | |
 | --- | --- |
 | `1`–`7` | Source · Symmetry · Colour · Motion · Breathing · Parameters · Export |
+
+The panel opens down the left rather than across the middle — the centre of the
+artwork is the thing being adjusted, so a sheet parked over it hides the work.
 | `R` | Randomize |
 | `A` | Animate |
 | `F` | Fullscreen |
