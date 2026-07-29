@@ -27,7 +27,7 @@
             flow: 1,          // palette phase drift per frame
             spin: 0.3,        // rotation per frame
             bpm: 16,          // beat the automatic transitions are locked to
-            breath: 'off',    // off | box | calm | deep | progressive
+            breath: 'calm',   // off | box | calm | deep | progressive
             breathDepth: 0.6, // how far the breath swings the colour and scale
             imgZoom: 1.04,    // how much of the source image one wedge covers
             imgPanX: 0.51,     // centre of the sampled patch, in source uv
@@ -3002,7 +3002,8 @@
                 startIntroCountdown();
             }
 
-            // Open in motion. Tempo is low by default, so this is a drift rather
-            // than a performance — but a still image reads as a broken one.
-            if (!animating) toggleAnimate();
+            // Open in motion. Breathing is the gentler of the two — it rocks the
+            // colour rather than scrolling it, and keeps spin to a trace — so it
+            // is the default rather than a plain animate.
+            setBreath(params.breath);
         });

@@ -28,7 +28,7 @@
         </div>
     </div>
 
-    <div id="breath-guide" class="off">
+    <div id="breath-guide">
         <div id="breath-ring"></div>
         <div id="breath-stage"></div>
     </div>
@@ -254,9 +254,9 @@
         <div class="control-section" id="panel-breathing">
             <h3>Breathing</h3>
             <div class="breath-row">
-                <button id="breath-off" class="active" onclick="setBreath('off')">Off</button>
+                <button id="breath-off" onclick="setBreath('off')">Off</button>
                 <button id="breath-box" onclick="setBreath('box')">Box<em>4·4·4·4</em></button>
-                <button id="breath-calm" onclick="setBreath('calm')">Calm<em>4·7·8</em></button>
+                <button id="breath-calm" class="active" onclick="setBreath('calm')">Calm<em>4·7·8</em></button>
                 <button id="breath-deep" onclick="setBreath('deep')">Deep<em>6·7</em></button>
                 <button id="breath-progressive" onclick="setBreath('progressive')">Longer<em>lengthens</em></button>
             </div>
