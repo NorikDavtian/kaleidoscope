@@ -334,7 +334,7 @@
             line-height: 1.5;
         }
 
-        .drop-zone:hover, .drop-zone.over {
+        .drop-zone:hover {
             border-color: var(--anthropic-orange);
             color: var(--anthropic-dark);
             background: rgba(217, 119, 87, 0.05);
@@ -525,6 +525,39 @@
         }
 
         .intro-card .button { padding: 14px 16px; font-size: 15px; border-radius: 10px; }
+
+        /* ── Full-screen drop target ───────────────────────────────────────── */
+        #drop-veil {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(20, 20, 19, 0.62);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            opacity: 0;
+            pointer-events: none;      /* never intercept the drop itself */
+            transition: opacity 0.16s ease;
+        }
+
+        #drop-veil.on { opacity: 1; }
+
+        .drop-veil-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            padding: 40px 56px;
+            border: 2px dashed rgba(250, 249, 245, 0.55);
+            border-radius: 18px;
+            color: #faf9f5;
+            font-size: 17px;
+            font-weight: 500;
+        }
+
+        .drop-veil-card svg { width: 42px; height: 42px; opacity: 0.85; }
 
         /* ── Icon action row ───────────────────────────────────────────────── */
         .tool-row {

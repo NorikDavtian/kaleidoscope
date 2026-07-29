@@ -5,17 +5,11 @@ const ALLOWED = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/av
 const MAX_BYTES = 20 * 1024 * 1024
 
 /**
- * Hands back a presigned PUT so the browser uploads straight to storage.
- * Nothing is stored until the client actually uploads.
+ * Hands back a URL the browser uploads straight to — presigned S3 when it is
+ * configured, a local endpoint otherwise. Either way the bitmap never passes
+ * through this handler.
  */
 export async function POST(req: Request) {
-  if (!isConfigured()) {
-    return NextResponse.json(
-      { error: 'Storage is not configured. See .env.example.' },
-      { status: 503 }
-    )
-  }
-
   const { contentType, size } = await req.json().catch(() => ({}) as any)
 
   if (!ALLOWED.includes(contentType)) {
@@ -27,6 +21,15 @@ export async function POST(req: Request) {
 
   const ext = contentType.split('/')[1].replace('jpeg', 'jpg')
   const key = `sources/${crypto.randomUUID()}.${ext}`
+
+  if (!isConfigured()) {
+    return NextResponse.json({
+      key,
+      uploadUrl: `/api/upload/local?key=${encodeURIComponent(key)}`,
+      publicUrl: `/api/blob/${key}`,
+      local: true,
+    })
+  }
 
   return NextResponse.json({
     key,

@@ -160,7 +160,15 @@
         // every time, at any resolution.
         // ═══════════════════════════════════════════════════════════════════════
 
+        // Entries with `src` are photographs rather than code. They are resolved
+        // against a few candidate paths so the same file works whether this is
+        // served by the app or opened straight off disk, and any that fail to
+        // load simply drop out of the grid.
         const BASE_PLATES = [
+            { id: 'spaceship', name: 'Spaceship', src: 'plates/spaceship.jpg' },
+            { id: 'masks',     name: 'Masks',     src: 'plates/masks.jpg' },
+            { id: 'corsairs',  name: 'Corsairs',  src: 'plates/corsairs.jpg' },
+            { id: 'companions',name: 'Companions',src: 'plates/companions.jpg' },
             { id: 'stilllife', name: 'Still Life' },
             { id: 'meadow',    name: 'Meadow' },
             { id: 'linocut',   name: 'Linocut' },
@@ -171,6 +179,24 @@
             { id: 'faces',     name: 'Faces' },
             { id: 'wink',      name: 'Wink', anim: true }
         ];
+
+        const PLATE_ROOTS = ['/studio/', 'public/studio/', ''];
+        const plateBitmaps = {};        // id -> p5.Image, once loaded
+
+        // Try each root in turn; the first that yields an image wins.
+        function loadPlateBitmap(plate, done, fail) {
+            if (plateBitmaps[plate.id]) { done(plateBitmaps[plate.id]); return; }
+            let i = 0;
+            const attempt = function () {
+                if (i >= PLATE_ROOTS.length) { if (fail) fail(); return; }
+                const url = PLATE_ROOTS[i++] + plate.src;
+                loadImage(url, function (img) {
+                    plateBitmaps[plate.id] = img;
+                    done(img);
+                }, attempt);
+            };
+            attempt();
+        }
 
         function plateById(id) {
             return BASE_PLATES.filter(function (b) { return b.id === id; })[0] || null;
@@ -471,20 +497,31 @@
         function buildThumbs() {
             const grid = document.getElementById('thumb-grid');
             BASE_PLATES.forEach(function (b) {
-                const pg = paintPlate(b.id, 168, 108);
                 const btn = document.createElement('button');
                 btn.className = 'thumb';
                 btn.id = 'thumb-' + b.id;
                 const im = document.createElement('img');
-                im.src = pg.canvas.toDataURL();
                 im.alt = b.name;
+
+                if (b.src) {
+                    // A missing photograph should not leave a broken tile behind.
+                    let root = 0;
+                    im.onerror = function () {
+                        if (root < PLATE_ROOTS.length - 1) { im.src = PLATE_ROOTS[++root] + b.src; }
+                        else { btn.remove(); b.missing = true; }
+                    };
+                    im.src = PLATE_ROOTS[0] + b.src;
+                } else {
+                    const pg = paintPlate(b.id, 168, 108);
+                    im.src = pg.canvas.toDataURL();
+                    pg.remove();
+                }
                 const cap = document.createElement('span');
                 cap.textContent = b.name;
                 btn.appendChild(im);
                 btn.appendChild(cap);
                 btn.onclick = function () { useBasePlate(b.id, b.name); };
                 grid.appendChild(btn);
-                pg.remove();
             });
         }
 
@@ -495,8 +532,43 @@
             });
         }
 
+        function adoptPlateSurface(surface, id, name, note) {
+            srcPixels = surface.pixels;
+            srcW = surface.width;
+            srcH = surface.height;
+            srcCanvas = surface.canvas;
+            srcTexDirty = true;
+            activeBase = id;
+            markActiveThumb(id);
+            document.getElementById('drop-label').textContent = 'Or use your own';
+            setSourceMeta(surface.canvas.toDataURL(), name, note);
+            setSource('image');
+        }
+
         function useBasePlate(id, name) {
             const meta = plateById(id);
+
+            if (meta && meta.src) {
+                plateAnim = false;
+                loadPlateBitmap(meta, function (img) {
+                    if (srcHolder) srcHolder.remove();
+                    srcHolder = createGraphics(img.width, img.height);
+                    srcHolder.pixelDensity(1);
+                    srcHolder.image(img, 0, 0, img.width, img.height);
+                    try {
+                        srcHolder.loadPixels();
+                    } catch (err) {
+                        // file:// taints the canvas, so pixels cannot be read back
+                        console.warn('Cannot read pixels from ' + meta.src + ' — serve the page over http.');
+                        return;
+                    }
+                    adoptPlateSurface(srcHolder, id, name, img.width + ' × ' + img.height + ' · built-in image');
+                }, function () {
+                    console.warn('Plate image missing: ' + meta.src);
+                });
+                return;
+            }
+
             plateAnim = !!(meta && meta.anim);
             if (srcHolder) srcHolder.remove();
             // Animated plates stay square and small: the surface is repainted
@@ -1652,23 +1724,72 @@
             });
         }
 
-        // Drop anywhere on the page
-        window.addEventListener('dragover', function (e) {
+        // ── Drop anywhere on the page ──────────────────────────────────────
+        //
+        // dragenter/dragleave fire for every child element crossed, so the veil
+        // is driven by a depth counter rather than by the events alone —
+        // otherwise it flickers off the moment the pointer passes over the panel.
+        let dragDepth = 0;
+
+        function showVeil(on, msg) {
+            const v = document.getElementById('drop-veil');
+            if (!v) return;
+            if (msg) document.getElementById('drop-veil-msg').textContent = msg;
+            v.className = on ? 'on' : '';
+        }
+
+        function hasImage(dt) {
+            if (!dt) return false;
+            if (dt.items && dt.items.length) {
+                for (let i = 0; i < dt.items.length; i++) {
+                    const it = dt.items[i];
+                    if (it.kind === 'file' && (!it.type || it.type.indexOf('image') === 0)) return true;
+                }
+                return false;
+            }
+            // Safari exposes only `types` until the drop actually happens.
+            return !dt.types || Array.prototype.indexOf.call(dt.types, 'Files') >= 0;
+        }
+
+        window.addEventListener('dragenter', function (e) {
             e.preventDefault();
-            const dz = document.getElementById('drop-zone');
-            if (dz) dz.classList.add('over');
+            dragDepth++;
+            if (hasImage(e.dataTransfer)) showVeil(true, 'Drop to feed it in');
         });
-        window.addEventListener('dragleave', function () {
-            const dz = document.getElementById('drop-zone');
-            if (dz) dz.classList.remove('over');
+
+        window.addEventListener('dragover', function (e) {
+            e.preventDefault();                       // required, or the drop never fires
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
         });
+
+        window.addEventListener('dragleave', function (e) {
+            e.preventDefault();
+            dragDepth = Math.max(0, dragDepth - 1);
+            if (dragDepth === 0) showVeil(false);
+        });
+
         window.addEventListener('drop', function (e) {
             e.preventDefault();
-            const dz = document.getElementById('drop-zone');
-            if (dz) dz.classList.remove('over');
-            const f = e.dataTransfer.files && e.dataTransfer.files[0];
-            if (f && f.type.indexOf('image') === 0) onFilePicked(f);
+            dragDepth = 0;
+            showVeil(false);
+
+            const dt = e.dataTransfer;
+            const f = dt && dt.files && dt.files[0];
+            if (!f) return;
+            if (f.type.indexOf('image') !== 0) {
+                showVeil(true, 'That is not an image');
+                setTimeout(function () { showVeil(false); }, 1600);
+                return;
+            }
+            // Dropping is intent enough to get past the front door.
+            enterStudio();
+            onFilePicked(f);
         });
+
+        // A file dropped outside the window would otherwise navigate away from
+        // the sketch and lose whatever is on screen.
+        document.addEventListener('dragover', function (e) { e.preventDefault(); });
+        document.addEventListener('drop', function (e) { e.preventDefault(); });
 
         // ═══════════════════════════════════════════════════════════════════════
         // UI CONTROL HANDLERS
@@ -2054,7 +2175,8 @@
                 params.seed = Math.floor(Math.random() * 999999) + 1;
                 updateSeedDisplay();
             } else if (name === 'source') {
-                const b = BASE_PLATES[(Math.random() * BASE_PLATES.length) | 0];
+                const avail = BASE_PLATES.filter(function (x) { return !x.missing; });
+                const b = avail[(Math.random() * avail.length) | 0];
                 useBasePlate(b.id, b.name);
                 return;                       // useBasePlate already re-renders
             } else if (name === 'colour') {
@@ -2123,7 +2245,8 @@
                         touched = true;
                     } else if (name === 'source') {
                         if (params.source === 'image' && activeBase !== null) {
-                            const b = BASE_PLATES[(Math.random() * BASE_PLATES.length) | 0];
+                            const avail = BASE_PLATES.filter(function (x) { return !x.missing; });
+                            const b = avail[(Math.random() * avail.length) | 0];
                             useBasePlate(b.id, b.name);
                         }
                     } else if (name === 'colour') {
@@ -2329,7 +2452,8 @@
 
             // Swap plates only if we're on a built-in one.
             if (params.source === 'image' && activeBase !== null) {
-                const b = BASE_PLATES[ri(0, BASE_PLATES.length - 1)];
+                const avail = BASE_PLATES.filter(function (x) { return !x.missing; });
+                const b = avail[ri(0, avail.length - 1)];
                 useBasePlate(b.id, b.name);
                 return;
             }

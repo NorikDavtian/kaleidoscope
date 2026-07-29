@@ -42,6 +42,7 @@ export function presignGet(key: string) {
  * so callers fall back to a signed URL.
  */
 export function publicUrl(key: string) {
+  if (!isConfigured()) return `/api/blob/${key}`
   const base = process.env.S3_PUBLIC_BASE_URL
   return base ? `${base.replace(/\/$/, '')}/${key}` : null
 }
