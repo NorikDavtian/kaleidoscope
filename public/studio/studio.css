@@ -605,16 +605,39 @@
             height: var(--orb-size, 300px);
             will-change: transform;
             pointer-events: none;
-            /* A stage for the points. Without something to sit against they
-               vanish into a bright plate — this is a wide, shallow darkening,
-               not the painted ring it replaced. */
-            background: radial-gradient(circle closest-side,
-                rgba(4, 4, 9, 0.20) 0 34%,
-                rgba(4, 4, 9, 0.17) 58%,
-                rgba(4, 4, 9, 0.09) 78%,
-                rgba(4, 4, 9, 0.02) 91%,
-                transparent 99%);
             border-radius: 50%;
+        }
+
+        /* A stage for the points. Without something to sit against they vanish
+           into a bright plate — but a dark stage is wrong over dark artwork, so
+           the choice is exposed rather than assumed. */
+        #breath-ring.bg-none { background: none; }
+
+        /* Stops end at 82%, matching the shell's own radius. Run out to the
+           element's edge and the backdrop is visibly wider than the orb it is
+           meant to sit behind. */
+        #breath-ring.bg-dark {
+            background: radial-gradient(circle closest-side,
+                rgba(4, 4, 9, calc(0.30 * var(--bg-a, 1))) 0 28%,
+                rgba(4, 4, 9, calc(0.25 * var(--bg-a, 1))) 48%,
+                rgba(4, 4, 9, calc(0.13 * var(--bg-a, 1))) 64%,
+                rgba(4, 4, 9, calc(0.03 * var(--bg-a, 1))) 75%,
+                transparent 82%);
+        }
+
+        #breath-ring.bg-glass {
+            background: radial-gradient(circle closest-side,
+                rgba(255, 255, 255, calc(0.26 * var(--bg-a, 1))) 0 28%,
+                rgba(255, 255, 255, calc(0.20 * var(--bg-a, 1))) 48%,
+                rgba(255, 255, 255, calc(0.11 * var(--bg-a, 1))) 64%,
+                rgba(255, 255, 255, calc(0.03 * var(--bg-a, 1))) 75%,
+                transparent 82%);
+            backdrop-filter: blur(var(--bg-blur, 9px)) saturate(120%);
+            -webkit-backdrop-filter: blur(var(--bg-blur, 9px)) saturate(120%);
+            /* The frosting is a filter on the element's box, so it has to be
+               masked to the same radius or it frosts a full square behind. */
+            -webkit-mask-image: radial-gradient(circle closest-side, #000 0 74%, transparent 84%);
+            mask-image: radial-gradient(circle closest-side, #000 0 74%, transparent 84%);
         }
 
         /* Out of the flow, or its height would push the ring off centre. */

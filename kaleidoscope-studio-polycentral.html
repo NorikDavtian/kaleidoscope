@@ -623,16 +623,39 @@
             height: var(--orb-size, 300px);
             will-change: transform;
             pointer-events: none;
-            /* A stage for the points. Without something to sit against they
-               vanish into a bright plate — this is a wide, shallow darkening,
-               not the painted ring it replaced. */
-            background: radial-gradient(circle closest-side,
-                rgba(4, 4, 9, 0.20) 0 34%,
-                rgba(4, 4, 9, 0.17) 58%,
-                rgba(4, 4, 9, 0.09) 78%,
-                rgba(4, 4, 9, 0.02) 91%,
-                transparent 99%);
             border-radius: 50%;
+        }
+
+        /* A stage for the points. Without something to sit against they vanish
+           into a bright plate — but a dark stage is wrong over dark artwork, so
+           the choice is exposed rather than assumed. */
+        #breath-ring.bg-none { background: none; }
+
+        /* Stops end at 82%, matching the shell's own radius. Run out to the
+           element's edge and the backdrop is visibly wider than the orb it is
+           meant to sit behind. */
+        #breath-ring.bg-dark {
+            background: radial-gradient(circle closest-side,
+                rgba(4, 4, 9, calc(0.30 * var(--bg-a, 1))) 0 28%,
+                rgba(4, 4, 9, calc(0.25 * var(--bg-a, 1))) 48%,
+                rgba(4, 4, 9, calc(0.13 * var(--bg-a, 1))) 64%,
+                rgba(4, 4, 9, calc(0.03 * var(--bg-a, 1))) 75%,
+                transparent 82%);
+        }
+
+        #breath-ring.bg-glass {
+            background: radial-gradient(circle closest-side,
+                rgba(255, 255, 255, calc(0.26 * var(--bg-a, 1))) 0 28%,
+                rgba(255, 255, 255, calc(0.20 * var(--bg-a, 1))) 48%,
+                rgba(255, 255, 255, calc(0.11 * var(--bg-a, 1))) 64%,
+                rgba(255, 255, 255, calc(0.03 * var(--bg-a, 1))) 75%,
+                transparent 82%);
+            backdrop-filter: blur(var(--bg-blur, 9px)) saturate(120%);
+            -webkit-backdrop-filter: blur(var(--bg-blur, 9px)) saturate(120%);
+            /* The frosting is a filter on the element's box, so it has to be
+               masked to the same radius or it frosts a full square behind. */
+            -webkit-mask-image: radial-gradient(circle closest-side, #000 0 74%, transparent 84%);
+            mask-image: radial-gradient(circle closest-side, #000 0 74%, transparent 84%);
         }
 
         /* Out of the flow, or its height would push the ring off centre. */
@@ -1190,9 +1213,33 @@
                 </button>
             </div>
 
+            <label class="edge-label">Orb backdrop</label>
+            <div class="breath-row edge-row">
+                <button id="bg-none" onclick="setOrbBackdrop('none')">None</button>
+                <button id="bg-dark" class="active" onclick="setOrbBackdrop('dark')">Dark</button>
+                <button id="bg-glass" onclick="setOrbBackdrop('glass')">Glass</button>
+            </div>
+
+            <div class="control-group" id="backdrop-alpha-row">
+                <label>Backdrop Opacity</label>
+                <div class="slider-container">
+                    <input type="range" id="orbBackdropAlpha" min="0" max="2" step="0.05" value="1" oninput="setBackdropAlpha(this.value)">
+                    <span class="value-display" id="orbBackdropAlpha-value">1</span>
+                </div>
+            </div>
+
+            <div class="control-group off" id="backdrop-blur-row">
+                <label>Backdrop Blur</label>
+                <div class="slider-container">
+                    <input type="range" id="orbBackdropBlur" min="0" max="40" step="1" value="9" oninput="setBackdropBlur(this.value)">
+                    <span class="value-display" id="orbBackdropBlur-value">9</span>
+                </div>
+            </div>
+
             <label class="edge-label">Orb colour</label>
             <div class="breath-row edge-row">
                 <button id="tint-white" class="active" onclick="setOrbTint('white')">White</button>
+                <button id="tint-ink" onclick="setOrbTint('ink')">Ink</button>
                 <button id="tint-palette" onclick="setOrbTint('palette')">Palette</button>
                 <button id="tint-warm" onclick="setOrbTint('warm')">Warm</button>
                 <button id="tint-cool" onclick="setOrbTint('cool')">Cool</button>
@@ -1493,7 +1540,10 @@
             breathLabelPos: 'below',  // below | centre | bottom
             orbSize: 300,     // diameter of the breath orb, in px
             orbStrength: 1,   // how strongly it reads against the artwork
-            orbTint: 'white', // white | palette | warm | cool | depth
+            orbTint: 'white', // white | ink | palette | warm | cool | depth
+            orbBackdrop: 'dark',  // none | dark | glass
+            orbBackdropAlpha: 1,  // how strongly the backdrop reads
+            orbBackdropBlur: 9,   // px of frosting behind glass
             edgeMask: 'off',  // off | circle | petal | scallop | bloom
             edgeSize: 0.86,   // how far out the shape reaches
             edgeSoft: 46,     // px of blur on its boundary — never a clean cut
@@ -4090,6 +4140,8 @@
                 }
             } else if (mode === 'warm') {
                 for (let i = 0; i < 8; i++) TINTS.push([1, 0.74 + (i % 3) * 0.05, 0.46 + (i % 4) * 0.04]);
+            } else if (mode === 'ink') {
+                for (let i = 0; i < 8; i++) TINTS.push([0.14, 0.15, 0.20]);
             } else if (mode === 'cool') {
                 for (let i = 0; i < 8; i++) TINTS.push([0.54 + (i % 4) * 0.04, 0.80, 1]);
             } else if (tintOverride) {
@@ -4193,7 +4245,21 @@
             if (guide) guide.className = (live && (params.breathGuide || params.breathLabel)) ? '' : 'off';
 
             const orbEl = document.getElementById('breath-ring');
-            if (orbEl) orbEl.style.display = params.breathGuide ? '' : 'none';
+            if (orbEl) {
+                orbEl.style.display = params.breathGuide ? '' : 'none';
+                orbEl.className = 'bg-' + params.orbBackdrop;
+                orbEl.style.setProperty('--bg-a', params.orbBackdropAlpha);
+                orbEl.style.setProperty('--bg-blur', params.orbBackdropBlur + 'px');
+            }
+            const arow = document.getElementById('backdrop-alpha-row');
+            if (arow) arow.className = params.orbBackdrop === 'none' ? 'control-group off' : 'control-group';
+            // Blur only means anything behind glass.
+            const brow = document.getElementById('backdrop-blur-row');
+            if (brow) brow.className = params.orbBackdrop === 'glass' ? 'control-group' : 'control-group off';
+            ORB_BACKDROPS.forEach(function (k) {
+                const el2 = document.getElementById('bg-' + k);
+                if (el2) el2.className = (k === params.orbBackdrop) ? 'active' : '';
+            });
 
             const btn = document.getElementById('breath-guide-toggle');
             if (btn) btn.className = params.breathGuide ? 'sec-btn on' : 'sec-btn';
@@ -4228,7 +4294,33 @@
             syncBreathGuide();
         }
 
-        const ORB_TINTS = ['white', 'palette', 'warm', 'cool', 'depth'];
+        const ORB_TINTS = ['white', 'ink', 'palette', 'warm', 'cool', 'depth'];
+        const ORB_BACKDROPS = ['none', 'dark', 'glass'];
+
+        function setBackdropAlpha(v) {
+            params.orbBackdropAlpha = parseFloat(v);
+            setSlider('orbBackdropAlpha', params.orbBackdropAlpha);
+            syncBreathGuide();
+        }
+
+        function setBackdropBlur(v) {
+            params.orbBackdropBlur = parseFloat(v);
+            setSlider('orbBackdropBlur', params.orbBackdropBlur);
+            syncBreathGuide();
+        }
+
+        function setOrbBackdrop(mode) {
+            params.orbBackdrop = mode;
+            ORB_BACKDROPS.forEach(function (k) {
+                const el = document.getElementById('bg-' + k);
+                if (el) el.className = (k === mode) ? 'active' : '';
+            });
+            // White points on a light backdrop are invisible, so glass takes the
+            // particles dark with it unless a colour was chosen deliberately.
+            if (mode === 'glass' && params.orbTint === 'white') setOrbTint('ink');
+            if (mode !== 'glass' && params.orbTint === 'ink') setOrbTint('white');
+            syncBreathGuide();
+        }
 
         function setOrbTint(mode) {
             params.orbTint = mode;
@@ -4241,15 +4333,13 @@
 
         function setOrbSize(v) {
             params.orbSize = parseInt(v, 10);
-            const out = document.getElementById('orbSize-value');
-            if (out) out.textContent = v;
+            setSlider('orbSize', params.orbSize);
             syncBreathGuide();
         }
 
         function setOrbStrength(v) {
             params.orbStrength = parseFloat(v);
-            const out = document.getElementById('orbStrength-value');
-            if (out) out.textContent = v;
+            setSlider('orbStrength', params.orbStrength);
             syncBreathGuide();
         }
 
@@ -4260,8 +4350,7 @@
 
         function setLabelSize(v) {
             params.breathLabelSize = parseInt(v, 10);
-            const out = document.getElementById('breathLabelSize-value');
-            if (out) out.textContent = v;
+            setSlider('breathLabelSize', params.breathLabelSize);
             syncBreathGuide();
         }
 

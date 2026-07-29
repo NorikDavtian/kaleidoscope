@@ -301,9 +301,33 @@
                 </button>
             </div>
 
+            <label class="edge-label">Orb backdrop</label>
+            <div class="breath-row edge-row">
+                <button id="bg-none" onclick="setOrbBackdrop('none')">None</button>
+                <button id="bg-dark" class="active" onclick="setOrbBackdrop('dark')">Dark</button>
+                <button id="bg-glass" onclick="setOrbBackdrop('glass')">Glass</button>
+            </div>
+
+            <div class="control-group" id="backdrop-alpha-row">
+                <label>Backdrop Opacity</label>
+                <div class="slider-container">
+                    <input type="range" id="orbBackdropAlpha" min="0" max="2" step="0.05" value="1" oninput="setBackdropAlpha(this.value)">
+                    <span class="value-display" id="orbBackdropAlpha-value">1</span>
+                </div>
+            </div>
+
+            <div class="control-group off" id="backdrop-blur-row">
+                <label>Backdrop Blur</label>
+                <div class="slider-container">
+                    <input type="range" id="orbBackdropBlur" min="0" max="40" step="1" value="9" oninput="setBackdropBlur(this.value)">
+                    <span class="value-display" id="orbBackdropBlur-value">9</span>
+                </div>
+            </div>
+
             <label class="edge-label">Orb colour</label>
             <div class="breath-row edge-row">
                 <button id="tint-white" class="active" onclick="setOrbTint('white')">White</button>
+                <button id="tint-ink" onclick="setOrbTint('ink')">Ink</button>
                 <button id="tint-palette" onclick="setOrbTint('palette')">Palette</button>
                 <button id="tint-warm" onclick="setOrbTint('warm')">Warm</button>
                 <button id="tint-cool" onclick="setOrbTint('cool')">Cool</button>

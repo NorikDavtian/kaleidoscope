@@ -35,7 +35,10 @@
             breathLabelPos: 'below',  // below | centre | bottom
             orbSize: 300,     // diameter of the breath orb, in px
             orbStrength: 1,   // how strongly it reads against the artwork
-            orbTint: 'white', // white | palette | warm | cool | depth
+            orbTint: 'white', // white | ink | palette | warm | cool | depth
+            orbBackdrop: 'dark',  // none | dark | glass
+            orbBackdropAlpha: 1,  // how strongly the backdrop reads
+            orbBackdropBlur: 9,   // px of frosting behind glass
             edgeMask: 'off',  // off | circle | petal | scallop | bloom
             edgeSize: 0.86,   // how far out the shape reaches
             edgeSoft: 46,     // px of blur on its boundary — never a clean cut
@@ -2632,6 +2635,8 @@
                 }
             } else if (mode === 'warm') {
                 for (let i = 0; i < 8; i++) TINTS.push([1, 0.74 + (i % 3) * 0.05, 0.46 + (i % 4) * 0.04]);
+            } else if (mode === 'ink') {
+                for (let i = 0; i < 8; i++) TINTS.push([0.14, 0.15, 0.20]);
             } else if (mode === 'cool') {
                 for (let i = 0; i < 8; i++) TINTS.push([0.54 + (i % 4) * 0.04, 0.80, 1]);
             } else if (tintOverride) {
@@ -2735,7 +2740,21 @@
             if (guide) guide.className = (live && (params.breathGuide || params.breathLabel)) ? '' : 'off';
 
             const orbEl = document.getElementById('breath-ring');
-            if (orbEl) orbEl.style.display = params.breathGuide ? '' : 'none';
+            if (orbEl) {
+                orbEl.style.display = params.breathGuide ? '' : 'none';
+                orbEl.className = 'bg-' + params.orbBackdrop;
+                orbEl.style.setProperty('--bg-a', params.orbBackdropAlpha);
+                orbEl.style.setProperty('--bg-blur', params.orbBackdropBlur + 'px');
+            }
+            const arow = document.getElementById('backdrop-alpha-row');
+            if (arow) arow.className = params.orbBackdrop === 'none' ? 'control-group off' : 'control-group';
+            // Blur only means anything behind glass.
+            const brow = document.getElementById('backdrop-blur-row');
+            if (brow) brow.className = params.orbBackdrop === 'glass' ? 'control-group' : 'control-group off';
+            ORB_BACKDROPS.forEach(function (k) {
+                const el2 = document.getElementById('bg-' + k);
+                if (el2) el2.className = (k === params.orbBackdrop) ? 'active' : '';
+            });
 
             const btn = document.getElementById('breath-guide-toggle');
             if (btn) btn.className = params.breathGuide ? 'sec-btn on' : 'sec-btn';
@@ -2770,7 +2789,33 @@
             syncBreathGuide();
         }
 
-        const ORB_TINTS = ['white', 'palette', 'warm', 'cool', 'depth'];
+        const ORB_TINTS = ['white', 'ink', 'palette', 'warm', 'cool', 'depth'];
+        const ORB_BACKDROPS = ['none', 'dark', 'glass'];
+
+        function setBackdropAlpha(v) {
+            params.orbBackdropAlpha = parseFloat(v);
+            setSlider('orbBackdropAlpha', params.orbBackdropAlpha);
+            syncBreathGuide();
+        }
+
+        function setBackdropBlur(v) {
+            params.orbBackdropBlur = parseFloat(v);
+            setSlider('orbBackdropBlur', params.orbBackdropBlur);
+            syncBreathGuide();
+        }
+
+        function setOrbBackdrop(mode) {
+            params.orbBackdrop = mode;
+            ORB_BACKDROPS.forEach(function (k) {
+                const el = document.getElementById('bg-' + k);
+                if (el) el.className = (k === mode) ? 'active' : '';
+            });
+            // White points on a light backdrop are invisible, so glass takes the
+            // particles dark with it unless a colour was chosen deliberately.
+            if (mode === 'glass' && params.orbTint === 'white') setOrbTint('ink');
+            if (mode !== 'glass' && params.orbTint === 'ink') setOrbTint('white');
+            syncBreathGuide();
+        }
 
         function setOrbTint(mode) {
             params.orbTint = mode;
@@ -2783,15 +2828,13 @@
 
         function setOrbSize(v) {
             params.orbSize = parseInt(v, 10);
-            const out = document.getElementById('orbSize-value');
-            if (out) out.textContent = v;
+            setSlider('orbSize', params.orbSize);
             syncBreathGuide();
         }
 
         function setOrbStrength(v) {
             params.orbStrength = parseFloat(v);
-            const out = document.getElementById('orbStrength-value');
-            if (out) out.textContent = v;
+            setSlider('orbStrength', params.orbStrength);
             syncBreathGuide();
         }
 
@@ -2802,8 +2845,7 @@
 
         function setLabelSize(v) {
             params.breathLabelSize = parseInt(v, 10);
-            const out = document.getElementById('breathLabelSize-value');
-            if (out) out.textContent = v;
+            setSlider('breathLabelSize', params.breathLabelSize);
             syncBreathGuide();
         }
 
