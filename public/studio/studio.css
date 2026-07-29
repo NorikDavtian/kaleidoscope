@@ -744,9 +744,10 @@
         .intro-card {
             cursor: default;
             position: relative;
-            width: min(80vmin, 440px);
-            height: min(80vmin, 440px);
+            width: min(78vmin, 520px);
+            height: min(78vmin, 520px);
             border-radius: 50%;
+            overflow: hidden;
             background: var(--panel);
             backdrop-filter: blur(26px) saturate(140%);
             -webkit-backdrop-filter: blur(26px) saturate(140%);
@@ -767,28 +768,11 @@
             pointer-events: none;
         }
 
-        /* The well sits behind the particles, not over them: painted on top it
-           swallowed the middle of the sphere and left only a rim. Stacking is
-           explicit because all three are positioned — well 0, points 1, words 2. */
-        .intro-card::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            border-radius: 50%;
-            pointer-events: none;
-            background: radial-gradient(circle closest-side,
-                rgba(9, 9, 13, 0.90) 0 38%,
-                rgba(9, 9, 13, 0.66) 62%,
-                rgba(9, 9, 13, 0.26) 82%,
-                transparent 100%);
-        }
-
         .intro-inner {
             position: relative;
             z-index: 2;
-            width: 72%;
-            text-shadow: 0 1px 14px rgba(6, 6, 10, 0.95), 0 0 30px rgba(6, 6, 10, 0.8);
+            width: 62%;
+            text-shadow: 0 1px 12px rgba(4, 4, 8, 0.9);
         }
 
         .intro-card h1 { font-family: 'Lora', serif; font-size: 31px; font-weight: 500; line-height: 1.14; }
@@ -850,7 +834,7 @@
             #sheet { bottom: 88px; max-height: 58vh; }
             .dock-btn { width: 38px; height: 38px; }
             .dock-tip { display: none; }
-            .intro-card { width: min(86vmin, 360px); height: min(86vmin, 360px); }
+            .intro-card { width: min(92vmin, 400px); height: min(92vmin, 400px); }
             .intro-card h1 { font-size: 25px; }
             .intro-inner { width: 76%; }
             .intro-keys { font-size: 11px; margin-top: 18px; }

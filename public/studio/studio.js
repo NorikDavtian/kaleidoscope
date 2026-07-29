@@ -1499,6 +1499,7 @@
         function enterStudio() {
             document.getElementById('intro').classList.add('gone');
             document.getElementById('dock').classList.add('up');
+            syncBreathGuide();
         }
 
 
@@ -1570,6 +1571,7 @@
 
         function showIntro() {
             document.getElementById('intro').classList.remove('gone');
+            syncBreathGuide();
         }
 
         function needsLoop() {
@@ -2589,7 +2591,7 @@
 
         // Shared by the breath guide and the welcome. `state` carries each
         // caller's own canvas, spin and gain so the two never share a phase.
-        function renderOrb(el, state, gain, spinStep, tilt) {
+        function renderOrb(el, state, gain, spinStep, tilt, tintOverride, fill) {
             if (!el || !orbPts) return;
 
             // Backing resolution is capped and CSS scales it up to Orb Size:
@@ -2615,12 +2617,12 @@
             const ct = Math.cos(tilt), st = Math.sin(tilt);
 
             const c = S / 2;
-            const R = c * 0.80;      // room for the shell's thickness inside the disc
+            const R = c * (fill || 0.80);   // room for the shell's thickness
 
             // Eight tints, chosen once per frame. Points index into them so the
             // colour is stable per point rather than flickering as it turns.
             const TINTS = [];
-            const mode = params.orbTint;
+            const mode = tintOverride ? 'fixed' : params.orbTint;
             if (mode === 'palette') {
                 for (let i = 0; i < 8; i++) {
                     const col = hexToRgb(params.colorPalette[i % 5]);
@@ -2632,6 +2634,8 @@
                 for (let i = 0; i < 8; i++) TINTS.push([1, 0.74 + (i % 3) * 0.05, 0.46 + (i % 4) * 0.04]);
             } else if (mode === 'cool') {
                 for (let i = 0; i < 8; i++) TINTS.push([0.54 + (i % 4) * 0.04, 0.80, 1]);
+            } else if (tintOverride) {
+                for (let i = 0; i < 8; i++) TINTS.push(tintOverride);
             } else {
                 for (let i = 0; i < 8; i++) TINTS.push([1, 1, 1]);
             }
@@ -2706,7 +2710,10 @@
 
         // The welcome runs the same shell, dimmer and slower, as a backdrop.
         function drawIntroOrb() {
-            renderOrb(document.getElementById('intro-orb'), introOrb, 0.34, 0.0009, -0.26);
+            // Fills its canvas, so the shell's silhouette lands on the disc's
+            // edge rather than floating inside a wider ring of empty card.
+            renderOrb(document.getElementById('intro-orb'), introOrb, 0.9, 0.0009, -0.26,
+                      [0.30, 0.34, 0.44], 0.98);
         }
 
         function drawOrb() {
@@ -2718,7 +2725,10 @@
 
         function syncBreathGuide() {
             const guide = document.getElementById('breath-guide');
-            const on = params.breath !== 'off' && params.breathGuide;
+            const intro = document.getElementById('intro');
+            const introUp = intro && !intro.classList.contains('gone');
+            // The welcome runs its own shell; two at once read as a ghost.
+            const on = params.breath !== 'off' && params.breathGuide && !introUp;
             if (guide) guide.className = on ? '' : 'off';
 
             const btn = document.getElementById('breath-guide-toggle');
