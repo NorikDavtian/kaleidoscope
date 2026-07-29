@@ -53,6 +53,10 @@
             transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
+        /* The sheet receives focus when a panel opens, purely as a Tab anchor;
+           the panel appearing is the cue, so no ring around the whole thing. */
+        #sheet:focus { outline: none; }
+
         #sheet::-webkit-scrollbar { width: 6px; }
         #sheet::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 3px; }
         #sheet::-webkit-scrollbar-track { background: transparent; }
@@ -60,7 +64,10 @@
         #sheet.hidden {
             opacity: 0;
             pointer-events: none;
+            visibility: hidden;
             transform: translateY(-50%) translateX(-12px);
+            transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+                        visibility 0s 0.22s;
         }
 
         /* Centred on the header row, so it lines up with the section's own
@@ -98,10 +105,16 @@
             bottom: 18px;
             transform: translateX(-50%) translateY(140%);
             z-index: 14;
-            transition: transform 0.4s cubic-bezier(0.3, 1.2, 0.5, 1), opacity 0.3s ease;
+            visibility: hidden;
+            transition: transform 0.4s cubic-bezier(0.3, 1.2, 0.5, 1), opacity 0.3s ease,
+                        visibility 0s 0.4s;
         }
 
-        #dock.up { transform: translateX(-50%) translateY(0); }
+        #dock.up {
+            transform: translateX(-50%) translateY(0);
+            visibility: visible;
+            transition: transform 0.4s cubic-bezier(0.3, 1.2, 0.5, 1), opacity 0.3s ease;
+        }
 
         .dock-inner {
             display: flex;
@@ -170,13 +183,20 @@
             font-family: 'Courier New', monospace;
         }
 
-        .dock-btn:hover .dock-tip { opacity: 1; }
+        .dock-btn:hover .dock-tip,
+        .dock-btn:focus-visible .dock-tip { opacity: 1; }
 
         /* ── Cinema: the artwork and nothing else ──────────────────────────── */
         body.cinema #dock,
         body.cinema #sheet,
         body.cinema #source-card,
-        body.cinema #status { opacity: 0; pointer-events: none; }
+        body.cinema #status {
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.3, 1.2, 0.5, 1),
+                        visibility 0s 0.4s;
+        }
 
         body.cinema #dock { transform: translateX(-50%) translateY(140%); }
 
@@ -270,7 +290,8 @@
         .sec-btn:focus-visible, .shape:focus-visible, .tool:focus-visible,
         .breath-row button:focus-visible, .thumb:focus-visible,
         .dock-btn:focus-visible, .button:focus-visible, .sheet-close:focus-visible,
-        .pal-tile:focus-visible, .seed-step:focus-visible {
+        .pal-tile:focus-visible, .seed-step:focus-visible, .switch:focus-visible,
+        .thumb-lock:focus-visible {
             outline: 2px solid var(--accent);
             outline-offset: 2px;
         }
@@ -313,7 +334,7 @@
 
         /* Removing the segmented control took this with it, so the image and
            tessellation controls stopped hiding at all. */
-        #tess-controls.off, #img-controls.off { display: none; }
+        #tess-controls.off, #img-controls.off, #orb-controls.off { display: none; }
 
         /* ── Icon rows ─────────────────────────────────────────────────────── */
 
@@ -335,7 +356,7 @@
 
 
 
-        .shape-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 14px; }
+        .shape-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 14px; }
 
         .shape {
             display: flex;
@@ -402,6 +423,59 @@
         .button-row .button { flex: 1; }
 
         /* ── Source ────────────────────────────────────────────────────────── */
+        /* A toggle that says its state — the icon buttons read as decoration. */
+        .switch {
+            min-width: 46px;
+            padding: 4px 11px;
+            border: 1px solid var(--surface-2);
+            background: var(--surface);
+            color: var(--faint);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+        }
+
+        .switch:hover { color: var(--dim); }
+
+        .switch.on {
+            background: var(--accent-bg);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* The per-image lock, top-right of each plate tile. Hidden until the
+           tile is hovered or the badge focused, and held visible while on —
+           a lock you cannot see is a lock you forget about. */
+        .thumb-lock {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: rgba(10, 10, 14, 0.72);
+            color: var(--dim);
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.15s ease, color 0.15s ease;
+        }
+
+        .thumb-lock svg { width: 12px; height: 12px; }
+
+        .thumb:hover .thumb-lock,
+        .thumb-lock:focus-visible,
+        .thumb-lock.on { opacity: 1; }
+
+        .thumb-lock:hover { color: var(--text); }
+        .thumb-lock.on { color: var(--accent); background: rgba(10, 10, 14, 0.85); }
+
         .lock-row {
             display: flex;
             align-items: center;
@@ -414,6 +488,7 @@
         .thumb-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 12px; }
 
         .thumb {
+            position: relative;   /* anchors the hover lock badge */
             border: none;
             border-radius: 8px;
             overflow: hidden;
@@ -625,6 +700,7 @@
         .edge-label { display: block; font-size: 12px; color: var(--dim); margin: 4px 0 8px; }
         #edge-controls.off { display: none; }
         .edge-row { margin-bottom: 14px; }
+        .edge-label.off, .edge-row.off { display: none; }
 
         .breath-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 14px; }
 
@@ -840,7 +916,16 @@
             transition: opacity 0.5s ease;
         }
 
-        #intro.gone { opacity: 0; pointer-events: none; }
+        /* Hidden for real, so the dismissed intro leaves the tab order —
+           opacity alone kept its link and button focusable. The visibility
+           flip is delayed on the way out (the fade still shows) and lives
+           only on this rule, so re-showing is instant. */
+        #intro.gone {
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity 0.5s ease, visibility 0s 0.5s;
+        }
 
         .intro-card {
             cursor: default;

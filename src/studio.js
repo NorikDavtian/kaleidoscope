@@ -8,6 +8,11 @@
             tiling: 'radial', // radial | triangle | square (the latter two tessellate)
             cellSize: 219,    // edge length of one tessellated cell, in screen px
             cellSpin: 0.08,   // how much of the mirror rotation the cell contents follow
+            cellAngle: 0,     // base orientation of the tiling lattice, in degrees
+            // Which mirror triangle the Triangle tiling reflects. Only three
+            // close up seamlessly: equilateral (60·60·60), right isosceles
+            // (45·45·90) and the half-equilateral scalene (30·60·90).
+            triType: 'equilateral',
             trail: 0,         // frame persistence while in motion
             folds: 5,        // mirror count — default 10, the tetractys
             moire: 0.01,       // interference depth
@@ -39,6 +44,7 @@
             orbBackdrop: 'dark',  // none | dark | glass
             orbBackdropAlpha: 1,  // how strongly the backdrop reads
             orbBackdropBlur: 9,   // px of frosting behind glass
+            orbFov: 0.9,      // orb perspective — tan of the half view angle
             edgeMask: 'off',  // off | circle | petal | scallop | bloom
             edgeSize: 0.86,   // how far out the shape reaches
             edgeSoft: 46,     // px of blur on its boundary — never a clean cut
@@ -192,6 +198,12 @@
             { id: 'companions',name: 'Companions',src: 'plates/companions.jpg' },
             { id: 'drift',     name: 'Drift',     video: 'plates/drift.mp4',
               poster: 'plates/drift-poster.jpg' },
+            { id: 'talk',      name: 'Talk',      video: 'plates/talk.mp4',
+              poster: 'plates/talk-poster.jpg' },
+            { id: 'talk2',     name: 'Talk II',   video: 'plates/talk2.mp4',
+              poster: 'plates/talk2-poster.jpg' },
+            { id: 'talk3',     name: 'Talk III',  video: 'plates/talk3.mp4',
+              poster: 'plates/talk3-poster.jpg' },
             { id: 'prism',     name: 'Prism',     src: 'plates/prism.gif', animated: true },
             { id: 'smiley',    name: 'Smiley' },
             { id: 'faces',     name: 'Faces' },
@@ -289,13 +301,14 @@
                 animFrames.forEach(function (f) { if (f.frame.close) f.frame.close(); });
                 animFrames = null;
             }
+            animShown = null;
         }
 
         // Frames are decoded ourselves rather than left to an <img>. A browser
         // suspends animation on an image it considers invisible, and this one
         // has to be invisible — so it stayed on frame one however it was hidden.
         // ImageDecoder gives the frames and their durations outright.
-        let animFrames = null, animTotal = 0, animT0 = 0;
+        let animFrames = null, animTotal = 0, animT0 = 0, animShown = null;
 
         function useAnimatedPlate(meta, name) {
             stopMovingSources();
@@ -512,6 +525,45 @@
             }
         }
 
+        // Pins the shape alone — the section lock above it holds the whole
+        // panel, this one only stops the tiling from being stepped away.
+        let shapeLock = false;
+
+        function toggleShapeLock() {
+            shapeLock = !shapeLock;
+            const el = document.getElementById('shape-lock');
+            if (el) {
+                el.className = shapeLock ? 'sec-btn on' : 'sec-btn';
+                el.setAttribute('aria-pressed', shapeLock);
+            }
+        }
+
+        // The image lock's surface is a badge on each plate tile. Locking an
+        // inactive plate adopts it too — a lock on a picture you are not using
+        // would pin nothing.
+        function plateLockClick(ev, id, name) {
+            ev.stopPropagation();
+            if (activeBase === id && imageLocked) {
+                imageLocked = false;
+            } else {
+                if (activeBase !== id) useBasePlate(id, name);
+                imageLocked = true;
+            }
+            refreshThumbLocks();
+        }
+
+        function refreshThumbLocks() {
+            BASE_PLATES.forEach(function (b) {
+                const btn = document.getElementById('thumb-' + b.id);
+                if (!btn) return;
+                const lk = btn.querySelector('.thumb-lock');
+                if (!lk) return;
+                const on = imageLocked && activeBase === b.id;
+                lk.classList.toggle('on', on);
+                lk.setAttribute('aria-pressed', on);
+            });
+        }
+
         // The tile's face is the ramp in use, with the seed sitting on it.
         function seedSwatch() {
             const pg = createGraphics(168, 108);
@@ -613,6 +665,26 @@
                 btn.appendChild(im);
                 btn.appendChild(cap);
                 btn.onclick = function () { useBasePlate(b.id, b.name); };
+
+                // The hover lock. A span with button semantics — a real button
+                // cannot nest inside the tile's own button element.
+                const lk = document.createElement('span');
+                lk.className = 'thumb-lock';
+                lk.setAttribute('role', 'button');
+                lk.tabIndex = 0;
+                lk.title = 'Lock this image — drift and Randomize keep it while everything else moves';
+                lk.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+                    'stroke-width="2.2" stroke-linecap="round">' +
+                    '<rect x="4.5" y="10.5" width="15" height="10" rx="2"/>' +
+                    '<path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg>';
+                lk.onclick = function (ev) { plateLockClick(ev, b.id, b.name); };
+                lk.onkeydown = function (ev) {
+                    if (ev.key === 'Enter' || ev.key === ' ') {
+                        ev.preventDefault();
+                        plateLockClick(ev, b.id, b.name);
+                    }
+                };
+                btn.appendChild(lk);
                 grid.appendChild(btn);
             });
         }
@@ -633,6 +705,7 @@
             if (none) none.classList.toggle('active', id === 'none');
             const up = document.getElementById('thumb-upload');
             if (up) up.classList.toggle('active', id === 'upload');
+            refreshThumbLocks();
         }
 
         function adoptPlateSurface(surface, id, name, note, previewURL) {
@@ -832,10 +905,18 @@
 
         const FIELD_SIDE = 1024;
         let gl = null, glCanvas = null;
-        let fieldProg = null, colourProg = null;
-        let fieldTarget = null, imgTarget = null, srcTex = null;
+        let fieldProg = null, colourProg = null, orbProg = null;
+        let fieldTarget = null, imgTarget = null, colourTarget = null, srcTex = null;
+        // Looking around inside the orb: yaw rides on spinAngle (so Spin and
+        // drag momentum pan the view for free), pitch is the orb's own.
+        // While animating, orbDrift advances and the camera wanders — a slow
+        // pitch bob and a perspective breath — freezing in place on pause.
+        let orbPitch = 0, orbDrift = 0;
         let glReady = false, srcTexDirty = true, glSeed = -1;
         let fieldDirty = true;
+        // The sampled-source pass alone is stale — a moving plate or video
+        // frame arrived, but no field-shaping parameter changed.
+        let imgDirty = false;
 
         const VERT_SRC = [
             'attribute vec2 aPos;',
@@ -994,6 +1075,32 @@
             '}'
         ].join('\n');
 
+        // The orb: the coloured field read as an equirectangular panorama from
+        // inside a sphere — the 360° viewer idea, done as one more fragment
+        // shader rather than a scene graph. Longitude is mirrored so the wrap
+        // seam lands on a reflection instead of a cut.
+        const ORB_SRC = [
+            'precision highp float;',
+            'varying vec2 vPos;',
+            'uniform sampler2D uTex;',
+            'uniform float uYaw, uPitch, uRoll, uAspect, uZoom;',
+
+            'void main() {',
+            '    vec2 p = vec2(vPos.x * uAspect, -vPos.y) * uZoom;',
+            '    float cr = cos(uRoll), sr = sin(uRoll);',
+            '    p = vec2(p.x * cr - p.y * sr, p.x * sr + p.y * cr);',
+            '    vec3 d = normalize(vec3(p, -1.0));',
+            '    float cp = cos(uPitch), sp = sin(uPitch);',
+            '    d = vec3(d.x, d.y * cp - d.z * sp, d.y * sp + d.z * cp);',
+            '    float lon = atan(d.x, -d.z) + uYaw;',
+            '    float lat = asin(clamp(d.y, -1.0, 1.0));',
+            '    float u = lon * 0.15915494309;',          // 1 / 2π
+            '    float mu = abs(mod(u * 2.0 + 1024.0, 2.0) - 1.0);',
+            '    float v = lat * 0.31830988618 + 0.5;',    // 1 / π
+            '    gl_FragColor = vec4(texture2D(uTex, vec2(mu, v)).rgb, 1.0);',
+            '}'
+        ].join('\n');
+
         function compile(type, src) {
             const s = gl.createShader(type);
             gl.shaderSource(s, src);
@@ -1060,7 +1167,9 @@
             colourProg = makeProgram(COLOUR_SRC,
                 ['uField', 'uImg', 'uUseImage', 'uMix', 'uSeam', 'uShift',
                  'uPal0', 'uPal1', 'uPal2', 'uPal3', 'uPal4']);
-            if (!fieldProg || !colourProg) return false;
+            orbProg = makeProgram(ORB_SRC,
+                ['uTex', 'uYaw', 'uPitch', 'uRoll', 'uAspect', 'uZoom']);
+            if (!fieldProg || !colourProg || !orbProg) return false;
 
             const buf = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -1071,7 +1180,14 @@
 
             fieldTarget = makeTarget(FIELD_SIDE);
             imgTarget = makeTarget(FIELD_SIDE);
-            if (!fieldTarget || !imgTarget) return false;
+            colourTarget = makeTarget(FIELD_SIDE);
+            if (!fieldTarget || !imgTarget || !colourTarget) return false;
+            // The orb resamples the coloured output at arbitrary angles, so
+            // this one target wants smooth filtering — the packed-phase caveat
+            // on makeTarget's NEAREST only applies to the field texture.
+            gl.bindTexture(gl.TEXTURE_2D, colourTarget.tex);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
             srcTex = gl.createTexture();
             gl.bindTexture(gl.TEXTURE_2D, srcTex);
@@ -1098,21 +1214,9 @@
             srcTexDirty = false;
         }
 
-        // Expensive, and only run when a parameter that shapes the field moves.
-        function glRenderField() {
-            if (params.seed !== glSeed) {
-                seedNoise(params.seed);
-                glSeed = params.seed;
-            }
-            if (srcTexDirty) uploadSrcTex();
-
-            const P = fieldProg;
-            gl.useProgram(P.prog);
-            gl.activeTexture(gl.TEXTURE2);
-            gl.bindTexture(gl.TEXTURE_2D, srcTex);
-            gl.uniform1i(P.u.uSrc, 2);
-
-            const tess = params.tiling !== 'radial';
+        // Everything the field shader reads, shared by both passes.
+        function setFieldUniforms(P) {
+            const tess = params.tiling === 'triangle' || params.tiling === 'square';
             const m = Math.min(srcW || 1, srcH || 1);
             const ia = params.imgAngle * Math.PI / 180;
 
@@ -1141,6 +1245,27 @@
             gl.uniform1f(P.u.uIC, Math.cos(ia));
             gl.uniform1f(P.u.uIS, Math.sin(ia));
             gl.uniform1f(P.u.uIW, params.imgWarp);
+        }
+
+        function bindFieldProgram() {
+            if (params.seed !== glSeed) {
+                seedNoise(params.seed);
+                glSeed = params.seed;
+            }
+            if (srcTexDirty) uploadSrcTex();
+
+            const P = fieldProg;
+            gl.useProgram(P.prog);
+            gl.activeTexture(gl.TEXTURE2);
+            gl.bindTexture(gl.TEXTURE_2D, srcTex);
+            gl.uniform1i(P.u.uSrc, 2);
+            setFieldUniforms(P);
+            return P;
+        }
+
+        // Expensive, and only run when a parameter that shapes the field moves.
+        function glRenderField() {
+            const P = bindFieldProgram();
 
             gl.bindFramebuffer(gl.FRAMEBUFFER, fieldTarget.fb);
             gl.uniform1i(P.u.uPass, 0);
@@ -1154,10 +1279,24 @@
 
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
             fieldDirty = false;
+            imgDirty = false;
+        }
+
+        // A moving source re-runs just the sampling pass — the solved field is
+        // still good, and it is the one that costs the frame budget.
+        function glRenderImage() {
+            if (params.source === 'image' && srcCanvas) {
+                const P = bindFieldProgram();
+                gl.bindFramebuffer(gl.FRAMEBUFFER, imgTarget.fb);
+                gl.uniform1i(P.u.uPass, 1);
+                gl.drawArrays(gl.TRIANGLES, 0, 3);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            }
+            imgDirty = false;
         }
 
         // Cheap, and this is the one that runs every frame.
-        function glRenderColour() {
+        function glRenderColour(toTexture) {
             const P = colourProg;
             gl.useProgram(P.prog);
 
@@ -1178,13 +1317,45 @@
                 gl.uniform3f(P.u['uPal' + i], c[0] / 255, c[1] / 255, c[2] / 255);
             }
 
+            gl.bindFramebuffer(gl.FRAMEBUFFER, toTexture ? colourTarget.fb : null);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+
+        function glRenderOrb() {
+            const P = orbProg;
+            gl.useProgram(P.prog);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, colourTarget.tex);
+            gl.uniform1i(P.u.uTex, 0);
+            // A free tumble: each axis wanders on two incommensurate sines, so
+            // the spin keeps changing direction and never settles into a loop.
+            // All of it rides on top of whatever the drag and Spin contribute.
+            const t = orbDrift;
+            gl.uniform1f(P.u.uYaw, spinAngle
+                + 1.4 * Math.sin(t * 0.31) + 0.9 * Math.sin(t * 0.73 + 2.1));
+            gl.uniform1f(P.u.uPitch, orbPitch
+                + 0.5 * Math.sin(t * 0.42 + 1.3) + 0.3 * Math.sin(t * 0.9 + 4.0));
+            gl.uniform1f(P.u.uRoll,
+                0.45 * Math.sin(t * 0.23 + 0.7) + 0.3 * Math.sin(t * 0.51 + 3.1));
+            // Perspective breathes twice over: the animated wander, and — when
+            // a breath pattern runs — the breath itself. Narrowing the view on
+            // the inhale reads as the orb swelling around you.
+            const breathe = params.breath !== 'off'
+                ? 1 - (breathValue - 0.5) * params.breathDepth * 0.3 : 1;
+            gl.uniform1f(P.u.uZoom,
+                params.orbFov * (1 + Math.sin(t * 0.6) * 0.13) * breathe);
+            gl.uniform1f(P.u.uAspect,
+                (typeof width !== 'undefined' && height > 0) ? width / height : 1);
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
         }
 
         function glRender() {
             if (fieldDirty) glRenderField();
-            glRenderColour();
+            else if (imgDirty) glRenderImage();
+            const orb = params.tiling === 'orb';
+            glRenderColour(orb);
+            if (orb) glRenderOrb();
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -1196,7 +1367,7 @@
 
             // In tessellated modes the buffer is one cell, drawn small and many
             // times over — it never needs the full-frame resolution.
-            const tess = params.tiling !== 'radial';
+            const tess = params.tiling === 'triangle' || params.tiling === 'square';
             if (tess) side = Math.min(side, 660);
 
             const n = side * side;
@@ -1476,6 +1647,11 @@
             cnv.parent('canvas-wrap');
             pixelDensity(1);
             imageMode(CENTER);
+            // p5's default 60fps target skips rAF ticks it thinks arrived too
+            // early, which reads as judder on high-refresh displays. A target
+            // above any real refresh rate means every tick draws; motion speed
+            // is scaled by dt in draw(), so this changes smoothness, not pace.
+            frameRate(240);
             noLoop();
             buildThumbs();
             attachDrag(cnv.elt);
@@ -1494,15 +1670,33 @@
             return Math.atan2(py - height / 2, px - width / 2);
         }
 
+        let lastPX = 0, lastPY = 0;
+
         function startDrag(px, py) {
             dragging = true;
             dragVel = 0;
             lastPtr = ptrAngle(px, py);
+            lastPX = px; lastPY = py;
             loop();
         }
 
         function moveDrag(px, py) {
             if (!dragging) return;
+
+            // Inside the orb a drag looks around rather than twisting: sideways
+            // pans (through spinAngle, so momentum coasts for free), vertical
+            // tilts, clamped short of the poles.
+            if (params.tiling === 'orb') {
+                const k = 2.2 / Math.max(1, height);
+                const d = (lastPX - px) * k;
+                spinAngle += d;
+                dragVel = d;
+                orbPitch = Math.max(-1.45, Math.min(1.45, orbPitch + (py - lastPY) * k));
+                lastPX = px; lastPY = py;
+                lastPtr = ptrAngle(px, py);
+                return;
+            }
+
             const a = ptrAngle(px, py);
             let d = a - lastPtr;
             if (d > Math.PI) d -= Math.PI * 2;      // shortest way round
@@ -1510,6 +1704,7 @@
             spinAngle += d;
             dragVel = d;
             lastPtr = a;
+            lastPX = px; lastPY = py;
         }
 
         function endDrag() { dragging = false; }
@@ -1535,13 +1730,30 @@
 
         function setTiling(mode) {
             params.tiling = mode;
-            ['radial', 'triangle', 'square'].forEach(function (m) {
-                document.getElementById('tile-' + m).className =
-                    (m === mode) ? 'shape active' : 'shape';
+            ['radial', 'triangle', 'square', 'orb'].forEach(function (m) {
+                const el = document.getElementById('tile-' + m);
+                if (el) el.className = (m === mode) ? 'shape active' : 'shape';
             });
-            document.getElementById('tess-controls').className = (mode === 'radial') ? 'off' : '';
+            document.getElementById('tess-controls').className =
+                (mode === 'triangle' || mode === 'square') ? '' : 'off';
+            ['tri-type-label', 'tri-type-row'].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el) el.classList.toggle('off', mode !== 'triangle');
+            });
             refreshShareUI();
             scheduleRender();
+        }
+
+        const TRI_TYPES = ['equilateral', 'isosceles', 'scalene'];
+
+        function setTriType(t) {
+            params.triType = TRI_TYPES.indexOf(t) >= 0 ? t : 'equilateral';
+            TRI_TYPES.forEach(function (k) {
+                const el = document.getElementById('tri-' + k);
+                if (el) el.className = (k === params.triType) ? 'active' : '';
+            });
+            refreshShareUI();
+            redraw();
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -1549,8 +1761,20 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         function enterStudio() {
-            document.getElementById('intro').classList.add('gone');
-            document.getElementById('dock').classList.add('up');
+            // `inert` is what actually takes the hidden layers out of the tab
+            // order — the CSS visibility flip is delayed behind the fade.
+            const intro = document.getElementById('intro');
+            const dock = document.getElementById('dock');
+            intro.classList.add('gone');
+            intro.inert = true;
+            dock.classList.add('up');
+            dock.inert = false;
+            // If focus was on the intro (its link or Share button), it is about
+            // to vanish with it — move to the dock so Tab starts somewhere real.
+            if (document.activeElement === document.body) {
+                const d = document.getElementById('dock-source');
+                if (d) d.focus({ preventScroll: true });
+            }
             syncBreathGuide();
         }
 
@@ -1594,7 +1818,12 @@
         // apart from the key that dismisses it.
         window.addEventListener('keydown', function (e) {
             const t = e.target;
-            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+            // Only fields that take typed text swallow the shortcuts. A focused
+            // slider or colour well uses arrows and Enter, never digits or
+            // letters — so 1–8, Escape and the rest keep working from there.
+            const typing = t && (t.tagName === 'TEXTAREA' || t.isContentEditable ||
+                (t.tagName === 'INPUT' && t.type !== 'range' && t.type !== 'color'));
+            if (typing) return;
             if (e.metaKey || e.ctrlKey || e.altKey) return;
 
             const introUp = !document.getElementById('intro').classList.contains('gone');
@@ -1616,13 +1845,16 @@
                 case 'r':      e.preventDefault(); randomSeedAndUpdate(); break;
                 case 'a':      e.preventDefault(); toggleAnimate(); break;
                 case 's':      e.preventDefault(); downloadPNG(); break;
+                case 'c':      e.preventDefault(); downloadPNG(); break;
                 case 'i':      e.preventDefault(); showIntro(); break;
                 case '?':      e.preventDefault(); showIntro(); break;
             }
         });
 
         function showIntro() {
-            document.getElementById('intro').classList.remove('gone');
+            const intro = document.getElementById('intro');
+            intro.classList.remove('gone');
+            intro.inert = false;
             syncBreathGuide();
         }
 
@@ -1634,27 +1866,34 @@
         }
 
         function draw() {
-            if (animating) {
-                if (params.breath === 'off') {
-                    const rate = motionRate();
-                    animPhase += params.flow * 0.005 * rate;
-                    spinAngle += params.spin * 0.008 * rate;
-                }
-                paintField();
-            }
-
-            // Flick momentum: released angular velocity coasting to a stop.
-            if (!dragging && Math.abs(dragVel) > 0.0004) {
-                spinAngle += dragVel;
-                dragVel *= 0.985;
-            } else if (!dragging) {
-                dragVel = 0;
-            }
-
+            // Everything that moves per frame is scaled by dt, so the pace is
+            // the same at 30, 60 or 120fps — the tuning reference is 60.
             const nowMs = performance.now();
             if (breathLast === 0) breathLast = nowMs;
             const breathDt = Math.min(0.25, (nowMs - breathLast) / 1000);
             breathLast = nowMs;
+            const f60 = breathDt * 60;      // 1.0 at exactly 60fps
+
+            if (animating) {
+                if (params.breath === 'off') {
+                    const rate = motionRate();
+                    animPhase += params.flow * 0.005 * rate * f60;
+                    spinAngle += params.spin * 0.008 * rate * f60;
+                }
+                if (params.tiling === 'orb') orbDrift += 0.009 * motionRate() * f60;
+                // On the GPU the colour pass runs once per frame further down;
+                // only the CPU fallback repaints its buffer here.
+                if (!glReady) paintField();
+            }
+
+            // Flick momentum: released angular velocity coasting to a stop.
+            if (!dragging && Math.abs(dragVel) > 0.0004) {
+                spinAngle += dragVel * f60;
+                dragVel *= Math.pow(0.985, f60);
+            } else if (!dragging) {
+                dragVel = 0;
+            }
+
             if (params.breath !== 'off') {
                 stepBreath(breathDt);
                 // Colour Flow becomes a swing rather than a scroll: forward on
@@ -1676,22 +1915,26 @@
             if (anySectionAuto()) stepSections(nowMs);
 
             if (plateAnim && params.source === 'image') {
+                // A moving source only invalidates the sampled-image pass; the
+                // noise field itself has not changed, so re-solving it every
+                // frame was the bulk of the per-frame GPU cost.
                 if (animLive && animFrames) {
                     const fr = animFrameNow();
-                    if (fr) {
+                    if (fr && fr !== animShown) {
+                        animShown = fr;
                         animCtx.drawImage(fr, 0, 0, animCv.width, animCv.height);
                         srcTexDirty = true;
-                        fieldDirty = true;
+                        imgDirty = true;
                     }
                 } else if (videoLive && plateVideo && plateVideo.readyState >= 2) {
                     videoCtx.drawImage(plateVideo, 0, 0, videoCv.width, videoCv.height);
                     srcTexDirty = true;
-                    fieldDirty = true;
+                    imgDirty = true;
                 } else if (srcHolder && activeBase) {
-                    platePhase += 0.011;          // ~1.5 s per wink at 60fps
+                    platePhase += 0.011 * f60;    // ~1.5 s per wink
                     drawPlate(srcHolder, activeBase, srcHolder.width, srcHolder.height, platePhase);
                     srcTexDirty = true;
-                    fieldDirty = true;            // the sampled source moved
+                    imgDirty = true;              // the sampled source moved
                 }
             }
 
@@ -1713,14 +1956,26 @@
             }
 
             if (params.tiling === 'square') {
-                drawSquareTiling(ctx, width, height);
+                drawSquareTiling(ctx, width, height, false);
             } else if (params.tiling === 'triangle') {
-                drawTriangleTiling(ctx, width, height);
+                // The isosceles scope shares the square lattice — its cells
+                // are half-squares — so it reuses that walk with the extra
+                // diagonal mirror switched on.
+                if (params.triType === 'isosceles') {
+                    drawSquareTiling(ctx, width, height, true);
+                } else {
+                    drawTriangleTiling(ctx, width, height);
+                }
+            } else if (params.tiling === 'orb' && glReady) {
+                // The orb pass already projected the view; the square buffer
+                // maps straight onto the viewport (aspect handled in-shader).
+                ctx.drawImage(fieldCanvas(), 0, 0, width, height);
             } else {
                 // The buffer is square; drawn at the viewport diagonal it covers
                 // the frame at any rotation, so spin never exposes a corner.
                 const puff = 1 + (breathValue - 0.5) * params.breathDepth * 0.09;
-                const D = Math.sqrt(width * width + height * height) * puff;
+                const D = Math.sqrt(width * width + height * height) * puff
+                        * lensZoom();
                 ctx.save();
                 ctx.translate(width / 2, height / 2);
                 if (spinAngle !== 0) ctx.rotate(spinAngle);
@@ -1733,7 +1988,7 @@
                 ctx.globalAlpha = fadeAmt;
                 ctx.drawImage(fadeCv, 0, 0, width, height);
                 // Dissolve across roughly one beat, whatever the frame rate.
-                fadeAmt -= Math.max(0.006, 16.7 / beatMs());
+                fadeAmt -= Math.max(0.006, 16.7 / beatMs()) * f60;
                 if (fadeAmt < 0) fadeAmt = 0;
             }
 
@@ -1864,18 +2119,53 @@
         // seam is not.
         const EDGE_BLEED = 2;
 
-        function drawSquareTiling(ctx, w, h) {
+        // Perspective as a lens on the flat canvas. It only ever magnifies:
+        // a telescope swells the cells past their slider size, while the wide
+        // end leaves the flat modes alone — Cell Size stays the floor, so the
+        // big plates the tilings are set up for never shrink away, and the
+        // radial buffer never pulls its corners into view.
+        function lensZoom() {
+            return Math.min(2.6, Math.max(1, 0.9 / (params.orbFov || 0.9)));
+        }
+
+        // The lattice's orientation: the standing Cell Angle plus whatever the
+        // spin adds. Cell contents counter-rotate against the same total, so
+        // at Cell Drift 0 they stay upright however the mirrors are turned.
+        function latticeTilt() {
+            return spinAngle + params.cellAngle * Math.PI / 180;
+        }
+
+        // `diagMirror` adds a mirror along each cell's diagonal, halving the
+        // square into two right isosceles triangles — the 45·45·90 scope.
+        function drawSquareTiling(ctx, w, h, diagMirror) {
             const diag = Math.sqrt(w * w + h * h);
-            const len = Math.max(params.cellSize, diag / (SQ_CAP - 1));
+            const len = Math.max(params.cellSize * lensZoom(), diag / (SQ_CAP - 1));
             const outer = len / Math.SQRT1_2;      // len = sin(45°) · outer
             const ox = outer / 2, oy = outer / 2;
             const cells = Math.ceil(diag / len) + 1;
             const tile = tileSource(outer);
+            const tilt = latticeTilt();
+
+            // The isosceles clip: the half-square under the diagonal, bled
+            // outward about its centroid so abutting edges overlap.
+            const inr = len * (2 - Math.SQRT2) / 2;
+            const k = 1 + EDGE_BLEED / inr;
+            const gx = len * 2 / 3, gy = len / 3;
+            const px = function (v) { return gx + (v - gx) * k; };
+            const py = function (v) { return gy + (v - gy) * k; };
+
+            const content = function () {
+                ctx.translate(-(outer - len) / 2, -(outer - len) / 2);
+                ctx.translate(ox, oy);
+                ctx.rotate(-tilt * (1 - params.cellSpin));
+                ctx.translate(-ox, -oy);
+                ctx.drawImage(tile, 0, 0, outer, outer);
+            };
 
             ctx.save();
             ctx.translate((w - diag) / 2, (h - diag) / 2);
             ctx.translate(diag / 2, diag / 2);
-            ctx.rotate(spinAngle);
+            ctx.rotate(tilt);
             ctx.translate(-diag / 2, -diag / 2);
 
             for (let i = 0; i < cells; i++) {
@@ -1887,15 +2177,28 @@
                     ctx.translate(sx === 1 ? i * len : i * len + len,
                                   sy === 1 ? j * len : j * len + len);
                     ctx.scale(sx, sy);
-                    ctx.beginPath();
-                    ctx.rect(-EDGE_BLEED, -EDGE_BLEED,
-                             len + EDGE_BLEED * 2, len + EDGE_BLEED * 2);
-                    ctx.clip();
-                    ctx.translate(-(outer - len) / 2, -(outer - len) / 2);
-                    ctx.translate(ox, oy);
-                    ctx.rotate(-spinAngle * (1 - params.cellSpin));
-                    ctx.translate(-ox, -oy);
-                    ctx.drawImage(tile, 0, 0, outer, outer);
+                    if (!diagMirror) {
+                        ctx.beginPath();
+                        ctx.rect(-EDGE_BLEED, -EDGE_BLEED,
+                                 len + EDGE_BLEED * 2, len + EDGE_BLEED * 2);
+                        ctx.clip();
+                        content();
+                    } else {
+                        for (let p = 0; p < 2; p++) {
+                            ctx.save();
+                            // Pass two reflects the cell across y = x, so the
+                            // same half fills the other side of the diagonal.
+                            if (p === 1) ctx.transform(0, 1, 1, 0, 0, 0);
+                            ctx.beginPath();
+                            ctx.moveTo(px(0), py(0));
+                            ctx.lineTo(px(len), py(0));
+                            ctx.lineTo(px(len), py(len));
+                            ctx.closePath();
+                            ctx.clip();
+                            content();
+                            ctx.restore();
+                        }
+                    }
                     ctx.restore();
                 }
             }
@@ -1904,18 +2207,19 @@
 
         function drawTriangleTiling(ctx, w, h) {
             const diag = Math.sqrt(w * w + h * h);
-            const len = Math.max(params.cellSize, diag / 2 / (TRI_CAP - 1));
+            const len = Math.max(params.cellSize * lensZoom(), diag / 2 / (TRI_CAP - 1));
             const outer = len / (Math.sqrt(3) / 2);
             const ox = len / 2, oy = len / Math.sqrt(3) / 2;
             const cx = w / 2, cy = h / 2;
             const n = Math.ceil(diag / 2 / len) + 1;
 
             const tile = tileSource(outer);
+            const tilt = latticeTilt();
 
-            const mxx = Math.cos(spinAngle) * len;
-            const mxy = Math.sin(spinAngle) * len;
-            const myx = Math.cos(spinAngle + Math.PI / 2) * len * Math.sqrt(3) / 2;
-            const myy = Math.sin(spinAngle + Math.PI / 2) * len * Math.sqrt(3) / 2;
+            const mxx = Math.cos(tilt) * len;
+            const mxy = Math.sin(tilt) * len;
+            const myx = Math.cos(tilt + Math.PI / 2) * len * Math.sqrt(3) / 2;
+            const myy = Math.sin(tilt + Math.PI / 2) * len * Math.sqrt(3) / 2;
 
             for (let x = -n; x <= n; x++) {
                 for (let y = -n; y <= n; y++) {
@@ -1932,9 +2236,10 @@
         }
 
         function drawTriangleCell(ctx, x, y, l, outer, ox, oy, rot, inv, tile) {
+            const tilt = latticeTilt();
             ctx.save();
             ctx.translate(x, y);
-            ctx.rotate(spinAngle);
+            ctx.rotate(tilt);
             ctx.translate(-ox, -oy);
 
             if (inv) ctx.transform(1, 0, 0, -1, 0, 0);
@@ -1944,26 +2249,54 @@
                 ctx.translate(-l, 0);
             }
 
-            // Push the three corners out from the centroid far enough to move
-            // each edge EDGE_BLEED outward. For an equilateral triangle the
-            // inradius is l / (2 * sqrt 3), so that is the scale it needs.
-            const inr = l / (2 * Math.sqrt(3));
-            const k = 1 + EDGE_BLEED / inr;
-            const gx = l / 2, gy = l * Math.sqrt(3) / 6;
-            const px = function (x) { return gx + (x - gx) * k; };
-            const py = function (y) { return gy + (y - gy) * k; };
+            const apex = l * Math.sqrt(3) / 2;
+            const content = function () {
+                ctx.translate(ox, oy);
+                ctx.rotate(-tilt * (1 - params.cellSpin));
+                ctx.translate(-outer / 2, -outer / 2);
+                ctx.drawImage(tile, 0, 0, outer, outer);
+            };
 
-            ctx.beginPath();
-            ctx.moveTo(px(0), py(0));
-            ctx.lineTo(px(l), py(0));
-            ctx.lineTo(px(l / 2), py(l * Math.sqrt(3) / 2));
-            ctx.closePath();
-            ctx.clip();
+            if (params.triType !== 'scalene') {
+                // Push the three corners out from the centroid far enough to
+                // move each edge EDGE_BLEED outward. For an equilateral
+                // triangle the inradius is l / (2 * sqrt 3).
+                const inr = l / (2 * Math.sqrt(3));
+                const k = 1 + EDGE_BLEED / inr;
+                const gx = l / 2, gy = l * Math.sqrt(3) / 6;
+                const px = function (x) { return gx + (x - gx) * k; };
+                const py = function (y) { return gy + (y - gy) * k; };
 
-            ctx.translate(ox, oy);
-            ctx.rotate(-spinAngle * (1 - params.cellSpin));
-            ctx.translate(-outer / 2, -outer / 2);
-            ctx.drawImage(tile, 0, 0, outer, outer);
+                ctx.beginPath();
+                ctx.moveTo(px(0), py(0));
+                ctx.lineTo(px(l), py(0));
+                ctx.lineTo(px(l / 2), py(apex));
+                ctx.closePath();
+                ctx.clip();
+                content();
+            } else {
+                // Scalene: a mirror along the altitude splits the equilateral
+                // cell into two 30·60·90 halves, the second a reflection of
+                // the first. Inradius of the half is l(√3 − 1)/4.
+                const inr = l * (Math.sqrt(3) - 1) / 4;
+                const k = 1 + EDGE_BLEED / inr;
+                const gx = l / 3, gy = apex / 3;
+                const px = function (x) { return gx + (x - gx) * k; };
+                const py = function (y) { return gy + (y - gy) * k; };
+
+                for (let p = 0; p < 2; p++) {
+                    ctx.save();
+                    if (p === 1) { ctx.translate(l, 0); ctx.scale(-1, 1); }
+                    ctx.beginPath();
+                    ctx.moveTo(px(0), py(0));
+                    ctx.lineTo(px(l / 2), py(0));
+                    ctx.lineTo(px(l / 2), py(apex));
+                    ctx.closePath();
+                    ctx.clip();
+                    content();
+                    ctx.restore();
+                }
+            }
             ctx.restore();
         }
 
@@ -1993,16 +2326,35 @@
                 const d = document.getElementById('dock-' + k);
                 if (d) d.className = 'dock-btn' + (k === name ? ' on' : '');
             });
-            document.getElementById('sheet').classList.remove('hidden');
+            const sheet = document.getElementById('sheet');
+            sheet.classList.remove('hidden');
+            sheet.inert = false;
+            const h = document.querySelector('#panel-' + name + ' h3');
+            sheet.setAttribute('aria-label', h ? h.childNodes[0].textContent : name);
+            // Focus lands on the sheet itself, so the next Tab is the panel's
+            // first control — opening with 1–8 otherwise left focus stranded
+            // wherever it was.
+            sheet.focus({ preventScroll: true });
         }
 
         function closePanel() {
+            const wasOpen = openPanelName;
             openPanelName = null;
             PANELS.forEach(function (k) {
                 const d = document.getElementById('dock-' + k);
                 if (d) d.className = 'dock-btn';
             });
-            document.getElementById('sheet').classList.add('hidden');
+            const sheet = document.getElementById('sheet');
+            // A focused control inside a hidden sheet traps the keyboard in an
+            // invisible place; hand focus back to the dock button that owns it.
+            // Checked before `inert`, which itself evicts focus to the body.
+            const hadFocus = sheet.contains(document.activeElement);
+            sheet.classList.add('hidden');
+            sheet.inert = true;
+            if (wasOpen && hadFocus) {
+                const d = document.getElementById('dock-' + wasOpen);
+                if (d) d.focus({ preventScroll: true });
+            }
         }
 
         // Clicking away from the sheet closes it. The dock is exempt, or its own
@@ -2021,6 +2373,7 @@
         function toggleCinema(force) {
             cinema = (force === undefined) ? !cinema : force;
             document.body.classList.toggle('cinema', cinema);
+            document.getElementById('dock').inert = cinema;
             const d = document.getElementById('dock-cinema');
             if (d) d.className = 'dock-btn' + (cinema ? ' on' : '');
             if (cinema) closePanel();
@@ -2203,10 +2556,10 @@
         // UI CONTROL HANDLERS
         // ═══════════════════════════════════════════════════════════════════════
 
-        const INT_PARAMS = ['folds', 'octaves', 'rotation', 'imgAngle', 'bpm'];
+        const INT_PARAMS = ['folds', 'octaves', 'rotation', 'imgAngle', 'bpm', 'cellAngle'];
         const COLOUR_ONLY = ['shift', 'seam', 'mix', 'breathDepth'];
         const MOTION_ONLY = ['flow', 'spin', 'trail', 'cellSize', 'cellSpin', 'bpm',
-                             'edgeSize', 'edgeSoft'];
+                             'edgeSize', 'edgeSoft', 'orbFov', 'cellAngle'];
         const IMG_PARAMS = ['imgZoom', 'imgPanX', 'imgPanY', 'imgAngle', 'imgWarp'];
 
         function setSlider(name, value) {
@@ -2813,7 +3166,11 @@
             });
 
             const btn = document.getElementById('breath-guide-toggle');
-            if (btn) btn.className = params.breathGuide ? 'sec-btn on' : 'sec-btn';
+            if (btn) {
+                btn.className = params.breathGuide ? 'switch on' : 'switch';
+                btn.textContent = params.breathGuide ? 'On' : 'Off';
+                btn.setAttribute('aria-pressed', params.breathGuide);
+            }
 
             const orb = document.getElementById('breath-ring');
             if (orb) orb.style.setProperty('--orb-size', params.orbSize + 'px');
@@ -2829,7 +3186,11 @@
                 if (el2) el2.className = (k === params.breathLabelPos) ? 'active' : '';
             });
             const lb = document.getElementById('breath-label-toggle');
-            if (lb) lb.className = params.breathLabel ? 'sec-btn on' : 'sec-btn';
+            if (lb) {
+                lb.className = params.breathLabel ? 'switch on' : 'switch';
+                lb.textContent = params.breathLabel ? 'On' : 'Off';
+                lb.setAttribute('aria-pressed', params.breathLabel);
+            }
 
             const row = document.getElementById('label-size-row');
             if (row) row.className = params.breathLabel ? 'control-group' : 'control-group off';
@@ -2939,7 +3300,9 @@
             twist:   [-1.2, 1.2],  warp:    [0.4, 2.6],   octaves: [2, 4, 1],
             bands:   [0.6, 1.8],   rings:   [0, 1.6],     shift:   [0, 1],
             seam:    [0, 0.5],     contrast:[0.6, 1.25],  rotation:[0, 359, 1],
-            cellSize:[140, 400, 1],
+            cellSize:[160, 640, 1],
+            edgeSize:[0.55, 1.15], edgeSoft:[12, 120, 1], orbFov: [0.6, 1.35],
+            cellAngle:[0, 359, 1],
             flow:    [-2.5, 2.5],  spin:    [-1.2, 1.2],  trail:   [0, 0.6],
             imgZoom: [0.25, 1.1],  imgPanX: [0.3, 0.7],   imgPanY: [0.3, 0.7],
             imgAngle:[0, 359, 1],  imgWarp: [0, 0.18],    mix:     [0, 0.4]
@@ -2947,7 +3310,11 @@
 
         // `every` and `ease` are in beats, so one BPM governs the whole cadence.
         const SECTIONS = {
-            symmetry: { step: true,  keys: ['cellSize'], every: [8, 16], ease: [6, 12] },
+            // The step is the shape; the keys are everything else the panel
+            // holds, so a locked shape still leaves the section plenty to move.
+            symmetry: { step: true,
+                        keys: ['cellSize', 'cellAngle', 'edgeSize', 'edgeSoft'],
+                        every: [8, 16], ease: [6, 12] },
             seed:     { step: true,  keys: [],           every: [4, 10] },
             // The image controls belong to Source. Leaving them out meant its
             // lock only ever held the plate, while Randomize kept moving the
@@ -2955,7 +3322,7 @@
             source:   { step: true,  every: [8, 18], ease: [6, 14],
                         keys: ['imgZoom', 'imgPanX', 'imgPanY', 'imgAngle',
                                'imgWarp', 'mix'] },
-            motion:   { keys: ['flow', 'spin', 'trail'], ease: [6, 14] },
+            motion:   { keys: ['flow', 'spin', 'trail', 'orbFov'], ease: [6, 14] },
             params:   { keys: ['folds', 'moire', 'mfreq', 'detune', 'descent', 'angular',
                                'twist', 'warp', 'octaves', 'bands', 'rings', 'shift',
                                'seam', 'contrast', 'rotation'], ease: [6, 14] },
@@ -2993,15 +3360,17 @@
             return Object.keys(secState).some(function (k) { return secState[k].auto; });
         }
 
+        // Lock and auto are allowed together: the lock pins what the section
+        // steps through — the shape, the seed, the plate, the palette — while
+        // auto keeps easing its continuous controls. Locked symmetry on auto
+        // therefore holds the shape and lets everything else keep moving.
         function toggleSection(name, mode) {
             const st = secState[name];
             if (mode === 'lock') {
                 st.lock = !st.lock;
-                if (st.lock) st.auto = false;      // pinned and drifting is a contradiction
             } else {
                 st.auto = !st.auto;
                 if (st.auto) {
-                    st.lock = false;
                     st.due = 0;                    // act on the next frame
                     st.target = null;
                     beatLast = 0;                  // resync the clock
@@ -3039,8 +3408,11 @@
             });
 
             if (name === 'symmetry') {
-                const order = ['radial', 'triangle', 'square'];
-                setTiling(order[(Math.random() * 3) | 0]);
+                if (!shapeLock) {
+                    const order = glReady ? ['radial', 'triangle', 'square', 'orb']
+                                          : ['radial', 'triangle', 'square'];
+                    setTiling(order[(Math.random() * order.length) | 0]);
+                }
             } else if (name === 'seed') {
                 params.seed = Math.floor(Math.random() * 999999) + 1;
                 updateSeedDisplay();
@@ -3100,15 +3472,22 @@
                 if (!st.auto) return;
                 const cfg = SECTIONS[name];
 
-                // ── the ones that can only step ──
-                if ((cfg.step || cfg.palette) && beatClock >= st.due) {
+                // ── the ones that can only step — held while the lock is on ──
+                if (!st.lock && (cfg.step || cfg.palette) && beatClock >= st.due) {
+                    if (name === 'symmetry' && shapeLock) {
+                        // The shape alone is pinned; the window still advances
+                        // so unlocking rejoins the cadence rather than jumping.
+                        st.due = beatClock + beats(cfg.every);
+                    } else {
                     if (st.due !== 0) beginFade();
                     st.due = beatClock + beats(cfg.every);
 
                     if (name === 'symmetry') {
-                        const order = ['radial', 'triangle', 'square'];
+                        // The orb joins the morph cycle only where it can render.
+                        const order = glReady ? ['radial', 'triangle', 'square', 'orb']
+                                              : ['radial', 'triangle', 'square'];
                         const i = order.indexOf(params.tiling);
-                        setTiling(order[(i + 1 + ((Math.random() * 2) | 0)) % 3]);
+                        setTiling(order[(i + 1 + ((Math.random() * 2) | 0)) % order.length]);
                         touched = true;
                     } else if (name === 'seed') {
                         params.seed = Math.floor(Math.random() * 999999) + 1;
@@ -3126,10 +3505,11 @@
                         st.palT0 = beatClock;
                         st.palDur = beats(cfg.ease || [4, 10]);
                     }
+                    }
                 }
 
                 // ── continuous keys, eased across the window ──
-                if ((cfg.keys || []).length) {
+                if ((cfg.keys || []).length && !st.lock) {
                     if (!st.target || beatClock >= st.t0 + st.dur) retarget(name, st, cfg, now);
                     const u = st.dur > 0 ? Math.min(1, (beatClock - st.t0) / st.dur) : 1;
                     const e = u * u * (3 - 2 * u);
@@ -3171,8 +3551,82 @@
 
         function regenerate() { scheduleRender(); }
 
+        // The breath guide lives in the DOM above the artwork, so a bare canvas
+        // save loses it. The capture composites what the screen actually shows:
+        // artwork, then backdrop disc, orb shell and stage label by hand.
         function downloadPNG() {
-            saveCanvas('refracted-descent-seed-' + params.seed, 'png');
+            const main = drawingContext.canvas;
+            const out = document.createElement('canvas');
+            out.width = main.width;
+            out.height = main.height;
+            const c = out.getContext('2d');
+            c.drawImage(main, 0, 0);
+
+            const introUp = !document.getElementById('intro').classList.contains('gone');
+            if (params.breath !== 'off' && !introUp) {
+                const cx = out.width / 2, cy = out.height / 2;
+
+                if (params.breathGuide) {
+                    const size = params.orbSize * (0.62 + breathValue * 0.38);
+                    const R = size / 2;
+                    const A = function (k) {
+                        return Math.min(1, k * params.orbBackdropAlpha);
+                    };
+                    // The CSS radial-gradient backdrops, re-plotted. The screen
+                    // version also frosts what is behind it; the capture keeps
+                    // the disc and lets the blur go.
+                    if (params.orbBackdrop === 'dark' || params.orbBackdrop === 'glass') {
+                        const g = c.createRadialGradient(cx, cy, 0, cx, cy, R);
+                        if (params.orbBackdrop === 'dark') {
+                            g.addColorStop(0,    'rgba(3,3,6,' + A(0.99) + ')');
+                            g.addColorStop(0.66, 'rgba(3,3,6,' + A(0.99) + ')');
+                            g.addColorStop(0.73, 'rgba(3,3,6,' + A(0.96) + ')');
+                            g.addColorStop(0.78, 'rgba(3,3,6,' + A(0.68) + ')');
+                            g.addColorStop(0.81, 'rgba(3,3,6,' + A(0.22) + ')');
+                            g.addColorStop(0.83, 'rgba(3,3,6,0)');
+                        } else {
+                            g.addColorStop(0,    'rgba(255,255,255,' + A(0.26) + ')');
+                            g.addColorStop(0.28, 'rgba(255,255,255,' + A(0.26) + ')');
+                            g.addColorStop(0.48, 'rgba(255,255,255,' + A(0.20) + ')');
+                            g.addColorStop(0.64, 'rgba(255,255,255,' + A(0.11) + ')');
+                            g.addColorStop(0.75, 'rgba(255,255,255,' + A(0.03) + ')');
+                            g.addColorStop(0.83, 'rgba(255,255,255,0)');
+                        }
+                        c.fillStyle = g;
+                        c.beginPath();
+                        c.arc(cx, cy, R, 0, Math.PI * 2);
+                        c.fill();
+                    }
+                    const ring = document.getElementById('breath-ring');
+                    if (ring && ring.width) {
+                        c.drawImage(ring, cx - R, cy - R, size, size);
+                    }
+                }
+
+                if (params.breathLabel && breathStage) {
+                    c.font = '600 ' + params.breathLabelSize + 'px Poppins, sans-serif';
+                    try { c.letterSpacing = '0.22em'; } catch (e) {}
+                    c.textAlign = 'center';
+                    c.fillStyle = 'rgba(250,249,245,0.82)';
+                    c.shadowColor = 'rgba(6,6,10,0.7)';
+                    c.shadowBlur = 10;
+                    c.shadowOffsetY = 1;
+                    let ty;
+                    if (params.breathLabelPos === 'centre') {
+                        ty = cy + params.breathLabelSize * 0.35;
+                    } else if (params.breathLabelPos === 'bottom') {
+                        ty = out.height - 92;
+                    } else {
+                        ty = cy + 78 + params.breathLabelSize;
+                    }
+                    c.fillText(breathStage.toUpperCase(), cx, ty);
+                }
+            }
+
+            const a = document.createElement('a');
+            a.download = 'refracted-descent-seed-' + params.seed + '.png';
+            a.href = out.toDataURL('image/png');
+            a.click();
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -3308,12 +3762,16 @@
             refreshSrcRegion();
 
             // Radial gets the larger share — it's the mode most seeds flatter.
-            const roll = Math.random();
-            const mode = roll < 0.5 ? 'radial' : (roll < 0.78 ? 'triangle' : 'square');
-            if (mode !== params.tiling) {
-                setTiling(mode);
-            } else {
-                params.tiling = mode;
+            if (!shapeLock) {
+                const roll = Math.random();
+                const mode = roll < 0.5 ? 'radial'
+                           : roll < 0.74 ? 'triangle'
+                           : roll < 0.9 || !glReady ? 'square' : 'orb';
+                if (mode !== params.tiling) {
+                    setTiling(mode);
+                } else {
+                    params.tiling = mode;
+                }
             }
 
             // Put the pinned sections back.
@@ -3359,6 +3817,7 @@
 
             updateSeedDisplay();
             setTiling(params.tiling);
+            setTriType(params.triType);
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -3370,10 +3829,10 @@
         // a URL; built-in plates ride along as their id.
         // ═══════════════════════════════════════════════════════════════════════
 
-        const SHARE_KEYS = ['tiling', 'source', 'seed', 'cellSize', 'folds', 'moire',
+        const SHARE_KEYS = ['tiling', 'triType', 'source', 'seed', 'cellSize', 'cellAngle', 'folds', 'moire',
             'mfreq', 'detune', 'descent', 'angular', 'twist', 'warp', 'octaves',
             'bands', 'rings', 'shift', 'seam', 'contrast', 'rotation', 'flow',
-            'spin', 'trail', 'imgZoom', 'imgPanX', 'imgPanY', 'imgAngle',
+            'spin', 'trail', 'orbFov', 'imgZoom', 'imgPanX', 'imgPanY', 'imgAngle',
             'imgWarp', 'mix'];
 
         function b64url(str) {
@@ -3422,6 +3881,7 @@
                 setSource(params.source === 'image' ? 'generated' : params.source);
             }
             setTiling(params.tiling);
+            setTriType(params.triType);
             refreshSrcRegion();
             return true;
         }

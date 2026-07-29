@@ -59,8 +59,8 @@
     </div>
 
     <!-- Panel sheet, one section at a time -->
-    <div id="sheet" class="hidden">
-        <button class="sheet-close" onclick="closePanel()" title="Close (Esc)">×</button>
+    <div id="sheet" class="hidden" role="dialog" tabindex="-1" inert>
+        <button class="sheet-close" onclick="closePanel()" title="Close (Esc)" aria-label="Close panel">×</button>
         <div class="control-section" id="panel-source">
             <h3>Source<span class="sec-tools"><button class="sec-btn" id="sec-source-lock" title="Lock source — Randomize leaves it alone" onclick="toggleSection('source','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize source only" onclick="randomSection('source')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-source-auto" title="Let source drift on its own" onclick="toggleSection('source','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
             <div class="thumb-grid" id="thumb-grid"></div>
@@ -130,7 +130,15 @@
         </div>
 
         <div class="control-section" id="panel-symmetry">
-            <h3>Symmetry<span class="sec-tools"><button class="sec-btn" id="sec-symmetry-lock" title="Lock symmetry — Randomize leaves it alone" onclick="toggleSection('symmetry','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize symmetry only" onclick="randomSection('symmetry')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-symmetry-auto" title="Let symmetry drift on its own" onclick="toggleSection('symmetry','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
+            <h3>Symmetry<span class="sec-tools"><button class="sec-btn" id="sec-symmetry-lock" title="Lock all of symmetry — Randomize and auto-drift leave the whole section alone" onclick="toggleSection('symmetry','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize symmetry only" onclick="randomSection('symmetry')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-symmetry-auto" title="Let symmetry drift on its own" onclick="toggleSection('symmetry','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
+            <div class="lock-row">
+                <span>Shape</span>
+                <button class="sec-btn" id="shape-lock" onclick="toggleShapeLock()"
+                        aria-pressed="false"
+                        title="Lock the shape alone — drift and Randomize keep it while everything else moves">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg>
+                </button>
+            </div>
             <div class="shape-row">
                 <button id="tile-radial" class="shape active" onclick="setTiling('radial')" title="Radial mirrors">
                     <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.4"/><path d="M12 1.6l2.6 7.4h-5.2zM12 22.4l-2.6-7.4h5.2zM1.6 12l7.4-2.6v5.2zM22.4 12l-7.4 2.6v-5.2z"/></svg>
@@ -144,6 +152,44 @@
                     <svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="1.5"/></svg>
                     <em>Square</em>
                 </button>
+                <button id="tile-orb" class="shape" onclick="setTiling('orb')" title="Inside a 360° orb — drag to look around">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.6"/><ellipse cx="12" cy="12" rx="3.8" ry="8.6"/><path d="M3.4 12h17.2"/></svg>
+                    <em>Orb</em>
+                </button>
+            </div>
+
+            <label class="edge-label off" id="tri-type-label">Triangle</label>
+            <div class="breath-row edge-row off" id="tri-type-row">
+                <button id="tri-equilateral" class="active" onclick="setTriType('equilateral')" title="60°·60°·60° mirrors">Equilateral</button>
+                <button id="tri-isosceles" onclick="setTriType('isosceles')" title="45°·45°·90° mirrors">Isosceles</button>
+                <button id="tri-scalene" onclick="setTriType('scalene')" title="30°·60°·90° mirrors">Scalene</button>
+            </div>
+
+            <div id="tess-controls" class="off">
+                <div class="control-group">
+                    <label for="cellSize">Cell Size</label>
+                    <div class="slider-container">
+                        <input type="range" id="cellSize" min="110" max="1000" step="1" value="219" oninput="updateParam('cellSize', this.value)">
+                        <span class="value-display" id="cellSize-value">219</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="cellAngle">Cell Angle</label>
+                    <div class="slider-container">
+                        <input type="range" id="cellAngle" min="0" max="359" step="1" value="0" oninput="updateParam('cellAngle', this.value)">
+                        <span class="value-display" id="cellAngle-value">0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="cellSpin">Cell Drift</label>
+                    <div class="slider-container">
+                        <input type="range" id="cellSpin" min="0" max="0.5" step="0.01" value="0.08" oninput="updateParam('cellSpin', this.value)">
+                        <span class="value-display" id="cellSpin-value">0.08</span>
+                    </div>
+                </div>
+                <div class="hint">At 0 the cell contents stay perfectly still while the mirrors turn around them, which reads as locked. Small values let them carry just enough of the turn to feel alive.</div>
             </div>
 
             <label class="edge-label">Edge</label>
@@ -173,24 +219,6 @@
                 <div class="hint">The boundary follows the mirror count, and is always blurred — a hard cut reads as a crop, a soft one as the end of the mirrors.</div>
             </div>
 
-            <div id="tess-controls" class="off">
-                <div class="control-group">
-                    <label for="cellSize">Cell Size</label>
-                    <div class="slider-container">
-                        <input type="range" id="cellSize" min="110" max="520" step="1" value="219" oninput="updateParam('cellSize', this.value)">
-                        <span class="value-display" id="cellSize-value">219</span>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label for="cellSpin">Cell Drift</label>
-                    <div class="slider-container">
-                        <input type="range" id="cellSpin" min="0" max="0.5" step="0.01" value="0.08" oninput="updateParam('cellSpin', this.value)">
-                        <span class="value-display" id="cellSpin-value">0.08</span>
-                    </div>
-                </div>
-                <div class="hint">At 0 the cell contents stay perfectly still while the mirrors turn around them, which reads as locked. Small values let them carry just enough of the turn to feel alive.</div>
-            </div>
         </div>
 
         <div class="control-section" id="panel-colour">
@@ -267,6 +295,14 @@
             </div>
 
             <div class="control-group">
+                <label for="orbFov">Perspective</label>
+                <div class="slider-container">
+                    <input type="range" id="orbFov" min="0.35" max="1.8" step="0.01" value="0.9" oninput="updateParam('orbFov', this.value)">
+                    <span class="value-display" id="orbFov-value">0.9</span>
+                </div>
+            </div>
+
+            <div class="control-group">
                 <label for="trail">Trail</label>
                 <div class="slider-container">
                     <input type="range" id="trail" min="0" max="0.92" step="0.02" value="0" oninput="updateParam('trail', this.value)">
@@ -274,7 +310,7 @@
                 </div>
             </div>
 
-            <div class="hint">Tempo paces everything that moves on its own — colour, spin, and the section transitions — with 60 as the reference the sliders are tuned against. Colour Flow moves the generated field's palette, so with an image source it only shows once Field Mix is above 0; Spin turns the mirrors either way. Drag the artwork to turn it by hand.</div>
+            <div class="hint">Tempo paces everything that moves on its own — colour, spin, and the section transitions — with 60 as the reference the sliders are tuned against. Perspective is the lens: inside the orb it sets the view angle, and on the flat canvas it zooms — low is a telescope, high a wide angle. Colour Flow moves the generated field's palette, so with an image source it only shows once Field Mix is above 0; Spin turns the mirrors either way. Drag the artwork to turn it by hand.</div>
         </div>
 
         <div class="control-section" id="panel-breathing">
@@ -289,10 +325,9 @@
 
             <div class="lock-row">
                 <span>Guide orb on the canvas</span>
-                <button class="sec-btn" id="breath-guide-toggle" onclick="toggleBreathGuide()"
-                        title="Show or hide the ring you breathe along with">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>
-                </button>
+                <button class="switch" id="breath-guide-toggle" onclick="toggleBreathGuide()"
+                        aria-pressed="false"
+                        title="Show or hide the ring you breathe along with">Off</button>
             </div>
 
             <label class="edge-label">Orb backdrop</label>
@@ -345,10 +380,9 @@
 
             <div class="lock-row">
                 <span>Stage label</span>
-                <button class="sec-btn on" id="breath-label-toggle" onclick="toggleBreathLabel()"
-                        title="Show or hide the Breathe in / Hold / Breathe out text">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6.5h16"/><path d="M12 6.5V19"/><path d="M8.5 19h7"/></svg>
-                </button>
+                <button class="switch on" id="breath-label-toggle" onclick="toggleBreathLabel()"
+                        aria-pressed="true"
+                        title="Show or hide the Breathe in / Hold / Breathe out text">On</button>
             </div>
 
             <div class="breath-row edge-row" id="label-pos-row">
@@ -516,7 +550,7 @@
         </div>
     </div>
 
-    <nav id="dock">
+    <nav id="dock" aria-label="Studio controls" inert>
         <div class="dock-inner">
             <button class="dock-btn" id="dock-source" onclick="openPanel('source')" aria-label="Source">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.6" cy="8.6" r="1.7"/><path d="M21 15.5l-5-5L5 21.5"/></svg>
@@ -562,6 +596,10 @@
             <button class="dock-btn" id="dock-cinema" onclick="toggleCinema()" aria-label="Cinema">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M7 5v14M17 5v14"/></svg>
                 <span class="dock-tip">Cinema <em>H</em></span>
+            </button>
+            <button class="dock-btn" id="dock-snap" onclick="downloadPNG()" aria-label="Download PNG">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5a2 2 0 0 1 2-2h2l1.6-2.3h5.8L16.5 6.5h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.4"/></svg>
+                <span class="dock-tip">Snapshot <em>C</em></span>
             </button>
             <button class="dock-btn" id="dock-about" onclick="showIntro()" aria-label="About">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.6v.6"/></svg>
