@@ -437,11 +437,13 @@
         .thumb-seed .seed-num {
             display: block;
             font-family: 'Courier New', monospace;
-            font-size: 9.5px;
+            font-size: 9px;
             color: var(--dim);
             padding: 4px 2px;
             text-align: center;
         }
+
+        .thumb-seed .seed-num i { font-style: normal; color: var(--text); }
 
         .thumb-seed .seed-step {
             width: 19px;

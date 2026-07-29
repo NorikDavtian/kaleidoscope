@@ -443,7 +443,7 @@
                   '<span class="seed-step" data-step="-1">\u2212</span>' +
                   '<span class="seed-step" data-step="1">+</span>' +
                 '</span>' +
-                '<span class="seed-num" id="seed-readout">' + params.seed + '</span>';
+                '<span class="seed-num">Seed #<i id="seed-readout">' + params.seed + '</i></span>';
             none.onclick = function (ev) {
                 const step = ev.target.closest('.seed-step');
                 if (step) {
@@ -509,12 +509,14 @@
         function markActiveThumb(id) {
             BASE_PLATES.forEach(function (b) {
                 const el = document.getElementById('thumb-' + b.id);
-                if (el) el.className = (b.id === id) ? 'thumb active' : 'thumb';
+                if (el) el.classList.toggle('active', b.id === id);
             });
+            // Toggle the class rather than rewriting it: assigning className
+            // wholesale drops the tile's own modifier and every rule scoped to it.
             const none = document.getElementById('thumb-none');
-            if (none) none.className = (id === 'none') ? 'thumb active' : 'thumb';
+            if (none) none.classList.toggle('active', id === 'none');
             const up = document.getElementById('thumb-upload');
-            if (up) up.className = (id === 'upload') ? 'thumb thumb-upload active' : 'thumb thumb-upload';
+            if (up) up.classList.toggle('active', id === 'upload');
         }
 
         function adoptPlateSurface(surface, id, name, note) {
