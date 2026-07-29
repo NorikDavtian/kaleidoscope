@@ -1486,6 +1486,9 @@
         // INTRO — the scope is already running underneath it
         // ═══════════════════════════════════════════════════════════════════════
 
+        // One source for how long the welcome lingers — the ring's duration is
+        // set from it, so the sweep and the timer cannot drift apart.
+        const INTRO_MS = 18000;
         let introTimer = null;
 
         function enterStudio() {
@@ -1494,8 +1497,8 @@
             document.getElementById('dock').classList.add('up');
         }
 
-        // Six seconds, then the studio opens by itself. Restarting the CSS
-        // animation needs it cleared and the layout flushed, or the browser
+        // The studio opens by itself once the ring has drained. Restarting the
+        // CSS animation needs it cleared and the layout flushed, or the browser
         // coalesces both changes and the ring never replays.
         function startIntroCountdown() {
             if (introTimer) clearTimeout(introTimer);
@@ -1504,8 +1507,16 @@
                 ring.style.animation = 'none';
                 void ring.getBoundingClientRect();
                 ring.style.animation = '';
+                ring.style.animationDuration = (INTRO_MS / 1000) + 's';
             }
-            introTimer = setTimeout(enterStudio, 6000);
+            introTimer = setTimeout(enterStudio, INTRO_MS);
+        }
+
+        // Clicking the disc itself does nothing — there is a link on it. Clicking
+        // past it means you have seen enough.
+        function introBackdropClick(e) {
+            if (e.target.closest('.intro-card')) return;
+            enterStudio();
         }
 
         // Fullscreen. The canvas already fills the viewport, so this only has to
@@ -2990,4 +3001,8 @@
             if (!document.getElementById('intro').classList.contains('gone')) {
                 startIntroCountdown();
             }
+
+            // Open in motion. Tempo is low by default, so this is a drift rather
+            // than a performance — but a still image reads as a broken one.
+            if (!animating) toggleAnimate();
         });

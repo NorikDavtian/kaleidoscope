@@ -168,9 +168,13 @@ Animate button.
 
 ## Opening
 
-The welcome disc sits over the live scope with a ring that drains over six
-seconds, then opens the studio on its own. Click it, or press Enter, Space or
-Esc, to skip. `I` brings it back.
+The welcome disc sits over the live scope with a ring that drains over eighteen
+seconds, then opens the studio on its own. Click past the disc, or press Enter,
+Space or Esc, to skip — clicking the disc itself does nothing, since it carries
+a link. `I` brings it back.
+
+The scope opens already in motion. Tempo is low by default so it drifts rather
+than performs, but a still frame reads as a broken one.
 
 ## Dock and keys
 

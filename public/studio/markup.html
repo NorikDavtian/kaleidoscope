@@ -2,9 +2,9 @@
 
     <!-- Intro — the scope runs live behind it, so the first thing you see is
          the thing itself rather than a description of it. -->
-    <div id="intro" onclick="enterStudio()">
+    <div id="intro" onclick="introBackdropClick(event)">
         <div class="intro-card">
-            <!-- Countdown ring. Drains over six seconds, then the studio opens. -->
+            <!-- Countdown ring. Drains, then the studio opens; see INTRO_MS. -->
             <svg class="intro-ring" viewBox="0 0 200 200" aria-hidden="true">
                 <circle class="ring-track" cx="100" cy="100" r="97"/>
                 <circle class="ring-run" cx="100" cy="100" r="97"/>

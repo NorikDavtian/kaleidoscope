@@ -706,6 +706,7 @@
         #intro.gone { opacity: 0; pointer-events: none; }
 
         .intro-card {
+            cursor: default;
             position: relative;
             width: min(80vmin, 440px);
             height: min(80vmin, 440px);
@@ -737,7 +738,8 @@
             /* 2 * pi * 97 */
             stroke-dasharray: 609.47;
             stroke-dashoffset: 0;
-            animation: intro-drain 6s linear forwards;
+            /* Duration is set from INTRO_MS in script; this is only a fallback. */
+            animation: intro-drain 18s linear forwards;
         }
 
         @keyframes intro-drain {

@@ -724,6 +724,7 @@
         #intro.gone { opacity: 0; pointer-events: none; }
 
         .intro-card {
+            cursor: default;
             position: relative;
             width: min(80vmin, 440px);
             height: min(80vmin, 440px);
@@ -755,7 +756,8 @@
             /* 2 * pi * 97 */
             stroke-dasharray: 609.47;
             stroke-dashoffset: 0;
-            animation: intro-drain 6s linear forwards;
+            /* Duration is set from INTRO_MS in script; this is only a fallback. */
+            animation: intro-drain 18s linear forwards;
         }
 
         @keyframes intro-drain {
@@ -826,9 +828,9 @@
 
     <!-- Intro — the scope runs live behind it, so the first thing you see is
          the thing itself rather than a description of it. -->
-    <div id="intro" onclick="enterStudio()">
+    <div id="intro" onclick="introBackdropClick(event)">
         <div class="intro-card">
-            <!-- Countdown ring. Drains over six seconds, then the studio opens. -->
+            <!-- Countdown ring. Drains, then the studio opens; see INTRO_MS. -->
             <svg class="intro-ring" viewBox="0 0 200 200" aria-hidden="true">
                 <circle class="ring-track" cx="100" cy="100" r="97"/>
                 <circle class="ring-run" cx="100" cy="100" r="97"/>
@@ -2792,6 +2794,9 @@
         // INTRO — the scope is already running underneath it
         // ═══════════════════════════════════════════════════════════════════════
 
+        // One source for how long the welcome lingers — the ring's duration is
+        // set from it, so the sweep and the timer cannot drift apart.
+        const INTRO_MS = 18000;
         let introTimer = null;
 
         function enterStudio() {
@@ -2800,8 +2805,8 @@
             document.getElementById('dock').classList.add('up');
         }
 
-        // Six seconds, then the studio opens by itself. Restarting the CSS
-        // animation needs it cleared and the layout flushed, or the browser
+        // The studio opens by itself once the ring has drained. Restarting the
+        // CSS animation needs it cleared and the layout flushed, or the browser
         // coalesces both changes and the ring never replays.
         function startIntroCountdown() {
             if (introTimer) clearTimeout(introTimer);
@@ -2810,8 +2815,16 @@
                 ring.style.animation = 'none';
                 void ring.getBoundingClientRect();
                 ring.style.animation = '';
+                ring.style.animationDuration = (INTRO_MS / 1000) + 's';
             }
-            introTimer = setTimeout(enterStudio, 6000);
+            introTimer = setTimeout(enterStudio, INTRO_MS);
+        }
+
+        // Clicking the disc itself does nothing — there is a link on it. Clicking
+        // past it means you have seen enough.
+        function introBackdropClick(e) {
+            if (e.target.closest('.intro-card')) return;
+            enterStudio();
         }
 
         // Fullscreen. The canvas already fills the viewport, so this only has to
@@ -4296,6 +4309,10 @@
             if (!document.getElementById('intro').classList.contains('gone')) {
                 startIntroCountdown();
             }
+
+            // Open in motion. Tempo is low by default, so this is a drift rather
+            // than a performance — but a still image reads as a broken one.
+            if (!animating) toggleAnimate();
         });
     </script>
 </body>
