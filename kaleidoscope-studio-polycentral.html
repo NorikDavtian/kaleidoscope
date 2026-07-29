@@ -744,6 +744,22 @@
         .intro-fine { font-size: 11.5px; line-height: 1.5; color: var(--faint); margin: 24px 0 20px; }
         .intro-card .button { padding: 13px 16px; font-size: 14.5px; border-radius: 10px; }
 
+        .intro-credit {
+            margin-top: 18px;
+            font-size: 11.5px;
+            color: var(--faint);
+            letter-spacing: 0.3px;
+        }
+
+        .intro-credit a {
+            color: var(--dim);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .intro-credit a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
         @media (max-width: 640px) {
             #sheet { bottom: 88px; max-height: 58vh; }
             .dock-btn { width: 38px; height: 38px; }
@@ -798,6 +814,10 @@
             </div>
 
             <button class="button" onclick="enterStudio()">Enter the studio</button>
+
+            <div class="intro-credit">
+                by <a href="https://norik.io" target="_blank" rel="noopener noreferrer">norik.io</a>
+            </div>
         </div>
     </div>
 

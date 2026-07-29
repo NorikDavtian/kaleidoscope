@@ -220,6 +220,10 @@ chosen colour, and by row 60 or so they have drifted right around the wheel.
 The tile format is Gregg Gunn's: a palette shown as a composition rather than a
 strip, which previews how the colours sit against each other.
 
+## Credits
+
+Built by [norik.io](https://norik.io).
+
 ## Inspiration and credits
 
 - [Leif Gehrmann — Digital Kaleidoscopes](https://leifgehrmann.com/kaleidoscopes/)
