@@ -22,19 +22,6 @@
             color: var(--text);
         }
 
-        /* Animated sources live in the document so their frames advance, but
-           must never be seen or interactive. */
-        img.anim-src {
-            position: fixed;
-            left: -4px;
-            top: -4px;
-            width: 2px;
-            height: 2px;
-            opacity: 0.01;
-            pointer-events: none;
-            z-index: -1;
-        }
-
         /* ── Full-bleed canvas ─────────────────────────────────────────────── */
         #canvas-wrap { position: fixed; inset: 0; z-index: 0; }
         #canvas-wrap canvas { display: block; width: 100% !important; height: 100% !important; }

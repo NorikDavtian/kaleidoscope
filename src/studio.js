@@ -192,7 +192,7 @@
             { id: 'companions',name: 'Companions',src: 'plates/companions.jpg' },
             { id: 'drift',     name: 'Drift',     video: 'plates/drift.mp4',
               poster: 'plates/drift-poster.jpg' },
-            { id: 'prism',     name: 'Prism',     src: 'plates/prism.webp', animated: true },
+            { id: 'prism',     name: 'Prism',     src: 'plates/prism.gif', animated: true },
             { id: 'smiley',    name: 'Smiley' },
             { id: 'faces',     name: 'Faces' },
             { id: 'wink',      name: 'Wink', anim: true }
@@ -223,6 +223,7 @@
         // file: draw the current frame to a canvas, hand that to the GPU, and
         // let the existing per-frame re-upload do the rest.
         function useVideoPlate(meta, name) {
+            stopMovingSources();
             if (!plateVideo) {
                 plateVideo = document.createElement('video');
                 plateVideo.muted = true;              // required for autoplay
@@ -273,54 +274,108 @@
             attempt();
         }
 
-        let animImg = null, animCv = null, animCtx = null, animLive = false;
+        let animCv = null, animCtx = null, animLive = false;
 
-        // An animated GIF or WebP keeps playing inside an <img>; p5's loadImage
-        // decodes a single frame and stops. So these are held as an element and
-        // drawn to a canvas per frame, the same way the video plate works.
+        // Every source path calls this first. Leaving a flag set meant the
+        // per-frame block took the wrong branch — with both animLive and
+        // videoLive true it redrew the image's canvas while the video's went
+        // stale, and the video appeared frozen.
+        function stopMovingSources() {
+            animLive = false;
+            videoLive = false;
+            plateAnim = false;
+            if (plateVideo) plateVideo.pause();
+            if (animFrames) {
+                animFrames.forEach(function (f) { if (f.frame.close) f.frame.close(); });
+                animFrames = null;
+            }
+        }
+
+        // Frames are decoded ourselves rather than left to an <img>. A browser
+        // suspends animation on an image it considers invisible, and this one
+        // has to be invisible — so it stayed on frame one however it was hidden.
+        // ImageDecoder gives the frames and their durations outright.
+        let animFrames = null, animTotal = 0, animT0 = 0;
+
         function useAnimatedPlate(meta, name) {
-            document.querySelectorAll('img.anim-src').forEach(function (n) { n.remove(); });
-            let i = 0;
-            const attempt = function () {
+            stopMovingSources();
+
+            const tryRoot = function (i) {
                 if (i >= PLATE_ROOTS.length) {
-                    console.warn('Animated plate missing: ' + meta.src);
+                    useStillPlate(meta, meta.id, name);
                     return;
                 }
-                const url = PLATE_ROOTS[i++] + meta.src;
-                const im = new Image();
-                im.crossOrigin = 'anonymous';
-                // It has to be in the document to advance its frames — a
-                // detached <img> decodes once and never animates. Kept at a
-                // pixel and invisible rather than display:none, which stops it
-                // just the same.
-                im.className = 'anim-src';
-                document.body.appendChild(im);
-                im.onerror = attempt;
-                im.onload = function () {
-                    meta.resolvedURL = url;
-                    animImg = im;
+                const url = PLATE_ROOTS[i] + meta.src;
+                fetch(url).then(function (res) {
+                    if (!res.ok) throw new Error('404');
+                    return res.arrayBuffer().then(function (buf) {
+                        return { buf: buf, type: res.headers.get('content-type') || 'image/gif' };
+                    });
+                }).then(function (got) {
+                    if (typeof ImageDecoder === 'undefined') throw new Error('no ImageDecoder');
+                    const dec = new ImageDecoder({ data: got.buf, type: got.type });
+                    // Both: `completed` covers the data, `tracks.ready` the track
+                    // list. Only the second one knows the frame count.
+                    return Promise.all([dec.completed, dec.tracks.ready]).then(function () {
+                        const track = dec.tracks.selectedTrack;
+                        const n = track ? track.frameCount : 1;
+                        const seq = [];
+                        let total = 0;
+                        const step = function (k) {
+                            if (k >= n) return Promise.resolve();
+                            return dec.decode({ frameIndex: k }).then(function (r) {
+                                // Zero-duration frames are what a browser clamps
+                                // to about a tenth of a second.
+                                const ms = r.image.duration ? r.image.duration / 1000 : 100;
+                                seq.push({ frame: r.image, ms: ms });
+                                total += ms;
+                                return step(k + 1);
+                            });
+                        };
+                        return step(0).then(function () {
+                            return { url: url, seq: seq, total: total,
+                                     w: seq[0].frame.displayWidth, h: seq[0].frame.displayHeight };
+                        });
+                    });
+                }).then(function (got) {
+                    meta.resolvedURL = got.url;
+                    animFrames = got.seq;
+                    animTotal = got.total || got.seq.length * 100;
+                    animT0 = performance.now();
+
                     if (!animCv) { animCv = document.createElement('canvas'); animCtx = animCv.getContext('2d'); }
-                    animCv.width = im.naturalWidth; animCv.height = im.naturalHeight;
-                    animCtx.drawImage(im, 0, 0);
+                    animCv.width = got.w || got.seq[0].frame.displayWidth;
+                    animCv.height = got.h || got.seq[0].frame.displayHeight;
+                    animCtx.drawImage(animFrames[0].frame, 0, 0);
 
                     if (srcHolder) { srcHolder.remove(); srcHolder = null; }
                     srcPixels = null;              // the CPU path cannot follow it
-                    srcW = im.naturalWidth; srcH = im.naturalHeight;
+                    srcW = animCv.width; srcH = animCv.height;
                     srcCanvas = animCv;
                     srcTexDirty = true;
                     animLive = true;
-                    videoLive = false;
                     plateAnim = true;
                     activeBase = meta.id;
                     markActiveThumb(meta.id);
                     setDropLabel('Upload');
-                    setSourceMeta(url, name, srcW + ' × ' + srcH + ' · built-in animation');
+                    setSourceMeta(got.url, name,
+                        srcW + ' × ' + srcH + ' · ' + animFrames.length + ' frames');
                     setSource('image');
                     loop();
-                };
-                im.src = url;
+                }).catch(function () { tryRoot(i + 1); });
             };
-            attempt();
+            tryRoot(0);
+        }
+
+        // Which frame belongs to this moment, by the durations the file declares.
+        function animFrameNow() {
+            if (!animFrames || !animFrames.length) return null;
+            let t = (performance.now() - animT0) % animTotal;
+            for (let i = 0; i < animFrames.length; i++) {
+                t -= animFrames[i].ms;
+                if (t < 0) return animFrames[i].frame;
+            }
+            return animFrames[animFrames.length - 1].frame;
         }
 
         function plateById(id) {
@@ -593,41 +648,39 @@
             setSource('image');
         }
 
+        // A plate that is just a picture. Also where an animated one lands when
+        // the browser has no ImageDecoder — a still first frame beats nothing.
+        function useStillPlate(meta, id, name) {
+            stopMovingSources();
+            loadPlateBitmap(meta, function (img) {
+                if (srcHolder) srcHolder.remove();
+                srcHolder = createGraphics(img.width, img.height);
+                srcHolder.pixelDensity(1);
+                srcHolder.image(img, 0, 0, img.width, img.height);
+                try {
+                    srcHolder.loadPixels();
+                } catch (err) {
+                    // file:// taints the canvas, so pixels cannot be read back
+                    console.warn('Cannot read pixels from ' + meta.src + ' — serve the page over http.');
+                    return;
+                }
+                adoptPlateSurface(srcHolder, id, name,
+                    img.width + ' × ' + img.height + ' · built-in image', meta.resolvedURL);
+            }, function () {
+                console.warn('Plate image missing: ' + meta.src);
+            });
+        }
+
         function useBasePlate(id, name) {
             const meta = plateById(id);
 
             if (meta && meta.video) { useVideoPlate(meta, name); return; }
             if (meta && meta.src && meta.animated) { useAnimatedPlate(meta, name); return; }
 
-            if (meta && meta.src) {
-                plateAnim = false;
-                videoLive = false;
-                animLive = false;
-                if (plateVideo) plateVideo.pause();
-                loadPlateBitmap(meta, function (img) {
-                    if (srcHolder) srcHolder.remove();
-                    srcHolder = createGraphics(img.width, img.height);
-                    srcHolder.pixelDensity(1);
-                    srcHolder.image(img, 0, 0, img.width, img.height);
-                    try {
-                        srcHolder.loadPixels();
-                    } catch (err) {
-                        // file:// taints the canvas, so pixels cannot be read back
-                        console.warn('Cannot read pixels from ' + meta.src + ' — serve the page over http.');
-                        return;
-                    }
-                    adoptPlateSurface(srcHolder, id, name,
-                        img.width + ' × ' + img.height + ' · built-in image', meta.resolvedURL);
-                }, function () {
-                    console.warn('Plate image missing: ' + meta.src);
-                });
-                return;
-            }
+            if (meta && meta.src) { useStillPlate(meta, id, name); return; }
 
+            stopMovingSources();
             plateAnim = !!(meta && meta.anim);
-            videoLive = false;
-            animLive = false;
-            if (plateVideo) plateVideo.pause();
             if (srcHolder) srcHolder.remove();
             // Animated plates stay square and small: the surface is repainted
             // and re-uploaded to the GPU on every frame.
@@ -1623,10 +1676,13 @@
             if (anySectionAuto()) stepSections(nowMs);
 
             if (plateAnim && params.source === 'image') {
-                if (animLive && animImg) {
-                    animCtx.drawImage(animImg, 0, 0, animCv.width, animCv.height);
-                    srcTexDirty = true;
-                    fieldDirty = true;
+                if (animLive && animFrames) {
+                    const fr = animFrameNow();
+                    if (fr) {
+                        animCtx.drawImage(fr, 0, 0, animCv.width, animCv.height);
+                        srcTexDirty = true;
+                        fieldDirty = true;
+                    }
                 } else if (videoLive && plateVideo && plateVideo.readyState >= 2) {
                     videoCtx.drawImage(plateVideo, 0, 0, videoCv.width, videoCv.height);
                     srcTexDirty = true;
@@ -2022,10 +2078,7 @@
                     srcH = loaded.height;
                     srcCanvas = loaded.canvas;
                     srcTexDirty = true;
-                    plateAnim = false;
-                    videoLive = false;
-                    animLive = false;
-                    if (plateVideo) plateVideo.pause();
+                    stopMovingSources();
                     activeBase = null;
                     markActiveThumb('upload');
 
@@ -2069,10 +2122,7 @@
                 srcH = loaded.height;
                 srcCanvas = loaded.canvas;
                 srcTexDirty = true;
-                plateAnim = false;
-                videoLive = false;
-                animLive = false;
-                if (plateVideo) plateVideo.pause();
+                stopMovingSources();
                 activeBase = null;
                 markActiveThumb(null);
                 setSourceMeta(url, 'Shared source', 'Loaded with this generation');

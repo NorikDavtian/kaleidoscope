@@ -122,9 +122,10 @@ Beyond the nine painted plates, `BASE_PLATES` entries can carry:
   whether served by the app or opened off disk.
 - `video` — an MP4, drawn to a canvas and re-uploaded to the GPU each frame.
   Give it a `poster` for the thumbnail.
-- `animated: true` alongside `src` — an animated GIF or WebP. Held as an <img>
-  in the document, since a detached one decodes a single frame and never
-  advances, and drawn to a canvas per frame like the video.
+- `animated: true` alongside `src` — an animated GIF or WebP. Its frames are
+  decoded up front with `ImageDecoder` and cycled by their own declared
+  durations, rather than left to an `<img>`: a browser suspends animation on an
+  image it judges invisible, and a source image has to be invisible.
 - `anim: true` — repainted procedurally each frame (see the Wink plate).
 
 Any entry whose file is missing removes itself from the grid.
