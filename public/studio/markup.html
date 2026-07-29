@@ -1,0 +1,431 @@
+<div id="canvas-wrap"></div>
+
+    <!-- Intro — the scope runs live behind it, so the first thing you see is
+         the thing itself rather than a description of it. -->
+    <div id="intro">
+        <div class="intro-card">
+            <h1>Refracted Descent</h1>
+            <div class="intro-sub">A polycentral kaleidoscope studio</div>
+
+            <div class="intro-feature">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#d97757" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.6"/>
+                    <path d="M21 15l-5-5L5 21"/>
+                </svg>
+                <p>Feed it noise, a painted plate, or your own image.</p>
+            </div>
+
+            <div class="intro-feature">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#d97757" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/>
+                    <path d="M18.6 2.8V6.4h-3.6"/>
+                </svg>
+                <p>Drag the artwork to turn it by hand. Let go and it coasts.</p>
+            </div>
+
+            <div class="intro-feature">
+                <svg class="ico" viewBox="0 0 24 24" fill="#d97757">
+                    <path d="M6 3l4 6H2z"/>
+                    <rect x="13" y="3" width="8" height="6" rx="1"/>
+                    <path d="M2 21v-7h7z"/>
+                    <path d="M21 21v-7h-7z"/>
+                </svg>
+                <p>Switch mirror arrangements — radial, triangle, square — for different patterns.</p>
+            </div>
+
+            <div class="intro-fine">
+                Everything renders in your browser. No image you choose ever leaves this machine.
+            </div>
+
+            <button class="button" onclick="enterStudio()">Enter the studio</button>
+        </div>
+    </div>
+
+    <button class="panel-toggle" id="panel-toggle" onclick="togglePanel()">☰</button>
+    <div id="status">rendering</div>
+
+    <!-- What the scope is currently reading from -->
+    <div id="source-card" class="off">
+        <img id="card-img" alt="Source image">
+        <div class="card-title" id="card-title"></div>
+        <div class="card-sub" id="card-sub"></div>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="sidebar hidden" id="sidebar">
+        <button class="hide-panel" onclick="togglePanel()" title="Hide panel">×</button>
+
+        <h1>Refracted Descent</h1>
+        <div class="subtitle">A polycentral kaleidoscope. Feed it noise, a painted plate, or your own image.</div>
+
+        <!-- Everything worth reaching for without scrolling -->
+        <div class="tool-row">
+            <button class="tool" onclick="randomSeedAndUpdate()" title="Randomize everything">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+                <em>Random</em>
+            </button>
+            <button class="tool" id="play-btn" onclick="toggleAnimate()" title="Animate">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l11 7-11 7z"/></svg>
+                <em>Animate</em>
+            </button>
+            <button class="tool" onclick="downloadPNG()" title="Save a PNG">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5h3.2L8 6h8l1.8 2.5H21v11H3z"/><circle cx="12" cy="13.6" r="3.4"/></svg>
+                <em>Save</em>
+            </button>
+            <button class="tool" onclick="showIntro()" title="About">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><path d="M12 11v5.5"/><path d="M12 7.6v.6"/></svg>
+                <em>About</em>
+            </button>
+        </div>
+
+        <!-- Symmetry (VARIABLE) -->
+        <div class="control-section">
+            <h3>Symmetry<span class="sec-tools"><button class="sec-btn" id="sec-symmetry-lock" title="Lock symmetry — Randomize leaves it alone" onclick="toggleSection('symmetry','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize symmetry only" onclick="randomSection('symmetry')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-symmetry-auto" title="Let symmetry drift on its own" onclick="toggleSection('symmetry','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
+            <div class="shape-row">
+                <button id="tile-radial" class="shape active" onclick="setTiling('radial')" title="Radial mirrors">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.4"/><path d="M12 1.6l2.6 7.4h-5.2zM12 22.4l-2.6-7.4h5.2zM1.6 12l7.4-2.6v5.2zM22.4 12l-7.4 2.6v-5.2z"/></svg>
+                    <em>Radial</em>
+                </button>
+                <button id="tile-triangle" class="shape" onclick="setTiling('triangle')" title="Triangle tiling">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 16H3z"/></svg>
+                    <em>Triangle</em>
+                </button>
+                <button id="tile-square" class="shape" onclick="setTiling('square')" title="Square tiling">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="1.5"/></svg>
+                    <em>Square</em>
+                </button>
+            </div>
+
+            <div id="tess-controls" class="off">
+                <div class="control-group">
+                    <label>Cell Size</label>
+                    <div class="slider-container">
+                        <input type="range" id="cellSize" min="110" max="520" step="1" value="219" oninput="updateParam('cellSize', this.value)">
+                        <span class="value-display" id="cellSize-value">219</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seed (FIXED) -->
+        <div class="control-section">
+            <h3>Seed<span class="sec-tools"><button class="sec-btn" id="sec-seed-lock" title="Lock seed — Randomize leaves it alone" onclick="toggleSection('seed','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize seed only" onclick="randomSection('seed')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-seed-auto" title="Let seed drift on its own" onclick="toggleSection('seed','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
+            <div class="seed-stepper">
+                <button onclick="previousSeed()" title="Previous seed">←</button>
+                <input type="number" id="seed-input" value="500321" onchange="updateSeed()">
+                <button onclick="nextSeed()" title="Next seed">→</button>
+            </div>
+        </div>
+
+        <!-- Source Section (VARIABLE) -->
+        <div class="control-section">
+            <h3>Source<span class="sec-tools"><button class="sec-btn" id="sec-source-lock" title="Lock source — Randomize leaves it alone" onclick="toggleSection('source','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize source only" onclick="randomSection('source')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-source-auto" title="Let source drift on its own" onclick="toggleSection('source','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
+            <div class="seg">
+                <button id="src-gen" class="active" onclick="setSource('generated')">Generated</button>
+                <button id="src-img" onclick="setSource('image')">Image</button>
+            </div>
+
+            <div class="thumb-grid" id="thumb-grid"></div>
+
+            <input type="file" id="file-input" accept="image/*" style="display:none" onchange="onFilePicked(this.files[0])">
+            <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                <strong id="drop-label">Or use your own</strong>
+                click to choose, or drop one on the page
+            </div>
+
+            <div id="img-controls" class="off">
+                <!-- The source, with the patch the scope is reading marked on it.
+                     Without this you are adjusting Zoom and Pan blind. -->
+                <div class="src-preview-wrap">
+                    <img id="src-preview" alt="Source image">
+                    <div id="src-region"></div>
+                </div>
+                <div class="src-caption">
+                    <strong id="src-name"></strong>
+                    <span id="src-note"></span>
+                </div>
+
+                <div class="control-group">
+                    <label>Zoom</label>
+                    <div class="slider-container">
+                        <input type="range" id="imgZoom" min="0.05" max="3" step="0.01" value="1.04" oninput="updateParam('imgZoom', this.value)">
+                        <span class="value-display" id="imgZoom-value">1.04</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Pan X</label>
+                    <div class="slider-container">
+                        <input type="range" id="imgPanX" min="0" max="1" step="0.01" value="0.51" oninput="updateParam('imgPanX', this.value)">
+                        <span class="value-display" id="imgPanX-value">0.51</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Pan Y</label>
+                    <div class="slider-container">
+                        <input type="range" id="imgPanY" min="0" max="1" step="0.01" value="0.69" oninput="updateParam('imgPanY', this.value)">
+                        <span class="value-display" id="imgPanY-value">0.69</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Source Angle</label>
+                    <div class="slider-container">
+                        <input type="range" id="imgAngle" min="0" max="359" step="1" value="223" oninput="updateParam('imgAngle', this.value)">
+                        <span class="value-display" id="imgAngle-value">223</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Image Warp</label>
+                    <div class="slider-container">
+                        <input type="range" id="imgWarp" min="0" max="1.5" step="0.01" value="0.04" oninput="updateParam('imgWarp', this.value)">
+                        <span class="value-display" id="imgWarp-value">0.04</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Field Mix</label>
+                    <div class="slider-container">
+                        <input type="range" id="mix" min="0" max="1" step="0.01" value="0.18" oninput="updateParam('mix', this.value)">
+                        <span class="value-display" id="mix-value">0.18</span>
+                    </div>
+                </div>
+                <div class="hint">At 0 the scope shows the image untouched. Higher values bleed the generated field's colour and shading over it.</div>
+            </div>
+        </div>
+
+        <!-- Motion Section (VARIABLE) -->
+        <div class="control-section">
+            <h3>Motion<span class="sec-tools"><button class="sec-btn" id="sec-motion-lock" title="Lock motion — Randomize leaves it alone" onclick="toggleSection('motion','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize motion only" onclick="randomSection('motion')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-motion-auto" title="Let motion drift on its own" onclick="toggleSection('motion','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
+
+            <div class="control-group">
+                <label>Colour Flow</label>
+                <div class="slider-container">
+                    <input type="range" id="flow" min="-4" max="4" step="0.1" value="1" oninput="updateParam('flow', this.value)">
+                    <span class="value-display" id="flow-value">1</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Spin</label>
+                <div class="slider-container">
+                    <input type="range" id="spin" min="-3" max="3" step="0.05" value="0.3" oninput="updateParam('spin', this.value)">
+                    <span class="value-display" id="spin-value">0.3</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Transition BPM</label>
+                <div class="slider-container">
+                    <input type="range" id="bpm" min="8" max="160" step="1" value="30" oninput="updateParam('bpm', this.value)">
+                    <span class="value-display" id="bpm-value">30</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Trail</label>
+                <div class="slider-container">
+                    <input type="range" id="trail" min="0" max="0.92" step="0.02" value="0" oninput="updateParam('trail', this.value)">
+                    <span class="value-display" id="trail-value">0</span>
+                </div>
+            </div>
+
+            <div class="hint">Drag the artwork to turn it by hand. Let go and it coasts. Colour Flow moves the generated field's palette, so with an image source it only shows once Field Mix is above 0 — Spin turns the mirrors either way.</div>
+        </div>
+
+        <!-- Parameters Section (VARIABLE) -->
+        <div class="control-section">
+            <h3>Parameters<span class="sec-tools"><button class="sec-btn" id="sec-params-lock" title="Lock parameters — Randomize leaves it alone" onclick="toggleSection('params','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize parameters only" onclick="randomSection('params')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-params-auto" title="Let parameters drift on its own" onclick="toggleSection('params','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
+
+            <div class="control-group">
+                <label>Mirror Folds</label>
+                <div class="slider-container">
+                    <input type="range" id="folds" min="3" max="24" step="1" value="5" oninput="updateParam('folds', this.value)">
+                    <span class="value-display" id="folds-value">5</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Moiré Depth</label>
+                <div class="slider-container">
+                    <input type="range" id="moire" min="0" max="2" step="0.01" value="0.01" oninput="updateParam('moire', this.value)">
+                    <span class="value-display" id="moire-value">0.01</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Fringe Frequency</label>
+                <div class="slider-container">
+                    <input type="range" id="mfreq" min="1" max="48" step="0.1" value="3.3" oninput="updateParam('mfreq', this.value)">
+                    <span class="value-display" id="mfreq-value">3.3</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Fringe Detune</label>
+                <div class="slider-container">
+                    <input type="range" id="detune" min="0.4" max="2.6" step="0.01" value="1.48" oninput="updateParam('detune', this.value)">
+                    <span class="value-display" id="detune-value">1.48</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Descent (radial depth)</label>
+                <div class="slider-container">
+                    <input type="range" id="descent" min="0.4" max="9" step="0.1" value="2.9" oninput="updateParam('descent', this.value)">
+                    <span class="value-display" id="descent-value">2.9</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Angular Detail</label>
+                <div class="slider-container">
+                    <input type="range" id="angular" min="0.2" max="5" step="0.1" value="2" oninput="updateParam('angular', this.value)">
+                    <span class="value-display" id="angular-value">2</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Spiral Twist</label>
+                <div class="slider-container">
+                    <input type="range" id="twist" min="-2.5" max="2.5" step="0.01" value="0.73" oninput="updateParam('twist', this.value)">
+                    <span class="value-display" id="twist-value">0.73</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Domain Warp</label>
+                <div class="slider-container">
+                    <input type="range" id="warp" min="0" max="8" step="0.1" value="2.3" oninput="updateParam('warp', this.value)">
+                    <span class="value-display" id="warp-value">2.3</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Fractal Octaves</label>
+                <div class="slider-container">
+                    <input type="range" id="octaves" min="1" max="5" step="1" value="3" oninput="updateParam('octaves', this.value)">
+                    <span class="value-display" id="octaves-value">3</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Colour Bands</label>
+                <div class="slider-container">
+                    <input type="range" id="bands" min="0.5" max="8" step="0.1" value="0.7" oninput="updateParam('bands', this.value)">
+                    <span class="value-display" id="bands-value">0.7</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Ring Cadence</label>
+                <div class="slider-container">
+                    <input type="range" id="rings" min="0" max="6" step="0.1" value="0.9" oninput="updateParam('rings', this.value)">
+                    <span class="value-display" id="rings-value">0.9</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Palette Shift</label>
+                <div class="slider-container">
+                    <input type="range" id="shift" min="0" max="1" step="0.01" value="0.26" oninput="updateParam('shift', this.value)">
+                    <span class="value-display" id="shift-value">0.26</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Seam Glow</label>
+                <div class="slider-container">
+                    <input type="range" id="seam" min="0" max="1" step="0.01" value="0.09" oninput="updateParam('seam', this.value)">
+                    <span class="value-display" id="seam-value">0.09</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Contrast</label>
+                <div class="slider-container">
+                    <input type="range" id="contrast" min="0.4" max="2.5" step="0.05" value="0.9" oninput="updateParam('contrast', this.value)">
+                    <span class="value-display" id="contrast-value">0.9</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Base Rotation</label>
+                <div class="slider-container">
+                    <input type="range" id="rotation" min="0" max="360" step="1" value="350" oninput="updateParam('rotation', this.value)">
+                    <span class="value-display" id="rotation-value">350</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Colors Section (VARIABLE) -->
+        <div class="control-section">
+            <h3>Colour<span class="sec-tools"><input type="color" id="pb-color" class="sec-swatch" value="#2e8b74" title="Base colour — palettes are built from this" oninput="setPaletteBase(this.value)"><button class="sec-btn" id="sec-colour-lock" title="Lock colour — Randomize leaves it alone" onclick="toggleSection('colour','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize colour only" onclick="randomSection('colour')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-colour-auto" title="Let colour drift on its own" onclick="toggleSection('colour','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
+
+            <div class="pal-scroll" id="pal-scroll"></div>
+            <div class="hint">Scroll and stop anywhere — whatever lands here is applied to the reflections. The further you go, the further the colours wander.</div>
+
+            <details class="fine-tune">
+                <summary>Fine-tune stops</summary>
+                <div class="color-group">
+                    <label>Stop 1</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#04232b" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#04232b</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>Stop 2</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#0b4f4a" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#0b4f4a</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>Stop 3</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color3" value="#2e8b74" onchange="updateColor('color3', this.value)">
+                        <span class="color-value" id="color3-value">#2e8b74</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>Stop 4</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color4" value="#84c4a8" onchange="updateColor('color4', this.value)">
+                        <span class="color-value" id="color4-value">#84c4a8</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>Stop 5</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color5" value="#d9edd8" onchange="updateColor('color5', this.value)">
+                        <span class="color-value" id="color5-value">#d9edd8</span>
+                    </div>
+                </div>
+            </details>
+        </div>
+
+        <!-- Share (FIXED) -->
+        <div class="control-section">
+            <h3>This generation</h3>
+            <div class="gen-id" id="gen-id">–</div>
+            <button class="button secondary" onclick="copyLink()">Copy link</button>
+            <div class="hint copy-note" id="copy-note"></div>
+            <div class="hint">The link carries every parameter, so it reopens exactly this image. Your own uploads stay on your machine and do not travel with it.</div>
+        </div>
+
+        <!-- Actions Section (FIXED) -->
+        <div class="control-section">
+            <h3>Actions</h3>
+            <div class="button-row">
+                <button class="button" onclick="regenerate()">Regenerate</button>
+                <button class="button secondary" onclick="resetParameters()">Reset</button>
+            </div>
+            <div class="button-row">
+                <button class="button tertiary" onclick="downloadPNG()">Download PNG</button>
+            </div>
+        </div>
+    </div>

@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refracted Descent II — Moiré Field</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container { display: flex; min-height: 100vh; padding: 20px; gap: 20px; }
+
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        .control-section { margin-bottom: 32px; }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .regen-button { margin-bottom: 0; }
+
+        .control-group { margin-bottom: 20px; }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container { display: flex; align-items: center; gap: 12px; }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #c86641;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .color-group { margin-bottom: 16px; }
+
+        .color-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            margin-bottom: 4px;
+        }
+
+        .color-picker-container { display: flex; align-items: center; gap: 8px; }
+
+        .color-picker-container input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        .color-value {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        .preset-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .preset {
+            border: 1px solid var(--anthropic-light-gray);
+            border-radius: 6px;
+            padding: 8px 6px;
+            font-size: 12px;
+            font-family: 'Poppins', sans-serif;
+            cursor: pointer;
+            background: white;
+            transition: all 0.15s ease;
+        }
+
+        .preset:hover { border-color: var(--anthropic-orange); transform: translateY(-1px); }
+
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover { background: #c86641; transform: translateY(-1px); }
+        .button:active { transform: translateY(0); }
+        .button.secondary { background: var(--anthropic-blue); }
+        .button.secondary:hover { background: #5a8bb8; }
+        .button.tertiary { background: var(--anthropic-green); }
+        .button.tertiary:hover { background: #6b7b52; }
+        .button.playing { background: var(--anthropic-dark); }
+        .button.playing:hover { background: #2d2d2a; }
+
+        .button-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .button-row .button { flex: 1; }
+
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        #canvas-container {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(20, 20, 19, 0.18);
+            background: #05050a;
+            position: relative;
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        #status {
+            position: absolute;
+            bottom: 14px;
+            right: 14px;
+            background: rgba(20, 20, 19, 0.72);
+            color: #faf9f5;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            padding: 5px 10px;
+            border-radius: 20px;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+            pointer-events: none;
+        }
+
+        #status.on { opacity: 1; }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--anthropic-mid-gray);
+            padding: 100px 20px;
+        }
+
+        @media (max-width: 600px) {
+            .container { flex-direction: column; }
+            .sidebar { width: 100%; }
+            .canvas-area { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Control Sidebar -->
+        <div class="sidebar">
+            <h1>Refracted Descent II</h1>
+            <div class="subtitle">Two detuned periodic systems interfering inside a folded, warped field. The fringes bend because the space does.</div>
+
+            <!-- Seed Section (FIXED) -->
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="12345" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <!-- Motion Section (VARIABLE) -->
+            <div class="control-section">
+                <h3>Motion</h3>
+                <div class="button-row">
+                    <button class="button" id="play-btn" onclick="toggleAnimate()">▶ Animate</button>
+                </div>
+
+                <div class="control-group">
+                    <label>Colour Flow</label>
+                    <div class="slider-container">
+                        <input type="range" id="flow" min="-4" max="4" step="0.1" value="1" oninput="updateParam('flow', this.value)">
+                        <span class="value-display" id="flow-value">1</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Spin</label>
+                    <div class="slider-container">
+                        <input type="range" id="spin" min="-3" max="3" step="0.05" value="0.3" oninput="updateParam('spin', this.value)">
+                        <span class="value-display" id="spin-value">0.3</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parameters Section (VARIABLE) -->
+            <div class="control-section">
+                <h3>Parameters</h3>
+
+                <div class="control-group">
+                    <label>Mirror Folds</label>
+                    <div class="slider-container">
+                        <input type="range" id="folds" min="3" max="24" step="1" value="10" oninput="updateParam('folds', this.value)">
+                        <span class="value-display" id="folds-value">10</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Moiré Depth</label>
+                    <div class="slider-container">
+                        <input type="range" id="moire" min="0" max="2" step="0.05" value="0.7" oninput="updateParam('moire', this.value)">
+                        <span class="value-display" id="moire-value">0.7</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Fringe Frequency</label>
+                    <div class="slider-container">
+                        <input type="range" id="mfreq" min="1" max="48" step="0.5" value="13" oninput="updateParam('mfreq', this.value)">
+                        <span class="value-display" id="mfreq-value">13</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Fringe Detune</label>
+                    <div class="slider-container">
+                        <input type="range" id="detune" min="0.4" max="2.6" step="0.01" value="1.37" oninput="updateParam('detune', this.value)">
+                        <span class="value-display" id="detune-value">1.37</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Descent (radial depth)</label>
+                    <div class="slider-container">
+                        <input type="range" id="descent" min="0.4" max="9" step="0.1" value="3.4" oninput="updateParam('descent', this.value)">
+                        <span class="value-display" id="descent-value">3.4</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Angular Detail</label>
+                    <div class="slider-container">
+                        <input type="range" id="angular" min="0.2" max="5" step="0.1" value="1.6" oninput="updateParam('angular', this.value)">
+                        <span class="value-display" id="angular-value">1.6</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Spiral Twist</label>
+                    <div class="slider-container">
+                        <input type="range" id="twist" min="-2.5" max="2.5" step="0.05" value="0.55" oninput="updateParam('twist', this.value)">
+                        <span class="value-display" id="twist-value">0.55</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Domain Warp</label>
+                    <div class="slider-container">
+                        <input type="range" id="warp" min="0" max="8" step="0.1" value="2.6" oninput="updateParam('warp', this.value)">
+                        <span class="value-display" id="warp-value">2.6</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Fractal Octaves</label>
+                    <div class="slider-container">
+                        <input type="range" id="octaves" min="1" max="5" step="1" value="3" oninput="updateParam('octaves', this.value)">
+                        <span class="value-display" id="octaves-value">3</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Colour Bands</label>
+                    <div class="slider-container">
+                        <input type="range" id="bands" min="0.5" max="8" step="0.1" value="2.2" oninput="updateParam('bands', this.value)">
+                        <span class="value-display" id="bands-value">2.2</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Ring Cadence</label>
+                    <div class="slider-container">
+                        <input type="range" id="rings" min="0" max="6" step="0.1" value="1.6" oninput="updateParam('rings', this.value)">
+                        <span class="value-display" id="rings-value">1.6</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Palette Shift</label>
+                    <div class="slider-container">
+                        <input type="range" id="shift" min="0" max="1" step="0.01" value="0" oninput="updateParam('shift', this.value)">
+                        <span class="value-display" id="shift-value">0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Seam Glow</label>
+                    <div class="slider-container">
+                        <input type="range" id="seam" min="0" max="1" step="0.02" value="0.44" oninput="updateParam('seam', this.value)">
+                        <span class="value-display" id="seam-value">0.44</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Contrast</label>
+                    <div class="slider-container">
+                        <input type="range" id="contrast" min="0.4" max="2.5" step="0.05" value="1.15" oninput="updateParam('contrast', this.value)">
+                        <span class="value-display" id="contrast-value">1.15</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Base Rotation</label>
+                    <div class="slider-container">
+                        <input type="range" id="rotation" min="0" max="360" step="1" value="0" oninput="updateParam('rotation', this.value)">
+                        <span class="value-display" id="rotation-value">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colors Section (VARIABLE) -->
+            <div class="control-section">
+                <h3>Colors</h3>
+
+                <div class="preset-row">
+                    <button class="preset" onclick="applyPreset('spectrum')">Spectrum</button>
+                    <button class="preset" onclick="applyPreset('acid')">Acid</button>
+                    <button class="preset" onclick="applyPreset('festival')">Festival</button>
+                    <button class="preset" onclick="applyPreset('violet')">Violet Cell</button>
+                    <button class="preset" onclick="applyPreset('emberIce')">Ember &amp; Ice</button>
+                    <button class="preset" onclick="applyPreset('bazaar')">Bazaar</button>
+                </div>
+
+                <div class="color-group">
+                    <label>Stop 1</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#ff2d00" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#ff2d00</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>Stop 2</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#ffe600" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#ffe600</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>Stop 3</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color3" value="#00ff5e" onchange="updateColor('color3', this.value)">
+                        <span class="color-value" id="color3-value">#00ff5e</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>Stop 4</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color4" value="#00d6ff" onchange="updateColor('color4', this.value)">
+                        <span class="color-value" id="color4-value">#00d6ff</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>Stop 5</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color5" value="#c400ff" onchange="updateColor('color5', this.value)">
+                        <span class="color-value" id="color5-value">#c400ff</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section (FIXED) -->
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="regenerate()">Regenerate</button>
+                    <button class="button secondary" onclick="resetParameters()">Reset</button>
+                </div>
+                <div class="button-row">
+                    <button class="button tertiary" onclick="downloadPNG()">Download PNG</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing generative art...</div>
+                <div id="status">rendering</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // REFRACTED DESCENT II — PARAMETERS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let params = {
+            seed: 12345,
+            folds: 10,        // mirror count — default 10, the tetractys
+            moire: 0.7,       // interference depth
+            mfreq: 13,        // fringe frequency
+            detune: 1.37,     // ratio between the two interfering systems
+            descent: 3.4,     // logarithmic radial compression → depth
+            angular: 1.6,     // angular field frequency
+            twist: 0.55,      // angle bled into radius → spiral
+            warp: 2.6,        // iterated domain-warp strength
+            octaves: 3,       // fbm depth
+            bands: 2.2,       // times the palette cycle wraps
+            rings: 1.6,       // concentric colour cadence bound to the descent
+            shift: 0,         // palette phase
+            seam: 0.44,       // luminous contour at band boundaries
+            contrast: 1.15,
+            rotation: 0,
+            flow: 1,          // palette phase drift per frame
+            spin: 0.3,        // rotation per frame
+            colorPalette: ['#ff2d00', '#ffe600', '#00ff5e', '#00d6ff', '#c400ff']
+        };
+
+        let defaultParams = JSON.parse(JSON.stringify(params));
+
+        const SIZE = 1000;
+        const PREVIEW_RES = 340;
+        const ANIM_RES = 520;
+        const FULL_RES = 1000;
+        const OVERSCAN = 1.4143;   // covers the corners while spinning
+
+        // The field is expensive; the colouring is cheap. Cache the scalar so
+        // animation only ever re-reads the palette, never re-solves the field.
+        let cacheT = null, cacheS = null, cacheRes = 0;
+        let img = null;
+        let lut = new Uint8Array(256 * 3);
+        let hiTimer = null;
+        let phaseX = 0, phaseY = 0, ripple = 1;
+        let animating = false, animPhase = 0, spinAngle = 0;
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // SEEDED GRADIENT NOISE
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const perm = new Uint8Array(512);
+
+        function seedNoise(seed) {
+            let s = (seed >>> 0) || 1;
+            const rnd = function () {
+                s ^= s << 13; s >>>= 0;
+                s ^= s >> 17;
+                s ^= s << 5;  s >>>= 0;
+                return s / 4294967296;
+            };
+            const p = new Uint8Array(256);
+            for (let i = 0; i < 256; i++) p[i] = i;
+            for (let i = 255; i > 0; i--) {
+                const j = Math.floor(rnd() * (i + 1));
+                const t = p[i]; p[i] = p[j]; p[j] = t;
+            }
+            for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+
+            phaseX = rnd() * 512;
+            phaseY = rnd() * 512;
+            ripple = 0.7 + rnd() * 1.6;
+        }
+
+        function grad2(h, x, y) {
+            switch (h & 7) {
+                case 0: return x + y;
+                case 1: return -x + y;
+                case 2: return x - y;
+                case 3: return -x - y;
+                case 4: return x;
+                case 5: return -x;
+                case 6: return y;
+                default: return -y;
+            }
+        }
+
+        function pnoise(x, y) {
+            const fx = Math.floor(x), fy = Math.floor(y);
+            const X = fx & 255, Y = fy & 255;
+            x -= fx; y -= fy;
+            const u = x * x * x * (x * (x * 6 - 15) + 10);
+            const v = y * y * y * (y * (y * 6 - 15) + 10);
+            const A = perm[X] + Y, B = perm[X + 1] + Y;
+            const n00 = grad2(perm[A], x, y);
+            const n10 = grad2(perm[B], x - 1, y);
+            const n01 = grad2(perm[A + 1], x, y - 1);
+            const n11 = grad2(perm[B + 1], x - 1, y - 1);
+            const nx0 = n00 + u * (n10 - n00);
+            const nx1 = n01 + u * (n11 - n01);
+            return nx0 + v * (nx1 - nx0);
+        }
+
+        function fbm(x, y, oct) {
+            let amp = 0.5, freq = 1, sum = 0;
+            for (let i = 0; i < oct; i++) {
+                sum += amp * pnoise(x * freq, y * freq);
+                freq *= 2.03;   // slightly off 2.0 — kills grid resonance
+                amp *= 0.5;
+            }
+            return sum;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // CLOSED PALETTE
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function hexToRgb(h) {
+            const n = parseInt(h.slice(1), 16);
+            return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+        }
+
+        function buildLUT() {
+            const stops = params.colorPalette.map(hexToRgb);
+            const n = stops.length;
+            for (let i = 0; i < 256; i++) {
+                const p = (i / 256) * n;
+                const k = Math.floor(p);
+                const f = p - k;
+                const a = stops[k % n], b = stops[(k + 1) % n];
+                lut[i * 3]     = a[0] + (b[0] - a[0]) * f;
+                lut[i * 3 + 1] = a[1] + (b[1] - a[1]) * f;
+                lut[i * 3 + 2] = a[2] + (b[2] - a[2]) * f;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // THE FIELD — solved once, cached as a scalar
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function computeField(res) {
+            seedNoise(params.seed);
+
+            cacheT = new Float32Array(res * res);
+            cacheS = new Float32Array(res * res);
+            img = createImage(res, res);
+            cacheRes = res;
+
+            const c = res / 2;
+            const scale = 1 / (res / 2);
+            const wedge = (Math.PI * 2) / params.folds;
+            const half = wedge / 2;
+            const base = params.rotation * Math.PI / 180;
+
+            const oct = params.octaves;
+            const W = params.warp;
+            const D = params.descent;
+            const A = params.angular;
+            const T = params.twist;
+            const M = params.moire;
+            const MF = params.mfreq;
+            const DT = params.detune;
+            const bands = params.bands;
+            const rings = params.rings;
+            const contrast = params.contrast;
+
+            for (let y = 0; y < res; y++) {
+                const dy = (y - c) * scale;
+                for (let x = 0; x < res; x++) {
+                    const dx = (x - c) * scale;
+
+                    // ── polar
+                    const r = Math.sqrt(dx * dx + dy * dy);
+                    let th = Math.atan2(dy, dx) - base;
+
+                    // ── kaleidoscope fold: wrap into one wedge, then mirror it
+                    th = th - Math.floor(th / wedge) * wedge;
+                    if (th > half) th = wedge - th;
+
+                    // ── logarithmic descent + angular shear (the spiral)
+                    const lr = Math.log(r + 0.045) * D;
+                    const u = lr + th * T * 4;
+                    const v = th * A * 6 + phaseY * 0.01;
+
+                    // ── iterated domain warp
+                    const q1 = fbm(u + phaseX, v, oct);
+                    const q2 = fbm(u + 5.2 + phaseX, v + 1.3, oct);
+
+                    const s1 = fbm(u + W * q1 + 1.7, v + W * q2 + 9.2, oct);
+                    const s2 = fbm(u + W * q1 + 8.3, v + W * q2 + 2.8, oct);
+
+                    // ── the warped coordinate. Everything downstream reads from
+                    //    here, so the fringes inherit the distortion.
+                    const wu = u + W * s1 * ripple;
+                    const wv = v + W * s2 * ripple;
+
+                    let f = fbm(wu, wv, oct) * contrast;
+
+                    // ── moiré: two detuned periodic systems interfering. Because
+                    //    they are evaluated in warped space, the interference
+                    //    pattern bends wherever the space does.
+                    const mo = Math.sin(wu * MF) * Math.sin(wv * MF * DT);
+
+                    // ── the scalar. Palette phase is deliberately NOT baked in.
+                    cacheT[y * res + x] = f * bands + lr * rings * 0.16 + mo * M;
+
+                    let sh = 1.0 + 0.45 * s1;
+                    if (sh < 0.45) sh = 0.45;
+                    else if (sh > 1.55) sh = 1.55;
+                    cacheS[y * res + x] = sh;
+                }
+            }
+
+            paintField();
+        }
+
+        // Cheap pass: scalar → colour. This is what animates.
+        function paintField() {
+            if (!cacheT) return;
+            buildLUT();
+
+            img.loadPixels();
+            const px = img.pixels;
+            const n = cacheRes * cacheRes;
+            const ph = params.shift + animPhase + 1000;
+            const seam = params.seam;
+
+            for (let i = 0; i < n; i++) {
+                let t = cacheT[i] + ph;
+                t = t - Math.floor(t);
+
+                const idx = (t * 255) | 0;
+                const o = idx * 3;
+                const sh = cacheS[i];
+
+                const e = 1 - Math.abs(t * 2 - 1);
+                const e4 = e * e * e * e;
+                const glow = seam * e4 * e4 * 235;
+
+                const R = lut[o] * sh + glow;
+                const G = lut[o + 1] * sh + glow;
+                const B = lut[o + 2] * sh + glow;
+
+                const i4 = i * 4;
+                px[i4]     = R > 255 ? 255 : R;
+                px[i4 + 1] = G > 255 ? 255 : G;
+                px[i4 + 2] = B > 255 ? 255 : B;
+                px[i4 + 3] = 255;
+            }
+
+            img.updatePixels();
+        }
+
+        function setStatus(on) {
+            const el = document.getElementById('status');
+            if (el) el.className = on ? 'on' : '';
+        }
+
+        // Structural change: draft immediately, full resolution once idle.
+        function scheduleRender() {
+            if (hiTimer) clearTimeout(hiTimer);
+
+            if (animating) {
+                computeField(ANIM_RES);
+                return;
+            }
+
+            computeField(PREVIEW_RES);
+            redraw();
+            setStatus(true);
+            hiTimer = setTimeout(function () {
+                requestAnimationFrame(function () {
+                    requestAnimationFrame(function () {
+                        computeField(FULL_RES);
+                        setStatus(false);
+                        redraw();
+                    });
+                });
+            }, 260);
+        }
+
+        // Colour-only change: skip the field entirely.
+        function recolour() {
+            paintField();
+            redraw();
+        }
+
+        function setup() {
+            const cnv = createCanvas(SIZE, SIZE);
+            cnv.parent('canvas-container');
+            pixelDensity(1);
+            imageMode(CENTER);
+            noLoop();
+            const l = document.querySelector('.loading');
+            if (l) l.style.display = 'none';
+            initializeSystem();
+        }
+
+        function initializeSystem() {
+            animPhase = 0;
+            spinAngle = 0;
+            scheduleRender();
+        }
+
+        function draw() {
+            if (animating) {
+                animPhase += params.flow * 0.0022;
+                spinAngle += params.spin * 0.0016;
+                paintField();
+            }
+            if (!img) return;
+
+            background(5, 5, 10);
+            push();
+            translate(SIZE / 2, SIZE / 2);
+            if (spinAngle !== 0) {
+                rotate(spinAngle);
+                image(img, 0, 0, SIZE * OVERSCAN, SIZE * OVERSCAN);
+            } else {
+                image(img, 0, 0, SIZE, SIZE);
+            }
+            pop();
+        }
+
+        function toggleAnimate() {
+            animating = !animating;
+            const btn = document.getElementById('play-btn');
+            if (animating) {
+                btn.textContent = '❚❚ Pause';
+                btn.className = 'button playing';
+                computeField(ANIM_RES);
+                loop();
+            } else {
+                btn.textContent = '▶ Animate';
+                btn.className = 'button';
+                noLoop();
+                // Bake the drifted phase in, then resolve at full resolution.
+                params.shift = (params.shift + animPhase) % 1;
+                if (params.shift < 0) params.shift += 1;
+                animPhase = 0;
+                document.getElementById('shift').value = params.shift.toFixed(2);
+                document.getElementById('shift-value').textContent = params.shift.toFixed(2);
+                computeField(FULL_RES);
+                redraw();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UI CONTROL HANDLERS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const INT_PARAMS = ['folds', 'octaves', 'rotation'];
+        const COLOUR_ONLY = ['shift', 'seam'];
+        const MOTION_ONLY = ['flow', 'spin'];
+
+        function updateParam(name, value) {
+            params[name] = INT_PARAMS.indexOf(name) >= 0 ? parseInt(value) : parseFloat(value);
+            const el = document.getElementById(name + '-value');
+            if (el) el.textContent = value;
+
+            if (MOTION_ONLY.indexOf(name) >= 0) {
+                if (!animating) redraw();
+                return;
+            }
+            if (COLOUR_ONLY.indexOf(name) >= 0) {
+                if (!animating) recolour();
+                return;
+            }
+            scheduleRender();
+        }
+
+        function updateColor(id, value) {
+            const el = document.getElementById(id + '-value');
+            if (el) el.textContent = value;
+            params.colorPalette[parseInt(id.replace('color', '')) - 1] = value;
+            if (!animating) recolour();
+        }
+
+        const PRESETS = {
+            spectrum:  ['#ff2d00', '#ffe600', '#00ff5e', '#00d6ff', '#c400ff'],
+            acid:      ['#00ff88', '#ff00d4', '#fffb00', '#00c3ff', '#ff2f00'],
+            festival:  ['#f5b731', '#c9331f', '#6d1360', '#0f6f74', '#101a3d'],
+            violet:    ['#f06de0', '#8a2be2', '#2a0a45', '#c026a8', '#160424'],
+            emberIce:  ['#ff8c1a', '#e02f10', '#0b2d5c', '#31a8d6', '#04121f'],
+            bazaar:    ['#ffd45e', '#e2542a', '#9c1f4a', '#1f8a70', '#2b1a4d']
+        };
+
+        function applyPreset(name) {
+            params.colorPalette = PRESETS[name].slice();
+            for (let i = 0; i < 5; i++) {
+                document.getElementById('color' + (i + 1)).value = params.colorPalette[i];
+                document.getElementById('color' + (i + 1) + '-value').textContent = params.colorPalette[i];
+            }
+            if (!animating) recolour();
+        }
+
+        function regenerate() { scheduleRender(); }
+
+        function downloadPNG() {
+            saveCanvas('refracted-descent-seed-' + params.seed, 'png');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // SEED CONTROL FUNCTIONS (FIXED)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            const input = document.getElementById('seed-input');
+            const newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                scheduleRender();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            scheduleRender();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            scheduleRender();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            scheduleRender();
+        }
+
+        function resetParameters() {
+            const keptSeed = params.seed;
+            params = JSON.parse(JSON.stringify(defaultParams));
+            params.seed = keptSeed;
+            animPhase = 0;
+            spinAngle = 0;
+
+            ['folds', 'moire', 'mfreq', 'detune', 'descent', 'angular', 'twist', 'warp',
+             'octaves', 'bands', 'rings', 'shift', 'seam', 'contrast', 'rotation',
+             'flow', 'spin'].forEach(function (k) {
+                document.getElementById(k).value = params[k];
+                document.getElementById(k + '-value').textContent = params[k];
+            });
+
+            for (let i = 0; i < 5; i++) {
+                document.getElementById('color' + (i + 1)).value = params.colorPalette[i];
+                document.getElementById('color' + (i + 1) + '-value').textContent = params.colorPalette[i];
+            }
+
+            updateSeedDisplay();
+            scheduleRender();
+        }
+
+        window.addEventListener('load', function () {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>
