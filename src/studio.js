@@ -2748,9 +2748,10 @@
             }
             const arow = document.getElementById('backdrop-alpha-row');
             if (arow) arow.className = params.orbBackdrop === 'none' ? 'control-group off' : 'control-group';
-            // Blur only means anything behind glass.
+            // Both backdrops frost what is behind them; only None has nothing
+            // for the blur to act on.
             const brow = document.getElementById('backdrop-blur-row');
-            if (brow) brow.className = params.orbBackdrop === 'glass' ? 'control-group' : 'control-group off';
+            if (brow) brow.className = params.orbBackdrop === 'none' ? 'control-group off' : 'control-group';
             ORB_BACKDROPS.forEach(function (k) {
                 const el2 = document.getElementById('bg-' + k);
                 if (el2) el2.className = (k === params.orbBackdrop) ? 'active' : '';
