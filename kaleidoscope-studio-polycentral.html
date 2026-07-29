@@ -801,6 +801,10 @@
             position: relative;
             z-index: 2;
             width: 62%;
+            /* Sits a little below true centre. Geometrically centred, the title
+               reads high — it carries most of the block's weight at the top, so
+               the eye puts the middle lower than the maths does. */
+            transform: translateY(9%);
             text-shadow: 0 1px 12px rgba(4, 4, 8, 0.9);
         }
 
