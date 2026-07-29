@@ -609,11 +609,11 @@
                vanish into a bright plate — this is a wide, shallow darkening,
                not the painted ring it replaced. */
             background: radial-gradient(circle closest-side,
-                rgba(4, 4, 9, 0.30) 0 30%,
-                rgba(4, 4, 9, 0.26) 55%,
-                rgba(4, 4, 9, 0.15) 76%,
-                rgba(4, 4, 9, 0.04) 90%,
-                transparent 98%);
+                rgba(4, 4, 9, 0.20) 0 34%,
+                rgba(4, 4, 9, 0.17) 58%,
+                rgba(4, 4, 9, 0.09) 78%,
+                rgba(4, 4, 9, 0.02) 91%,
+                transparent 99%);
             border-radius: 50%;
         }
 

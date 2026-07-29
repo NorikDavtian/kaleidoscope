@@ -627,11 +627,11 @@
                vanish into a bright plate — this is a wide, shallow darkening,
                not the painted ring it replaced. */
             background: radial-gradient(circle closest-side,
-                rgba(4, 4, 9, 0.30) 0 30%,
-                rgba(4, 4, 9, 0.26) 55%,
-                rgba(4, 4, 9, 0.15) 76%,
-                rgba(4, 4, 9, 0.04) 90%,
-                transparent 98%);
+                rgba(4, 4, 9, 0.20) 0 34%,
+                rgba(4, 4, 9, 0.17) 58%,
+                rgba(4, 4, 9, 0.09) 78%,
+                rgba(4, 4, 9, 0.02) 91%,
+                transparent 99%);
             border-radius: 50%;
         }
 
@@ -3919,7 +3919,39 @@
         // breath change per frame, so drawing is a rotate, a project and a write.
         // ═══════════════════════════════════════════════════════════════════════
 
-        const ORB_POINTS = 16000;
+        const ORB_POINTS = 12000;
+
+        // Value noise in three dimensions. The previous version sampled the 2D
+        // field on projections of the sphere, which is not isotropic — it gave
+        // the cloud a strong directional grain and a silhouette like a hill.
+        function vnoise3(x, y, z) {
+            const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+            const xf = x - xi, yf = y - yi, zf = z - zi;
+            const fade = function (t) { return t * t * t * (t * (t * 6 - 15) + 10); };
+            const u = fade(xf), v = fade(yf), w = fade(zf);
+
+            const at = function (a, b, c) {
+                return perm[(perm[(perm[a & 255] + (b & 255)) & 255] + (c & 255)) & 255] / 127.5 - 1;
+            };
+            const lerp = function (a, b, t) { return a + (b - a) * t; };
+
+            const x00 = lerp(at(xi, yi, zi),         at(xi + 1, yi, zi),         u);
+            const x10 = lerp(at(xi, yi + 1, zi),     at(xi + 1, yi + 1, zi),     u);
+            const x01 = lerp(at(xi, yi, zi + 1),     at(xi + 1, yi, zi + 1),     u);
+            const x11 = lerp(at(xi, yi + 1, zi + 1), at(xi + 1, yi + 1, zi + 1), u);
+
+            return lerp(lerp(x00, x10, v), lerp(x01, x11, v), w);
+        }
+
+        function fbm3(x, y, z, oct) {
+            let amp = 0.5, f = 1, sum = 0;
+            for (let i = 0; i < oct; i++) {
+                sum += amp * vnoise3(x * f, y * f, z * f);
+                f *= 2.07;
+                amp *= 0.5;
+            }
+            return sum;
+        }
         let orbPts = null;
 
         function buildOrbPoints() {
@@ -3935,19 +3967,19 @@
                 const a = GA * i;
                 let x = Math.cos(a) * r, y = Math.sin(a) * r;
 
-                // Two noise reads at different scales: the coarse one carves the
-                // voids, the fine one strings the filaments through what is left.
-                const coarse = fbm(x * 1.7 + z * 1.1, y * 1.7 - z * 0.8, 3);
-                const fine   = fbm(x * 5.2 - z * 2.3, y * 5.2 + z * 1.9, 3);
-                const d = coarse * 0.7 + fine * 0.45;
+                // Sampled in three dimensions on the direction itself, so the
+                // structure is the same whichever way the shell is turned.
+                const coarse = fbm3(x * 2.1, y * 2.1, z * 2.1, 3);
+                const fine   = fbm3(x * 6.4, y * 6.4, z * 6.4, 2);
+                const d = coarse + fine * 0.35;
 
-                if (d < -0.30) continue;                    // a void
-                const b = Math.min(1, (d + 0.30) * 1.5);
-                if (b < 0.010) continue;
+                if (d < -0.06) continue;                    // a void
+                const b = Math.min(1, (d + 0.06) * 1.9);
+                if (b < 0.02) continue;
 
-                // Sit them in a shell with a little thickness, thicker where the
-                // filaments run, so the surface never reads as a hard sphere.
-                const rad = 0.83 + fine * 0.16 + (rnd() - 0.5) * 0.05;
+                // A thin shell. Letting the radius wander as far as it did
+                // filled the volume, which is why it stopped reading as hollow.
+                const rad = 0.95 + fine * 0.05 + (rnd() - 0.5) * 0.02;
                 pts[n * 4]     = x * rad;
                 pts[n * 4 + 1] = y * rad;
                 pts[n * 4 + 2] = z * rad;
@@ -3991,7 +4023,7 @@
             const ct = Math.cos(tilt), st = Math.sin(tilt);
 
             const c = S / 2;
-            const R = c * 0.92;
+            const R = c * 0.80;      // room for the shell's thickness inside the disc
             const N = orbPts.length / 4;
 
             for (let i = 0; i < N; i++) {
@@ -4009,19 +4041,20 @@
 
                 // Depth cue: the far side of the shell reads dimmer, which is
                 // what makes a flat scatter of points look like a sphere.
-                const depth = 0.42 + 0.58 * ((z2 + 1) * 0.5);
-                let v = orbPts[o + 3] * depth * gain * 620;
+                // Depth cue: the far side reads dimmer, which is what makes a
+                // flat scatter of points look like a sphere.
+                const depth = 0.30 + 0.70 * ((z2 + 1) * 0.5);
+                let v = orbPts[o + 3] * depth * gain * 330;
                 if (v <= 0) continue;
-                if (v > 255) v = 255;
+                if (v > 205) v = 205;    // never let a single point reach white
 
                 splat(d, S, px, py, v);
-                // The brightest points get a second, dimmer ring of neighbours,
-                // so the filaments carry against a busy background instead of
-                // disappearing into single pixels.
-                if (v > 90) {
-                    const h = v * 0.42;
-                    splat(d, S, px + 1, py, h); splat(d, S, px - 1, py, h);
-                    splat(d, S, px, py + 1, h); splat(d, S, px, py - 1, h);
+                // Only the strongest get one dim neighbour, so the filaments
+                // carry without the field welding itself into a solid mass.
+                if (v > 120) {
+                    const h = v * 0.30;
+                    splat(d, S, px + 1, py, h);
+                    splat(d, S, px, py + 1, h);
                 }
             }
 
