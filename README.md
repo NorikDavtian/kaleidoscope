@@ -176,10 +176,11 @@ seconds, then opens the studio on its own. Click past the disc, or press Enter,
 Space or Esc, to skip — clicking the disc itself does nothing, since it carries
 a link. `I` brings it back.
 
-The scope opens already in motion, on **Calm** breathing (4·7·8). That is the
-gentler of the two kinds of movement available — it rocks the colour rather than
-scrolling it, and holds spin to a trace — so it is the default rather than a
-plain Animate, which stays off until asked for.
+The scope opens already in motion, on **Calm** breathing (4·7·8) with Animate
+running. Breathing leads: it rocks the colour forward and back rather than
+scrolling it one way, and holds spin to a trace. The two do not stack — while
+breathing is on it owns the flow — but having Animate on underneath means
+switching Breathing off leaves movement rather than a still frame.
 
 ## Dock and keys
 

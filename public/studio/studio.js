@@ -3053,8 +3053,10 @@
                 startIntroCountdown();
             }
 
-            // Open in motion. Breathing is the gentler of the two — it rocks the
-            // colour rather than scrolling it, and keeps spin to a trace — so it
-            // is the default rather than a plain animate.
+            // Open in motion. Breathing leads, since it rocks the colour rather
+            // than scrolling it and holds spin to a trace. Animate runs too, so
+            // switching Breathing off leaves movement rather than a still frame
+            // — while breathing is on it owns the flow and the two do not stack.
             setBreath(params.breath);
+            if (!animating) toggleAnimate();
         });
