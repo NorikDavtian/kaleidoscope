@@ -1084,10 +1084,7 @@
             gl.uniform1i(P.u.uUseImage, useImage);
             gl.uniform1f(P.u.uMix, useImage ? params.mix : 1);
             gl.uniform1f(P.u.uSeam, params.seam);
-            // Forward on the inhale, back on the exhale — the ramp rocks rather
-            // than scrolls, so it has somewhere to come to rest.
-            const swing = (breathValue - 0.5) * params.breathDepth * 0.5;
-            gl.uniform1f(P.u.uShift, params.shift + animPhase + swing + 1000);
+            gl.uniform1f(P.u.uShift, params.shift + animPhase + 1000);
             for (let i = 0; i < 5; i++) {
                 const c = hexToRgb(params.colorPalette[i]);
                 gl.uniform3f(P.u['uPal' + i], c[0] / 255, c[1] / 255, c[2] / 255);
@@ -1482,8 +1479,11 @@
 
         function draw() {
             if (animating) {
-                animPhase += params.flow * 0.005;
-                spinAngle += params.spin * 0.008;
+                if (params.breath === 'off') {
+                    const rate = motionRate();
+                    animPhase += params.flow * 0.005 * rate;
+                    spinAngle += params.spin * 0.008 * rate;
+                }
                 paintField();
             }
 
@@ -1501,6 +1501,12 @@
             breathLast = nowMs;
             if (params.breath !== 'off') {
                 stepBreath(breathDt);
+                // Colour Flow becomes a swing rather than a scroll: forward on
+                // the way in, back on the way out. Scaled by dt so the pace does
+                // not depend on the frame rate.
+                const f = 60 * breathDt * motionRate();
+                animPhase += params.flow * 0.005 * breathFlow * (0.4 + params.breathDepth) * f;
+                spinAngle += params.spin * 0.008 * BREATH_SPIN * f;
                 const g = document.getElementById('breath-stage');
                 if (g && g.textContent !== breathStage) g.textContent = breathStage;
                 const ring = document.getElementById('breath-ring');
@@ -2183,7 +2189,11 @@
             progressive: [4, 2, 6, 1]       // lengthens as you go
         };
 
-        let breathT = 0, breathValue = 0, breathStage = '';
+        let breathT = 0, breathValue = 0, breathStage = '', breathFlow = 0;
+
+        // Spin is distracting at meditation pace, so breathing keeps only a
+        // trace of it however high the slider is set.
+        const BREATH_SPIN = 0.12;
 
         function breathCycle() {
             const pat = BREATH_PATTERNS[params.breath];
@@ -2203,18 +2213,28 @@
             let t = breathT % total;
 
             const ease = function (u) { return u * u * (3 - 2 * u); };
+            // Slope of that ease, normalised to peak at 1. This is what makes
+            // the colour swing smoothly from positive to negative rather than
+            // switching direction at the turn.
+            const slope = function (u) { return 4 * u * (1 - u); };
 
             if (t < pat[0]) {
-                breathValue = ease(t / pat[0]);
+                const u = t / pat[0];
+                breathValue = ease(u);
+                breathFlow = slope(u);
                 breathStage = 'Breathe in';
             } else if (t < pat[0] + pat[1]) {
                 breathValue = 1;
+                breathFlow = 0;
                 breathStage = 'Hold';
             } else if (t < pat[0] + pat[1] + pat[2]) {
-                breathValue = 1 - ease((t - pat[0] - pat[1]) / pat[2]);
+                const u = (t - pat[0] - pat[1]) / pat[2];
+                breathValue = 1 - ease(u);
+                breathFlow = -slope(u);
                 breathStage = 'Breathe out';
             } else {
                 breathValue = 0;
+                breathFlow = 0;
                 breathStage = pat[3] > 0.05 ? 'Hold' : 'Breathe in';
             }
             return true;
@@ -2273,6 +2293,11 @@
 
         // 1 BPM is a one-minute beat, so a Parameters morph can run six minutes.
         function beatMs() { return 60000 / Math.max(1, params.bpm || 30); }
+
+        // BPM sets the pace of everything that moves on its own, not just the
+        // section transitions. 60 is the reference the flow and spin sliders
+        // were tuned against, so below it the whole piece slows together.
+        function motionRate() { return Math.max(1, params.bpm || 30) / 60; }
         function beats(range) {
             return range[0] + Math.random() * (range[1] - range[0]);
         }
