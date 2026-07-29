@@ -121,6 +121,15 @@
                         <span class="value-display" id="cellSize-value">219</span>
                     </div>
                 </div>
+
+                <div class="control-group">
+                    <label>Cell Drift</label>
+                    <div class="slider-container">
+                        <input type="range" id="cellSpin" min="0" max="0.5" step="0.01" value="0.08" oninput="updateParam('cellSpin', this.value)">
+                        <span class="value-display" id="cellSpin-value">0.08</span>
+                    </div>
+                </div>
+                <div class="hint">At 0 the cell contents stay perfectly still while the mirrors turn around them, which reads as locked. Small values let them carry just enough of the turn to feel alive.</div>
             </div>
         </div>
 

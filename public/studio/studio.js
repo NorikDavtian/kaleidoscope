@@ -7,6 +7,7 @@
             source: 'generated',
             tiling: 'radial', // radial | triangle | square (the latter two tessellate)
             cellSize: 219,    // edge length of one tessellated cell, in screen px
+            cellSpin: 0.08,   // how much of the mirror rotation the cell contents follow
             trail: 0,         // frame persistence while in motion
             folds: 5,        // mirror count — default 10, the tetractys
             moire: 0.01,       // interference depth
@@ -1634,7 +1635,7 @@
                     ctx.clip();
                     ctx.translate(-(outer - len) / 2, -(outer - len) / 2);
                     ctx.translate(ox, oy);
-                    ctx.rotate(-spinAngle);
+                    ctx.rotate(-spinAngle * (1 - params.cellSpin));
                     ctx.translate(-ox, -oy);
                     ctx.drawImage(tile, 0, 0, outer, outer);
                     ctx.restore();
@@ -1693,7 +1694,7 @@
             ctx.clip();
 
             ctx.translate(ox, oy);
-            ctx.rotate(-spinAngle);
+            ctx.rotate(-spinAngle * (1 - params.cellSpin));
             ctx.translate(-outer / 2, -outer / 2);
             ctx.drawImage(tile, 0, 0, outer, outer);
             ctx.restore();
@@ -1897,7 +1898,7 @@
 
         const INT_PARAMS = ['folds', 'octaves', 'rotation', 'imgAngle', 'bpm'];
         const COLOUR_ONLY = ['shift', 'seam', 'mix', 'breathDepth'];
-        const MOTION_ONLY = ['flow', 'spin', 'trail', 'cellSize', 'bpm'];
+        const MOTION_ONLY = ['flow', 'spin', 'trail', 'cellSize', 'cellSpin', 'bpm'];
         const IMG_PARAMS = ['imgZoom', 'imgPanX', 'imgPanY', 'imgAngle', 'imgWarp'];
 
         function setSlider(name, value) {
@@ -2691,10 +2692,14 @@
         function applyState(code) {
             let vals;
             try { vals = JSON.parse(unb64url(code)); } catch (e) { return false; }
-            if (!Array.isArray(vals) || vals.length < SHARE_KEYS.length + 2) return false;
+            if (!Array.isArray(vals) || vals.length < 4) return false;
 
-            SHARE_KEYS.forEach(function (k, i) { params[k] = vals[i]; });
-            const pal = vals[SHARE_KEYS.length];
+            // Links carry however many keys existed when they were made. Read
+            // that many and leave anything added since at its default, so older
+            // links keep resolving.
+            const n = Math.min(SHARE_KEYS.length, vals.length - 2);
+            SHARE_KEYS.slice(0, n).forEach(function (k, i) { params[k] = vals[i]; });
+            const pal = vals[n];
             if (typeof pal === 'string' && pal.length === 30) {
                 params.colorPalette = [0, 1, 2, 3, 4].map(function (i) {
                     return '#' + pal.substr(i * 6, 6);
@@ -2706,7 +2711,7 @@
             setPaletteUI();
             updateSeedDisplay();
 
-            const plate = vals[SHARE_KEYS.length + 1];
+            const plate = vals[n + 1];
             if (params.source === 'image' && plate) {
                 const b = BASE_PLATES.filter(function (x) { return x.id === plate; })[0];
                 if (b) { useBasePlate(b.id, b.name); }
