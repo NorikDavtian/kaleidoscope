@@ -192,12 +192,7 @@
             { id: 'companions',name: 'Companions',src: 'plates/companions.jpg' },
             { id: 'drift',     name: 'Drift',     video: 'plates/drift.mp4',
               poster: 'plates/drift-poster.jpg' },
-            { id: 'stilllife', name: 'Still Life' },
-            { id: 'meadow',    name: 'Meadow' },
-            { id: 'linocut',   name: 'Linocut' },
-            { id: 'tartan',    name: 'Tartan' },
-            { id: 'glass',     name: 'Glass' },
-            { id: 'blossom',   name: 'Blossom' },
+            { id: 'prism',     name: 'Prism',     src: 'plates/prism.webp' },
             { id: 'smiley',    name: 'Smiley' },
             { id: 'faces',     name: 'Faces' },
             { id: 'wink',      name: 'Wink', anim: true }
@@ -266,8 +261,8 @@
                 plateAnim = true;
                 activeBase = meta.id;
                 markActiveThumb(meta.id);
-                document.getElementById('drop-label').textContent = 'Or use your own';
-                setSourceMeta(videoCv.toDataURL('image/jpeg', 0.7), name,
+                setDropLabel('Upload');
+                setSourceMeta(thumbURL(videoCv), name,
                     w + ' × ' + h + ' · built-in video');
                 setSource('image');
                 plateVideo.play().catch(function () {});
@@ -305,137 +300,7 @@
             const R = makeRng(id.charCodeAt(0) * 7919 + id.length * 104729);
             const S = Math.min(w, h) / 500;   // everything scales off the short edge
 
-            if (id === 'stilllife') {
-                // Dutch table piece: dark ground, warm fruit masses, cool glazes
-                pg.background(20, 15, 11);
-                const warm = [[196, 44, 32], [214, 134, 30], [122, 26, 40],
-                              [64, 86, 38], [236, 208, 150], [152, 42, 72], [96, 62, 32]];
-                for (let i = 0; i < 46; i++) {
-                    pg.fill(70, 44, 20, 22);
-                    const r = (120 + R() * 380) * S;
-                    pg.ellipse(R() * w, R() * h, r, r * (0.6 + R() * 0.7));
-                }
-                for (let i = 0; i < 320; i++) {
-                    const c = pick(R, warm);
-                    const r = (10 + R() * R() * 110) * S;
-                    pg.fill(c[0], c[1], c[2], 95 + R() * 130);
-                    pg.ellipse(R() * w, R() * h, r * (0.7 + R() * 0.7), r * (0.7 + R() * 0.7));
-                }
-                for (let i = 0; i < 150; i++) {
-                    pg.fill(252, 242, 214, 40 + R() * 150);
-                    const r = (3 + R() * 22) * S;
-                    pg.ellipse(R() * w, R() * h, r, r * (0.5 + R() * 0.8));
-                }
-                for (let i = 0; i < 70; i++) {
-                    pg.fill(8, 6, 4, 42);
-                    const r = (60 + R() * 260) * S;
-                    pg.ellipse(R() * w, R() * h, r, r);
-                }
-
-            } else if (id === 'meadow') {
-                // Broken-colour dabs: post-impressionist spring valley
-                for (let y = 0; y < h; y++) {
-                    const t = y / h;
-                    pg.fill(120 + 90 * (1 - t), 150 + 60 * t, 190 - 120 * t);
-                    pg.rect(0, y, w, 1);
-                }
-                const dab = [[246, 214, 68], [212, 168, 40], [96, 150, 62], [46, 104, 58],
-                             [128, 186, 210], [72, 96, 168], [232, 240, 220], [190, 84, 126]];
-                for (let i = 0; i < 4200; i++) {
-                    const c = pick(R, dab);
-                    pg.push();
-                    pg.translate(R() * w, R() * h);
-                    pg.rotate(R() * Math.PI);
-                    pg.fill(c[0], c[1], c[2], 140 + R() * 110);
-                    pg.rect(0, 0, (6 + R() * 26) * S, (2.5 + R() * 5) * S, 2);
-                    pg.pop();
-                }
-
-            } else if (id === 'linocut') {
-                // Few colours, hard edges, big sweeping forms
-                pg.background(240, 232, 216);
-                const cols = [[214, 48, 31], [20, 18, 20], [248, 246, 240], [40, 70, 132]];
-                for (let i = 0; i < 26; i++) {
-                    const c = pick(R, cols);
-                    pg.fill(c[0], c[1], c[2], 215);
-                    pg.beginShape();
-                    const cx = R() * w, cy = R() * h;
-                    const rad = (60 + R() * 210) * S;
-                    const pts = 5 + ((R() * 4) | 0);
-                    for (let k = 0; k < pts; k++) {
-                        const a = (k / pts) * Math.PI * 2;
-                        const rr = rad * (0.45 + R() * 0.95);
-                        pg.curveVertex(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 0.8);
-                    }
-                    pg.endShape(pg.CLOSE);
-                }
-                pg.noFill();
-                for (let i = 0; i < 40; i++) {
-                    const c = pick(R, cols);
-                    pg.stroke(c[0], c[1], c[2], 200);
-                    pg.strokeWeight((2 + R() * 9) * S);
-                    const cx = R() * w, cy = R() * h, rad = (30 + R() * 170) * S;
-                    pg.arc(cx, cy, rad * 2, rad * 2, R() * 6.28, R() * 6.28 + 1 + R() * 3);
-                }
-                pg.noStroke();
-
-            } else if (id === 'tartan') {
-                // Woven sett: warp, weft, and a twill hatch over the top
-                pg.background(14, 12, 16);
-                const sett = [[214, 22, 130, 46], [10, 10, 12, 30], [22, 190, 214, 26],
-                              [10, 10, 12, 52], [240, 238, 232, 12], [10, 10, 12, 30],
-                              [214, 22, 130, 18], [120, 20, 150, 38]];
-                let x = 0;                while (x < w) {
-                    for (let i = 0; i < sett.length && x < w; i++) {
-                        const b = sett[i], bw = b[3] * S * 2.2;
-                        pg.fill(b[0], b[1], b[2], 200);
-                        pg.rect(x, 0, bw, h);
-                        x += bw;
-                    }
-                }
-                let y = 0;
-                while (y < h) {
-                    for (let i = 0; i < sett.length && y < h; i++) {
-                        const b = sett[i], bh = b[3] * S * 2.2;
-                        pg.fill(b[0], b[1], b[2], 122);
-                        pg.rect(0, y, w, bh);
-                        y += bh;
-                    }
-                }
-                pg.stroke(255, 255, 255, 16);
-                pg.strokeWeight(1);
-                for (let d = -h; d < w; d += 4 * S) pg.line(d, 0, d + h, h);
-                pg.noStroke();
-
-            } else if (id === 'glass') {
-                // Leaded cells: jewel tones caught in a dark came
-                pg.background(8, 8, 14);
-                const jewel = [[190, 30, 44], [22, 96, 168], [216, 158, 24], [26, 132, 96],
-                               [124, 34, 152], [226, 96, 30], [40, 172, 190]];
-                for (let i = 0; i < 150; i++) {
-                    const c = pick(R, jewel);
-                    const cx = R() * w, cy = R() * h;
-                    const rad = (24 + R() * 120) * S;
-                    const pts = 4 + ((R() * 4) | 0);
-                    const rot = R() * Math.PI;
-                    pg.fill(c[0], c[1], c[2], 190 + R() * 60);
-                    pg.stroke(6, 6, 10, 240);
-                    pg.strokeWeight((3 + R() * 5) * S);
-                    pg.beginShape();
-                    for (let k = 0; k < pts; k++) {
-                        const a = rot + (k / pts) * Math.PI * 2;
-                        const rr = rad * (0.72 + R() * 0.5);
-                        pg.vertex(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
-                    }
-                    pg.endShape(pg.CLOSE);
-                }
-                pg.noStroke();
-                for (let i = 0; i < 200; i++) {
-                    pg.fill(255, 255, 255, 20 + R() * 70);
-                    pg.ellipse(R() * w, R() * h, (4 + R() * 26) * S, (3 + R() * 12) * S);
-                }
-
-            } else if (id === 'smiley') {
+            if (id === 'smiley') {
                 // One big subject, flat ground. A plate for seeing what the
                 // mirrors do to something recognisable — so it holds a single
                 // large face rather than a crowd of small ones, which is what
@@ -538,43 +403,72 @@
                     const sz = (12 + R() * 26) * S;
                     pg.rect(R() * w, R() * h, sz, sz);
                 }
-            } else {   // blossom
-                // Roses on a cool ground — concentric petal whorls
-                pg.background(38, 62, 62);
-                for (let i = 0; i < 60; i++) {
-                    pg.fill(30, 78, 66, 90);
-                    const r = (80 + R() * 300) * S;
-                    pg.ellipse(R() * w, R() * h, r, r * 0.7);
-                }
-                for (let i = 0; i < 260; i++) {   // leaves
-                    pg.push();
-                    pg.translate(R() * w, R() * h);
-                    pg.rotate(R() * Math.PI);
-                    pg.fill(52 + R() * 40, 108 + R() * 50, 58 + R() * 30, 200);
-                    pg.ellipse(0, 0, (14 + R() * 60) * S, (5 + R() * 16) * S);
-                    pg.pop();
-                }
-                const petal = [[244, 176, 190], [232, 128, 152], [206, 82, 116],
-                               [250, 226, 226], [176, 52, 92]];
-                for (let i = 0; i < 44; i++) {   // roses
-                    const cx = R() * w, cy = R() * h;
-                    const rad = (22 + R() * 62) * S;
-                    const layers = 5 + ((R() * 4) | 0);
-                    for (let k = layers; k > 0; k--) {
-                        const c = petal[Math.min(petal.length - 1, layers - k)];
-                        pg.fill(c[0], c[1], c[2], 235);
-                        const rr = rad * (k / layers);
-                        pg.ellipse(cx + (R() - 0.5) * rad * 0.22,
-                                   cy + (R() - 0.5) * rad * 0.22, rr * 2, rr * 1.85);
-                    }
-                    pg.fill(150, 40, 78, 200);
-                    pg.ellipse(cx, cy, rad * 0.3, rad * 0.3);
-                }
             }
+        }
+
+        // The tile's face is the ramp in use, with the seed sitting on it.
+        function seedSwatch() {
+            const pg = createGraphics(168, 108);
+            pg.pixelDensity(1);
+            pg.noStroke();
+            for (let x = 0; x < 168; x++) {
+                const t = x / 168 * 5;
+                const k = Math.floor(t), f = t - k;
+                const a = hexToRgb(params.colorPalette[k % 5]);
+                const b = hexToRgb(params.colorPalette[(k + 1) % 5]);
+                pg.fill(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
+                pg.rect(x, 0, 1, 108);
+            }
+            const url = pg.canvas.toDataURL();
+            pg.remove();
+            return url;
+        }
+
+        function refreshSeedTile() {
+            const im = document.getElementById('seed-swatch');
+            if (im) im.src = seedSwatch();
         }
 
         function buildThumbs() {
             const grid = document.getElementById('thumb-grid');
+
+            // Generated and Upload lead the grid, so the section needs neither a
+            // mode toggle nor a drop zone of its own.
+            const none = document.createElement('button');
+            none.className = 'thumb thumb-seed';
+            none.id = 'thumb-none';
+            none.innerHTML =
+                '<img id="seed-swatch" alt="">' +
+                '<span class="seed-face">' +
+                  '<span class="seed-step" data-step="-1">\u2212</span>' +
+                  '<span class="seed-step" data-step="1">+</span>' +
+                '</span>' +
+                '<span class="seed-num" id="seed-readout">' + params.seed + '</span>';
+            none.onclick = function (ev) {
+                const step = ev.target.closest('.seed-step');
+                if (step) {
+                    ev.stopPropagation();
+                    if (step.dataset.step === '1') nextSeed(); else previousSeed();
+                    return;
+                }
+                setSource('generated');
+            };
+            grid.appendChild(none);
+
+            const up = document.createElement('button');
+            up.className = 'thumb thumb-upload';
+            up.id = 'thumb-upload';
+            up.innerHTML = '<span class="up-face">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+                'stroke-linecap="round" stroke-linejoin="round">' +
+                '<path d="M12 16V4.5"/><path d="M7.5 9l4.5-4.5L16.5 9"/>' +
+                '<path d="M4.5 15v4.5h15V15"/></svg></span>' +
+                '<span id="drop-label">Upload</span>';
+            up.onclick = function () { document.getElementById('file-input').click(); };
+            grid.appendChild(up);
+
+            refreshSeedTile();
+
             BASE_PLATES.forEach(function (b) {
                 const btn = document.createElement('button');
                 btn.className = 'thumb';
@@ -607,11 +501,20 @@
             });
         }
 
+        function setDropLabel(text) {
+            const el = document.getElementById('drop-label');
+            if (el) el.textContent = text;
+        }
+
         function markActiveThumb(id) {
             BASE_PLATES.forEach(function (b) {
                 const el = document.getElementById('thumb-' + b.id);
                 if (el) el.className = (b.id === id) ? 'thumb active' : 'thumb';
             });
+            const none = document.getElementById('thumb-none');
+            if (none) none.className = (id === 'none') ? 'thumb active' : 'thumb';
+            const up = document.getElementById('thumb-upload');
+            if (up) up.className = (id === 'upload') ? 'thumb thumb-upload active' : 'thumb thumb-upload';
         }
 
         function adoptPlateSurface(surface, id, name, note) {
@@ -622,8 +525,8 @@
             srcTexDirty = true;
             activeBase = id;
             markActiveThumb(id);
-            document.getElementById('drop-label').textContent = 'Or use your own';
-            setSourceMeta(surface.canvas.toDataURL(), name, note);
+            setDropLabel('Upload');
+            setSourceMeta(thumbURL(surface.canvas), name, note);
             setSource('image');
         }
 
@@ -671,8 +574,8 @@
             srcTexDirty = true;
             activeBase = id;
             markActiveThumb(id);
-            document.getElementById('drop-label').textContent = 'Or use your own';
-            setSourceMeta(srcHolder.canvas.toDataURL(), name,
+            setDropLabel('Upload');
+            setSourceMeta(thumbURL(srcHolder.canvas), name,
                 plateAnim ? 'Built-in plate · animated'
                           : 'Built-in plate · generated from the plate seed');
             setSource('image');
@@ -683,6 +586,30 @@
         // WHAT THE SCOPE IS LOOKING AT
         // ═══════════════════════════════════════════════════════════════════════
 
+        // Thumbnails were the full-resolution plate re-encoded as PNG — a 2.7MB
+        // data URL, held twice in the DOM. A downscaled JPEG shows the same
+        // thing at a fraction of the size.
+        function thumbURL(canvas) {
+            if (!canvas) return null;
+            const W = 320;
+            const h = Math.max(1, Math.round(canvas.height * (W / canvas.width)));
+            const c = document.createElement('canvas');
+            c.width = W; c.height = h;
+            c.getContext('2d').drawImage(canvas, 0, 0, W, h);
+            return c.toDataURL('image/jpeg', 0.72);
+        }
+
+        // An <img> with no src draws a broken glyph, and setSourceMeta only runs
+        // when a source is adopted — so this has to be driven from wherever the
+        // source can end up empty, not from there alone.
+        function syncSourcePreview() {
+            const wrap = document.querySelector('.src-preview-wrap');
+            const cap = document.querySelector('.src-caption');
+            const has = !!srcThumbURL;
+            if (wrap) wrap.style.display = has ? '' : 'none';
+            if (cap) cap.style.display = has ? '' : 'none';
+        }
+
         function setSourceMeta(url, name, note) {
             srcThumbURL = url;
             srcName = name;
@@ -690,8 +617,10 @@
 
             ['src-preview', 'card-img'].forEach(function (id) {
                 const el = document.getElementById(id);
-                if (el) el.src = url;
+                if (!el) return;
+                if (url) el.src = url; else el.removeAttribute('src');
             });
+            syncSourcePreview();
             document.getElementById('src-name').textContent = name;
             document.getElementById('src-note').textContent = srcNote;
             document.getElementById('card-title').textContent = name;
@@ -1925,7 +1854,7 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         const PANELS = ['source', 'symmetry', 'colour', 'motion',
-                        'breathing', 'params', 'seed', 'share'];
+                        'breathing', 'params', 'share'];
         let openPanelName = null;
 
         function openPanel(name) {
@@ -1991,12 +1920,13 @@
             // Guard on the canvas, not on srcPixels: a video source has no CPU
             // pixel buffer, and testing srcPixels bounced it to a painted plate.
             if (mode === 'image' && !srcCanvas) {
-                useBasePlate('stilllife', 'Still Life');
+                const first = BASE_PLATES.filter(function (b) { return !b.missing; })[0];
+                if (first) useBasePlate(first.id, first.name);
                 return;
             }
             params.source = mode;
-            document.getElementById('src-gen').className = mode === 'generated' ? 'active' : '';
-            document.getElementById('src-img').className = mode === 'image' ? 'active' : '';
+            if (mode === 'generated') markActiveThumb('none');
+            syncSourcePreview();
             document.getElementById('img-controls').className = mode === 'image' ? '' : 'off';
             toggleSourceCard(mode === 'image');
             refreshSrcRegion();
@@ -2025,11 +1955,11 @@
                     videoLive = false;
                     if (plateVideo) plateVideo.pause();
                     activeBase = null;
-                    markActiveThumb(null);
+                    markActiveThumb('upload');
 
                     const short = file.name.length > 26 ? file.name.slice(0, 24) + '…' : file.name;
-                    document.getElementById('drop-label').textContent = short;
-                    setSourceMeta(loaded.canvas.toDataURL(), short, srcW + ' × ' + srcH + ' · yours, never uploaded');
+                    setDropLabel(short);
+                    setSourceMeta(thumbURL(loaded.canvas), short, srcW + ' × ' + srcH + ' · yours, never uploaded');
 
                     // An upload is worth seeing before it gets painted over.
                     params.mix = 0;
@@ -2335,6 +2265,7 @@
             params.colorPalette = cols.slice();
             tablesDirty = true;
             setPaletteUI();
+            refreshSeedTile();
             if (!animating) recolour();
         }
 
@@ -2409,6 +2340,7 @@
         }
 
         function setPaletteUI() {
+            refreshSeedTile();
             for (let i = 0; i < 5; i++) {
                 document.getElementById('color' + (i + 1)).value = params.colorPalette[i];
                 document.getElementById('color' + (i + 1) + '-value').textContent = params.colorPalette[i];
@@ -3125,12 +3057,16 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         function updateSeedDisplay() {
-            document.getElementById('seed-input').value = params.seed;
+            const inp = document.getElementById('seed-input');
+            if (inp) inp.value = params.seed;
+            const out = document.getElementById('seed-readout');
+            if (out) out.textContent = params.seed;
             refreshShareUI();
         }
 
         function updateSeed() {
             const input = document.getElementById('seed-input');
+            if (!input) return;
             const newSeed = parseInt(input.value);
             if (newSeed && newSeed > 0) {
                 params.seed = newSeed;
@@ -3448,6 +3384,7 @@
             refreshShareUI();
 
             buildOrbPoints();
+            syncSourcePreview();
 
             // Open in motion on Animate alone. Breathing is off by default and
             // takes over the flow when switched on, so the two never stack.

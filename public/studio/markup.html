@@ -33,6 +33,17 @@
         </div>
     </div>
 
+    <div id="drop-veil">
+        <div class="drop-veil-card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.6"/>
+                <path d="M21 15l-5-5L5 21"/>
+            </svg>
+            <span id="drop-veil-msg">Drop to feed it in</span>
+        </div>
+    </div>
+
     <div id="breath-guide">
         <canvas id="breath-ring"></canvas>
         <div id="breath-stage"></div>
@@ -52,34 +63,17 @@
         <button class="sheet-close" onclick="closePanel()" title="Close (Esc)">×</button>
         <div class="control-section" id="panel-source">
             <h3>Source<span class="sec-tools"><button class="sec-btn" id="sec-source-lock" title="Lock source — Randomize leaves it alone" onclick="toggleSection('source','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize source only" onclick="randomSection('source')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-source-auto" title="Let source drift on its own" onclick="toggleSection('source','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
-            <div class="seg">
-                <button id="src-gen" class="active" onclick="setSource('generated')">Generated</button>
-                <button id="src-img" onclick="setSource('image')">Image</button>
-            </div>
-
-            <div class="lock-row">
-                <span>Which image</span>
-                <button class="sec-btn" id="img-lock" onclick="toggleImageLock()"
-                        title="Lock the chosen image — Randomize and drift keep it, but everything else in Source still moves">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg>
-                </button>
-            </div>
             <div class="thumb-grid" id="thumb-grid"></div>
 
             <input type="file" id="file-input" accept="image/*" style="display:none" onchange="onFilePicked(this.files[0])">
-            <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-                <strong id="drop-label">Or use your own</strong>
-                click to choose, or drop one on the page
-            </div>
-
             <div id="img-controls" class="off">
                 <!-- The source, with the patch the scope is reading marked on it.
                      Without this you are adjusting Zoom and Pan blind. -->
-                <div class="src-preview-wrap">
+                <div class="src-preview-wrap" style="display:none">
                     <img id="src-preview" alt="Source image">
                     <div id="src-region"></div>
                 </div>
-                <div class="src-caption">
+                <div class="src-caption" style="display:none">
                     <strong id="src-name"></strong>
                     <span id="src-note"></span>
                 </div>
@@ -505,15 +499,6 @@
             </div>
         </div>
 
-        <div class="control-section" id="panel-seed">
-            <h3>Seed<span class="sec-tools"><button class="sec-btn" id="sec-seed-lock" title="Lock seed — Randomize leaves it alone" onclick="toggleSection('seed','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize seed only" onclick="randomSection('seed')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-seed-auto" title="Let seed drift on its own" onclick="toggleSection('seed','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
-            <div class="seed-stepper">
-                <button onclick="previousSeed()" title="Previous seed">←</button>
-                <input type="number" id="seed-input" value="500321" onchange="updateSeed()">
-                <button onclick="nextSeed()" title="Next seed">→</button>
-            </div>
-        </div>
-
         <div class="control-section" id="panel-share">
             <h3>This generation</h3>
             <div class="gen-id" id="gen-id">–</div>
@@ -557,13 +542,9 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10"/><path d="M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h4"/><path d="M12 17h8"/><circle cx="10" cy="17" r="2"/></svg>
                 <span class="dock-tip">Parameters <em>6</em></span>
             </button>
-            <button class="dock-btn" id="dock-seed" onclick="openPanel('seed')" aria-label="Seed">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M7.5 12h9"/></svg>
-                <span class="dock-tip">Seed <em>7</em></span>
-            </button>
             <button class="dock-btn" id="dock-share" onclick="openPanel('share')" aria-label="Export">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3.5"/><path d="M8 7.5l4-4 4 4"/><path d="M4.5 14v5.5h15V14"/></svg>
-                <span class="dock-tip">Export <em>8</em></span>
+                <span class="dock-tip">Export <em>7</em></span>
             </button>
             <span class="dock-sep"></span>
             <button class="dock-btn" id="dock-random" onclick="randomSeedAndUpdate()" aria-label="Random">

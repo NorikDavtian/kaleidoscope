@@ -10,6 +10,7 @@ They are referenced by `BASE_PLATES` in `kaleidoscope-studio-polycentral.html`:
 | `decks.jpg` | Decks |
 | `plumage.jpg` | Plumage |
 | `companions.jpg` | Companions |
+| `prism.webp` | Prism |
 
 Any entry whose file is missing removes itself from the grid, so the studio
 works with none, some, or all of them present.

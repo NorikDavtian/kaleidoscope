@@ -201,7 +201,7 @@ from the dock or straight from the keyboard.
 
 | Key | |
 | --- | --- |
-| `1`–`8` | Source · Symmetry · Colour · Motion · Breathing · Parameters · Seed · Export |
+| `1`–`7` | Source · Symmetry · Colour · Motion · Breathing · Parameters · Export |
 | `R` | Randomize |
 | `A` | Animate |
 | `F` | Fullscreen |
