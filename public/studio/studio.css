@@ -744,13 +744,24 @@
         .intro-card {
             cursor: default;
             position: relative;
-            width: min(78vmin, 520px);
-            height: min(78vmin, 520px);
+            width: min(68vmin, 450px);
+            height: min(68vmin, 450px);
             border-radius: 50%;
-            overflow: hidden;
-            background: var(--panel);
+            /* Soft rim rather than a cut circle: the fill fades out, and a mask
+               takes the particles with it so the shell dissolves at the same
+               radius instead of ending on a hard edge. */
+            background: radial-gradient(circle closest-side,
+                rgba(12, 12, 16, 0.93) 0 58%,
+                rgba(12, 12, 16, 0.86) 74%,
+                rgba(12, 12, 16, 0.52) 88%,
+                rgba(12, 12, 16, 0.16) 96%,
+                transparent 100%);
             backdrop-filter: blur(26px) saturate(140%);
             -webkit-backdrop-filter: blur(26px) saturate(140%);
+            -webkit-mask-image: radial-gradient(circle closest-side,
+                #000 0 70%, rgba(0, 0, 0, 0.72) 86%, rgba(0, 0, 0, 0.2) 96%, transparent 100%);
+            mask-image: radial-gradient(circle closest-side,
+                #000 0 70%, rgba(0, 0, 0, 0.72) 86%, rgba(0, 0, 0, 0.2) 96%, transparent 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -834,7 +845,7 @@
             #sheet { bottom: 88px; max-height: 58vh; }
             .dock-btn { width: 38px; height: 38px; }
             .dock-tip { display: none; }
-            .intro-card { width: min(92vmin, 400px); height: min(92vmin, 400px); }
+            .intro-card { width: min(86vmin, 350px); height: min(86vmin, 350px); }
             .intro-card h1 { font-size: 25px; }
             .intro-inner { width: 76%; }
             .intro-keys { font-size: 11px; margin-top: 18px; }
