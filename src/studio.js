@@ -645,7 +645,15 @@
                 im.alt = b.name;
 
                 if (b.video) {
-                    im.onerror = function () { btn.remove(); b.missing = true; };
+                    // The poster walks the same roots as everything else — the
+                    // first root is absolute and 404s when the site lives under
+                    // a subpath, which used to take the whole tile with it.
+                    let vroot = 0;
+                    im.onerror = function () {
+                        if (vroot < PLATE_ROOTS.length - 1) {
+                            im.src = PLATE_ROOTS[++vroot] + (b.poster || '');
+                        } else { btn.remove(); b.missing = true; }
+                    };
                     im.src = PLATE_ROOTS[0] + (b.poster || '');
                 } else if (b.src) {
                     // A missing photograph should not leave a broken tile behind.
