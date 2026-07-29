@@ -605,22 +605,66 @@
 
         #breath-guide.off { display: none; }
 
-        /* A glow rather than an outline — a hard 1px circle sits on top of the
-           artwork, where a soft annulus sits in it. Built from a gradient so the
-           edge falls off on both sides, with a faint bloom outside.
-           Scale is written per frame from the breath, so no CSS transition here:
-           one would lag behind and fight the animation. */
+        /* The globe, in gradients alone. Scale is written per frame from the
+           breath, so there is no CSS transition on the container — one would lag
+           behind and fight it. Deliberately no `filter`: a blur or drop-shadow
+           re-rasterises the whole box on every breath frame, and measured dearer
+           than the SVG turbulence this replaced. Gradients are the blur, and
+           they are painted once into the layer. */
         #breath-ring {
-            width: 132px;
-            height: 132px;
+            position: relative;
+            width: 200px;
+            height: 200px;
             border-radius: 50%;
+            will-change: transform;
+            /* Hollow through the middle, dense through the shell, gone by the
+               rim — three stops either side of the peak do the softening. */
             background: radial-gradient(circle closest-side,
-                transparent 0 58%,
-                rgba(255, 253, 246, 0.10) 66%,
-                rgba(255, 253, 246, 0.32) 75%,
-                rgba(255, 253, 246, 0.10) 85%,
+                transparent 0 44%,
+                rgba(255, 253, 246, 0.03) 55%,
+                rgba(255, 253, 246, 0.10) 64%,
+                rgba(255, 253, 246, 0.24) 72%,
+                rgba(255, 253, 246, 0.09) 82%,
+                rgba(255, 253, 246, 0.02) 90%,
+                transparent 97%);
+        }
+
+        /* Two more shells at their own radii, crossing between transparent and
+           visible on staggered cycles so the edge keeps dissolving. */
+        #breath-ring::before,
+        #breath-ring::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        #breath-ring::before {
+            background: radial-gradient(circle closest-side,
+                transparent 0 60%,
+                rgba(255, 253, 246, 0.13) 76%,
+                rgba(255, 253, 246, 0.03) 88%,
                 transparent 96%);
-            box-shadow: 0 0 34px rgba(255, 253, 246, 0.10);
+            animation: halo-fade 13s ease-in-out infinite;
+        }
+
+        #breath-ring::after {
+            inset: -14%;
+            background: radial-gradient(circle closest-side,
+                transparent 0 66%,
+                rgba(255, 253, 246, 0.07) 84%,
+                transparent 97%);
+            animation: halo-fade 19s ease-in-out infinite 4.5s;
+        }
+
+        @keyframes halo-fade {
+            0%, 100% { opacity: 0.15; transform: scale(0.97); }
+            50%      { opacity: 1;    transform: scale(1.03); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #breath-ring::before, #breath-ring::after { animation: none; opacity: 0.55; }
         }
 
         /* Out of the flow, or its height would push the ring off centre. */
