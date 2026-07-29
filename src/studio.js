@@ -1631,7 +1631,8 @@
                 const g = document.getElementById('breath-stage');
                 if (g && g.textContent !== breathStage) g.textContent = breathStage;
                 const ring = document.getElementById('breath-ring');
-                if (ring) ring.style.transform = 'scale(' + (0.55 + breathValue * 0.45) + ')';
+                if (ring) ring.style.transform = 'scale(' + (0.62 + breathValue * 0.38) + ')';
+                if (params.breathGuide) drawOrb();
                 tablesDirty = true;
             }
 
@@ -2501,6 +2502,125 @@
             return true;
         }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // BREATH ORB
+        //
+        // A shell of points rather than a painted ring. Directions are laid out
+        // on a Fibonacci sphere, then thinned by noise so the field breaks into
+        // filaments and voids instead of an even fog. Brightness and radius are
+        // fixed in object space and computed once — only the rotation and the
+        // breath change per frame, so drawing is a rotate, a project and a write.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const ORB_POINTS = 7000;
+        let orbPts = null, orbImg = null, orbCtx = null, orbSide = 0, orbSpin = 0;
+
+        function buildOrbPoints() {
+            seedNoise(20240719);            // fixed: the orb should not chase the artwork
+            const pts = new Float32Array(ORB_POINTS * 4);   // x, y, z, brightness
+            const GA = Math.PI * (3 - Math.sqrt(5));
+            let n = 0;
+
+            for (let i = 0; i < ORB_POINTS; i++) {
+                const t = (i + 0.5) / ORB_POINTS;
+                const z = 1 - 2 * t;
+                const r = Math.sqrt(Math.max(0, 1 - z * z));
+                const a = GA * i;
+                let x = Math.cos(a) * r, y = Math.sin(a) * r;
+
+                // Two noise reads at different scales: the coarse one carves the
+                // voids, the fine one strings the filaments through what is left.
+                const coarse = fbm(x * 1.7 + z * 1.1, y * 1.7 - z * 0.8, 3);
+                const fine   = fbm(x * 5.2 - z * 2.3, y * 5.2 + z * 1.9, 3);
+                const d = coarse * 0.7 + fine * 0.45;
+
+                if (d < -0.02) continue;                    // a void
+                const b = Math.min(1, (d + 0.02) * 2.6);
+                if (b < 0.015) continue;
+
+                // Sit them in a shell with a little thickness, thicker where the
+                // filaments run, so the surface never reads as a hard sphere.
+                const rad = 0.83 + fine * 0.16 + (rnd() - 0.5) * 0.05;
+                pts[n * 4]     = x * rad;
+                pts[n * 4 + 1] = y * rad;
+                pts[n * 4 + 2] = z * rad;
+                pts[n * 4 + 3] = b;
+                n++;
+            }
+            orbPts = pts.subarray(0, n * 4);
+            seedNoise(params.seed);         // hand the field's noise back
+        }
+
+        function splat(d, S, x, y, v) {
+            if (x < 0 || y < 0 || x >= S || y >= S) return;
+            const q = (y * S + x) * 4;
+            const lit = d[q] + v > 255 ? 255 : d[q] + v;
+            d[q] = lit; d[q + 1] = lit; d[q + 2] = lit;
+            d[q + 3] = d[q + 3] + v > 255 ? 255 : d[q + 3] + v;
+        }
+
+        function drawOrb() {
+            const el = document.getElementById('breath-ring');
+            if (!el || !orbPts) return;
+
+            // Backing resolution is capped and CSS scales it up to Orb Size:
+            // clearing and uploading the buffer dominates the cost, and it grows
+            // with the square of the side. Points are soft anyway, so the slight
+            // upscale costs nothing visually.
+            const S = Math.max(80, Math.min(300, Math.round(params.orbSize)));
+            if (orbSide !== S) {
+                el.width = S; el.height = S;
+                orbCtx = el.getContext('2d');
+                orbImg = orbCtx.createImageData(S, S);
+                orbSide = S;
+            }
+
+            const d = orbImg.data;
+            d.fill(0);
+
+            orbSpin += 0.0016;
+            const cs = Math.cos(orbSpin), sn = Math.sin(orbSpin);
+            const tilt = 0.38, ct = Math.cos(tilt), st = Math.sin(tilt);
+
+            const c = S / 2;
+            const R = c * 0.92;
+            const gain = params.orbStrength;
+            const N = orbPts.length / 4;
+
+            for (let i = 0; i < N; i++) {
+                const o = i * 4;
+                const x0 = orbPts[o], y0 = orbPts[o + 1], z0 = orbPts[o + 2];
+
+                const x1 = x0 * cs + z0 * sn;          // spin about Y
+                const z1 = z0 * cs - x0 * sn;
+                const y1 = y0 * ct - z1 * st;          // then a fixed tilt
+                const z2 = z1 * ct + y0 * st;
+
+                const px = (c + x1 * R) | 0;
+                const py = (c + y1 * R) | 0;
+                if (px < 0 || py < 0 || px >= S || py >= S) continue;
+
+                // Depth cue: the far side of the shell reads dimmer, which is
+                // what makes a flat scatter of points look like a sphere.
+                const depth = 0.42 + 0.58 * ((z2 + 1) * 0.5);
+                let v = orbPts[o + 3] * depth * gain * 620;
+                if (v <= 0) continue;
+                if (v > 255) v = 255;
+
+                splat(d, S, px, py, v);
+                // The brightest points get a second, dimmer ring of neighbours,
+                // so the filaments carry against a busy background instead of
+                // disappearing into single pixels.
+                if (v > 90) {
+                    const h = v * 0.42;
+                    splat(d, S, px + 1, py, h); splat(d, S, px - 1, py, h);
+                    splat(d, S, px, py + 1, h); splat(d, S, px, py - 1, h);
+                }
+            }
+
+            orbCtx.putImageData(orbImg, 0, 0);
+        }
+
         function syncBreathGuide() {
             const guide = document.getElementById('breath-guide');
             const on = params.breath !== 'off' && params.breathGuide;
@@ -2510,14 +2630,7 @@
             if (btn) btn.className = params.breathGuide ? 'sec-btn on' : 'sec-btn';
 
             const orb = document.getElementById('breath-ring');
-            if (orb) {
-                const st = params.orbStrength;
-                orb.style.setProperty('--orb-size', params.orbSize + 'px');
-                // Up to 1 it fades in; past 1 the shells thicken and deepen,
-                // because opacity clamps and would waste half the slider.
-                orb.style.setProperty('--orb-alpha', Math.min(1, st));
-                orb.style.setProperty('--orb-w', Math.max(0, Math.min(1, st - 1)));
-            }
+            if (orb) orb.style.setProperty('--orb-size', params.orbSize + 'px');
 
             const lbl = document.getElementById('breath-stage');
             if (lbl) {
@@ -3156,6 +3269,8 @@
                 adoptHostedSource(window.__kaleidoscopeSourceUrl);
             }
             refreshShareUI();
+
+            buildOrbPoints();
 
             if (!document.getElementById('intro').classList.contains('gone')) {
                 startIntroCountdown();

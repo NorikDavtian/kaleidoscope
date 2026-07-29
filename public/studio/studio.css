@@ -597,75 +597,24 @@
            re-rasterises the whole box on every breath frame, and measured dearer
            than the SVG turbulence this replaced. Gradients are the blur, and
            they are painted once into the layer. */
+        /* A canvas of points, drawn per frame. No gradients, no filter: the
+           shell is the particles, and its softness comes from their density
+           falling off rather than from a blur. */
         #breath-ring {
-            position: relative;
             width: var(--orb-size, 300px);
             height: var(--orb-size, 300px);
-            border-radius: 50%;
-            opacity: var(--orb-alpha, 1);
             will-change: transform;
-            /* Two shells, light over dark. A pale glow alone disappears against
-               a bright field, so a darker one sits just outside it: whichever
-               contrasts with the artwork underneath is the one you see.
-               Hollow through the middle — three stops either side of each peak
-               do the softening, so the edges stay round however thick it gets,
-               and no `filter` is involved.
-               Past a strength of 1 the shells widen and deepen rather than only
-               brightening: opacity alone clamps, so the top of that slider would
-               otherwise do nothing at all. */
-            background:
-                radial-gradient(circle closest-side,
-                    transparent 0 calc(44% - 20% * var(--orb-w, 0)),
-                    rgba(255, 253, 246, calc(0.04 + 0.13 * var(--orb-w, 0))) calc(55% - 14% * var(--orb-w, 0)),
-                    rgba(255, 253, 246, calc(0.13 + 0.26 * var(--orb-w, 0))) calc(64% - 7% * var(--orb-w, 0)),
-                    rgba(255, 253, 246, calc(0.30 + 0.50 * var(--orb-w, 0))) 72%,
-                    rgba(255, 253, 246, calc(0.11 + 0.34 * var(--orb-w, 0))) calc(81% + 4% * var(--orb-w, 0)),
-                    rgba(255, 253, 246, calc(0.02 + 0.18 * var(--orb-w, 0))) calc(89% + 4% * var(--orb-w, 0)),
-                    transparent 97%),
-                radial-gradient(circle closest-side,
-                    transparent 0 calc(62% - 18% * var(--orb-w, 0)),
-                    rgba(6, 6, 10, calc(0.10 + 0.16 * var(--orb-w, 0))) calc(76% - 8% * var(--orb-w, 0)),
-                    rgba(6, 6, 10, calc(0.20 + 0.34 * var(--orb-w, 0))) 85%,
-                    rgba(6, 6, 10, calc(0.07 + 0.22 * var(--orb-w, 0))) calc(92% + 3% * var(--orb-w, 0)),
-                    transparent 99%);
-        }
-
-        /* Two more shells at their own radii, crossing between transparent and
-           visible on staggered cycles so the edge keeps dissolving. */
-        #breath-ring::before,
-        #breath-ring::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
             pointer-events: none;
-        }
-
-        #breath-ring::before {
+            /* A stage for the points. Without something to sit against they
+               vanish into a bright plate — this is a wide, shallow darkening,
+               not the painted ring it replaced. */
             background: radial-gradient(circle closest-side,
-                transparent 0 60%,
-                rgba(255, 253, 246, 0.13) 76%,
-                rgba(255, 253, 246, 0.03) 88%,
-                transparent 96%);
-            animation: halo-fade 13s ease-in-out infinite;
-        }
-
-        #breath-ring::after {
-            inset: -14%;
-            background: radial-gradient(circle closest-side,
-                transparent 0 66%,
-                rgba(255, 253, 246, 0.07) 84%,
-                transparent 97%);
-            animation: halo-fade 19s ease-in-out infinite 4.5s;
-        }
-
-        @keyframes halo-fade {
-            0%, 100% { opacity: 0.15; transform: scale(0.97); }
-            50%      { opacity: 1;    transform: scale(1.03); }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            #breath-ring::before, #breath-ring::after { animation: none; opacity: 0.55; }
+                rgba(4, 4, 9, 0.30) 0 30%,
+                rgba(4, 4, 9, 0.26) 55%,
+                rgba(4, 4, 9, 0.15) 76%,
+                rgba(4, 4, 9, 0.04) 90%,
+                transparent 98%);
+            border-radius: 50%;
         }
 
         /* Out of the flow, or its height would push the ring off centre. */

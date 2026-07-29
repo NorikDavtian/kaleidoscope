@@ -163,9 +163,17 @@ contracts with the count.
 | Deep | 6 in · 7 out, no holds |
 | Longer | starts at 4·2·6·1 and stretches to 1.8x over ~5 minutes |
 
-`Orb Size` and `Orb Strength` set how the guide reads against whatever is behind
-it — a pale glow alone disappears on a bright field, so the orb carries a darker
-shell just outside its light one and whichever contrasts is the one you see.
+The guide is a shell of particles: directions laid out on a Fibonacci sphere,
+thinned by noise so the field breaks into filaments and voids rather than an even
+fog, with the far side dimmed so a flat scatter of points reads as a sphere. It
+turns slowly and breathes with the count. `Orb Size` and `Orb Strength` set how
+far it reaches and how hard it carries; a shallow darkening sits behind it so the
+points have something to read against on a bright plate.
+
+Brightness and radius are fixed in object space and computed once — only the
+rotation changes per frame. The backing canvas is capped at 300px and CSS scales
+it, since clearing and uploading the buffer dominates and grows with the square
+of the side.
 `Breath Depth` sets how far the swing carries. The guide sits in the middle of
 the canvas — a soft glow rather than an outline, so it sits *in* the artwork
 rather than on top of it — and both the ring and the stage label can be switched
