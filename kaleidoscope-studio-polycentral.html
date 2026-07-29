@@ -593,7 +593,9 @@
         #breath-guide {
             position: fixed;
             inset: 0;
-            z-index: 13;
+            /* Below the sheet, dock and source card. It belongs to the artwork,
+               so anything you open should sit over it, not under it. */
+            z-index: 8;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -826,6 +828,25 @@
 
         .intro-fine { margin-top: 18px; font-size: 11px; color: var(--faint); }
 
+        .intro-share {
+            margin-top: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 14px;
+            border: none;
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--dim);
+            font-family: 'Poppins', sans-serif;
+            font-size: 11.5px;
+            cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .intro-share svg { width: 13px; height: 13px; }
+        .intro-share:hover { background: var(--surface-2); color: var(--text); }
+
         @media (max-width: 640px) {
             #sheet { bottom: 88px; max-height: 58vh; }
             .dock-btn { width: 38px; height: 38px; }
@@ -867,6 +888,11 @@
                 </div>
 
                 <div class="intro-fine">Everything renders in your browser.</div>
+
+                <button class="intro-share" onclick="shareFromIntro(event)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3.5"/><path d="M8 7.5l4-4 4 4"/><path d="M4.5 14v5.5h15V14"/></svg>
+                    Share this one
+                </button>
             </div>
         </div>
     </div>
@@ -2869,6 +2895,13 @@
         function introBackdropClick(e) {
             if (e.target.closest('.intro-card')) return;
             enterStudio();
+        }
+
+        // Straight from the welcome to the link for whatever is behind it.
+        function shareFromIntro(e) {
+            if (e) e.stopPropagation();
+            enterStudio();
+            openPanel('share');
         }
 
         // Fullscreen. The canvas already fills the viewport, so this only has to

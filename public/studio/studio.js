@@ -1522,6 +1522,13 @@
             enterStudio();
         }
 
+        // Straight from the welcome to the link for whatever is behind it.
+        function shareFromIntro(e) {
+            if (e) e.stopPropagation();
+            enterStudio();
+            openPanel('share');
+        }
+
         // Fullscreen. The canvas already fills the viewport, so this only has to
         // take the browser chrome out of the way and keep the icon honest.
         function toggleFullscreen() {
