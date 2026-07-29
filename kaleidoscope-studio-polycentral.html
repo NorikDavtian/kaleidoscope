@@ -2956,6 +2956,14 @@
         // display would run out of tiles before reaching the corners.
         const SQ_CAP = 26, TRI_CAP = 11;
 
+        // Canvas antialiases a clip edge, and two abutting antialiased edges do
+        // not sum back to full opacity — which is what draws a hairline along
+        // every cell boundary. Bleeding each clip outward by under a pixel makes
+        // neighbours overlap instead of abut. The overlap shows one cell's
+        // content a fraction of a pixel into the next, which is invisible; the
+        // seam is not.
+        const EDGE_BLEED = 2;
+
         function drawSquareTiling(ctx, w, h) {
             const diag = Math.sqrt(w * w + h * h);
             const len = Math.max(params.cellSize, diag / (SQ_CAP - 1));
@@ -2980,7 +2988,8 @@
                                   sy === 1 ? j * len : j * len + len);
                     ctx.scale(sx, sy);
                     ctx.beginPath();
-                    ctx.rect(0, 0, len, len);
+                    ctx.rect(-EDGE_BLEED, -EDGE_BLEED,
+                             len + EDGE_BLEED * 2, len + EDGE_BLEED * 2);
                     ctx.clip();
                     ctx.translate(-(outer - len) / 2, -(outer - len) / 2);
                     ctx.translate(ox, oy);
@@ -3035,10 +3044,19 @@
                 ctx.translate(-l, 0);
             }
 
+            // Push the three corners out from the centroid far enough to move
+            // each edge EDGE_BLEED outward. For an equilateral triangle the
+            // inradius is l / (2 * sqrt 3), so that is the scale it needs.
+            const inr = l / (2 * Math.sqrt(3));
+            const k = 1 + EDGE_BLEED / inr;
+            const gx = l / 2, gy = l * Math.sqrt(3) / 6;
+            const px = function (x) { return gx + (x - gx) * k; };
+            const py = function (y) { return gy + (y - gy) * k; };
+
             ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(l, 0);
-            ctx.lineTo(l / 2, l * Math.sqrt(3) / 2);
+            ctx.moveTo(px(0), py(0));
+            ctx.lineTo(px(l), py(0));
+            ctx.lineTo(px(l / 2), py(l * Math.sqrt(3) / 2));
             ctx.closePath();
             ctx.clip();
 
