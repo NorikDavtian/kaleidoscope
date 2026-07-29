@@ -1,7 +1,11 @@
 # Kaleidoscope
 
+![Refracted Descent](cover.png)
+
 Browser kaleidoscope studio. A folded, warped, interfering field, fed by noise,
 by a painted plate, or by your own image.
+
+**[Live demo →](https://norikdavtian.github.io/kaleidoscope/)**
 
 Everything runs client-side. No image you load ever leaves the machine.
 
