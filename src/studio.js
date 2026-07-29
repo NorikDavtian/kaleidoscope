@@ -1486,9 +1486,26 @@
         // INTRO — the scope is already running underneath it
         // ═══════════════════════════════════════════════════════════════════════
 
+        let introTimer = null;
+
         function enterStudio() {
+            if (introTimer) { clearTimeout(introTimer); introTimer = null; }
             document.getElementById('intro').classList.add('gone');
             document.getElementById('dock').classList.add('up');
+        }
+
+        // Six seconds, then the studio opens by itself. Restarting the CSS
+        // animation needs it cleared and the layout flushed, or the browser
+        // coalesces both changes and the ring never replays.
+        function startIntroCountdown() {
+            if (introTimer) clearTimeout(introTimer);
+            const ring = document.querySelector('.ring-run');
+            if (ring) {
+                ring.style.animation = 'none';
+                void ring.getBoundingClientRect();
+                ring.style.animation = '';
+            }
+            introTimer = setTimeout(enterStudio, 6000);
         }
 
         // Fullscreen. The canvas already fills the viewport, so this only has to
@@ -1545,6 +1562,7 @@
 
         function showIntro() {
             document.getElementById('intro').classList.remove('gone');
+            startIntroCountdown();
         }
 
         function needsLoop() {
@@ -2968,5 +2986,9 @@
                 adoptHostedSource(window.__kaleidoscopeSourceUrl);
             }
             refreshShareUI();
+
+            if (!document.getElementById('intro').classList.contains('gone')) {
+                startIntroCountdown();
+            }
         });
     

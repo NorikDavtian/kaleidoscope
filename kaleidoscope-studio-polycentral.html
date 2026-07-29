@@ -706,7 +706,9 @@
 
         .drop-veil-card svg { width: 38px; height: 38px; opacity: 0.8; }
 
-        /* ── Intro ─────────────────────────────────────────────────────────── */
+        /* ── Intro ─────────────────────────────────────────────────────────────
+           A disc rather than a card, with a ring that drains over six seconds
+           and then opens the studio on its own. Click or key to skip. */
         #intro {
             position: fixed;
             inset: 0;
@@ -715,41 +717,64 @@
             align-items: center;
             justify-content: center;
             padding: 24px;
-            transition: opacity 0.45s ease;
+            cursor: pointer;
+            transition: opacity 0.5s ease;
         }
 
         #intro.gone { opacity: 0; pointer-events: none; }
 
         .intro-card {
-            width: 100%;
-            max-width: 440px;
-            max-height: 100%;
-            overflow-y: auto;
+            position: relative;
+            width: min(80vmin, 440px);
+            height: min(80vmin, 440px);
+            border-radius: 50%;
             background: var(--panel);
             backdrop-filter: blur(26px) saturate(140%);
             -webkit-backdrop-filter: blur(26px) saturate(140%);
-            border-radius: 20px;
-            padding: 42px 38px 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
             color: var(--text);
         }
 
-        .intro-card h1 { font-family: 'Lora', serif; font-size: 36px; font-weight: 500; line-height: 1.12; }
-        .intro-card .intro-sub { font-size: 13.5px; color: var(--faint); margin: 6px 0 4px; }
-
-        .intro-feature { display: flex; align-items: flex-start; gap: 15px; text-align: left; margin-bottom: 18px; }
-        .intro-feature .ico { flex: none; width: 28px; height: 28px; margin-top: 1px; }
-        .intro-feature p { font-size: 14px; line-height: 1.45; color: var(--text); }
-
-        .intro-fine { font-size: 11.5px; line-height: 1.5; color: var(--faint); margin: 24px 0 20px; }
-        .intro-card .button { padding: 13px 16px; font-size: 14.5px; border-radius: 10px; }
-
-        .intro-credit {
-            margin-bottom: 28px;
-            font-size: 11.5px;
-            color: var(--faint);
-            letter-spacing: 0.3px;
+        .intro-ring {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);   /* start the drain at twelve o'clock */
+            pointer-events: none;
         }
+
+        .intro-ring circle { fill: none; stroke-width: 1.6; }
+        .ring-track { stroke: rgba(236, 234, 228, 0.1); }
+
+        .ring-run {
+            stroke: var(--accent);
+            /* 2 * pi * 97 */
+            stroke-dasharray: 609.47;
+            stroke-dashoffset: 0;
+            animation: intro-drain 6s linear forwards;
+        }
+
+        @keyframes intro-drain {
+            from { stroke-dashoffset: 0; }
+            to   { stroke-dashoffset: 609.47; }
+        }
+
+        /* Someone who would rather not watch a timer still gets the ring, just
+           not the sweep. The auto-close is a timer in script either way. */
+        @media (prefers-reduced-motion: reduce) {
+            .ring-run { animation: none; stroke-dashoffset: 0; opacity: 0.35; }
+        }
+
+        .intro-inner { width: 72%; }
+
+        .intro-card h1 { font-family: 'Lora', serif; font-size: 31px; font-weight: 500; line-height: 1.14; }
+        .intro-card .intro-sub { font-size: 12.5px; color: var(--faint); margin: 7px 0 3px; }
+
+        .intro-credit { font-size: 11.5px; color: var(--faint); letter-spacing: 0.3px; }
 
         .intro-credit a {
             color: var(--dim);
@@ -760,12 +785,36 @@
 
         .intro-credit a:hover { color: var(--accent); border-bottom-color: var(--accent); }
 
+        .intro-keys {
+            margin-top: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            font-size: 12px;
+            color: var(--dim);
+            line-height: 1.5;
+        }
+
+        .intro-keys em {
+            font-style: normal;
+            font-family: 'Courier New', monospace;
+            padding: 1px 5px;
+            margin: 0 1px;
+            border-radius: 4px;
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        .intro-fine { margin-top: 18px; font-size: 11px; color: var(--faint); }
+
         @media (max-width: 640px) {
             #sheet { bottom: 88px; max-height: 58vh; }
             .dock-btn { width: 38px; height: 38px; }
             .dock-tip { display: none; }
-            .intro-card { padding: 30px 22px 26px; border-radius: 16px; }
-            .intro-card h1 { font-size: 28px; }
+            .intro-card { width: min(86vmin, 360px); height: min(86vmin, 360px); }
+            .intro-card h1 { font-size: 25px; }
+            .intro-inner { width: 76%; }
+            .intro-keys { font-size: 11px; margin-top: 18px; }
             #source-card { width: 116px; bottom: 82px; right: 12px; }
             .breath-row { grid-template-columns: repeat(3, 1fr); }
     
@@ -777,58 +826,29 @@
 
     <!-- Intro — the scope runs live behind it, so the first thing you see is
          the thing itself rather than a description of it. -->
-    <div id="intro">
+    <div id="intro" onclick="enterStudio()">
         <div class="intro-card">
-            <h1>Refracted Descent</h1>
-            <div class="intro-sub">A polycentral kaleidoscope studio</div>
-            <div class="intro-credit">
-                by <a href="https://norik.io" target="_blank" rel="noopener noreferrer">norik.io</a>
-            </div>
-
-            <div class="intro-feature">
-                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#d97757" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.6"/>
-                    <path d="M21 15l-5-5L5 21"/>
-                </svg>
-                <p>Feed it noise, a painted plate, or your own image.</p>
-            </div>
-
-            <div class="intro-feature">
-                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#d97757" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/>
-                    <path d="M18.6 2.8V6.4h-3.6"/>
-                </svg>
-                <p>Drag the artwork to turn it by hand. Let go and it coasts.</p>
-            </div>
-
-            <div class="intro-feature">
-                <svg class="ico" viewBox="0 0 24 24" fill="#d97757">
-                    <path d="M6 3l4 6H2z"/>
-                    <rect x="13" y="3" width="8" height="6" rx="1"/>
-                    <path d="M2 21v-7h7z"/>
-                    <path d="M21 21v-7h-7z"/>
-                </svg>
-                <p>Switch mirror arrangements — radial, triangle, square — for different patterns.</p>
-            </div>
-
-            <div class="intro-fine">
-                Everything renders in your browser. No image you choose ever leaves this machine.
-            </div>
-
-            <button class="button" onclick="enterStudio()">Enter the studio</button>
-
-        </div>
-    </div>
-
-    <div id="drop-veil">
-        <div class="drop-veil-card">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                <circle cx="8.5" cy="8.5" r="1.6"/>
-                <path d="M21 15l-5-5L5 21"/>
+            <!-- Countdown ring. Drains over six seconds, then the studio opens. -->
+            <svg class="intro-ring" viewBox="0 0 200 200" aria-hidden="true">
+                <circle class="ring-track" cx="100" cy="100" r="97"/>
+                <circle class="ring-run" cx="100" cy="100" r="97"/>
             </svg>
-            <span id="drop-veil-msg">Drop to feed it in</span>
+
+            <div class="intro-inner">
+                <h1>Refracted Descent</h1>
+                <div class="intro-sub">A polycentral kaleidoscope studio</div>
+                <div class="intro-credit">
+                    by <a href="https://norik.io" target="_blank" rel="noopener noreferrer"
+                          onclick="event.stopPropagation()">norik.io</a>
+                </div>
+
+                <div class="intro-keys">
+                    <span>Drag the artwork to turn it</span>
+                    <span><em>1</em>–<em>8</em> panels · <em>H</em> cinema · <em>F</em> fullscreen</span>
+                </div>
+
+                <div class="intro-fine">Everything renders in your browser.</div>
+            </div>
         </div>
     </div>
 
@@ -2772,9 +2792,26 @@
         // INTRO — the scope is already running underneath it
         // ═══════════════════════════════════════════════════════════════════════
 
+        let introTimer = null;
+
         function enterStudio() {
+            if (introTimer) { clearTimeout(introTimer); introTimer = null; }
             document.getElementById('intro').classList.add('gone');
             document.getElementById('dock').classList.add('up');
+        }
+
+        // Six seconds, then the studio opens by itself. Restarting the CSS
+        // animation needs it cleared and the layout flushed, or the browser
+        // coalesces both changes and the ring never replays.
+        function startIntroCountdown() {
+            if (introTimer) clearTimeout(introTimer);
+            const ring = document.querySelector('.ring-run');
+            if (ring) {
+                ring.style.animation = 'none';
+                void ring.getBoundingClientRect();
+                ring.style.animation = '';
+            }
+            introTimer = setTimeout(enterStudio, 6000);
         }
 
         // Fullscreen. The canvas already fills the viewport, so this only has to
@@ -2831,6 +2868,7 @@
 
         function showIntro() {
             document.getElementById('intro').classList.remove('gone');
+            startIntroCountdown();
         }
 
         function needsLoop() {
@@ -4254,6 +4292,10 @@
                 adoptHostedSource(window.__kaleidoscopeSourceUrl);
             }
             refreshShareUI();
+
+            if (!document.getElementById('intro').classList.contains('gone')) {
+                startIntroCountdown();
+            }
         });
     </script>
 </body>

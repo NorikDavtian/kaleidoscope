@@ -688,7 +688,9 @@
 
         .drop-veil-card svg { width: 38px; height: 38px; opacity: 0.8; }
 
-        /* ── Intro ─────────────────────────────────────────────────────────── */
+        /* ── Intro ─────────────────────────────────────────────────────────────
+           A disc rather than a card, with a ring that drains over six seconds
+           and then opens the studio on its own. Click or key to skip. */
         #intro {
             position: fixed;
             inset: 0;
@@ -697,41 +699,64 @@
             align-items: center;
             justify-content: center;
             padding: 24px;
-            transition: opacity 0.45s ease;
+            cursor: pointer;
+            transition: opacity 0.5s ease;
         }
 
         #intro.gone { opacity: 0; pointer-events: none; }
 
         .intro-card {
-            width: 100%;
-            max-width: 440px;
-            max-height: 100%;
-            overflow-y: auto;
+            position: relative;
+            width: min(80vmin, 440px);
+            height: min(80vmin, 440px);
+            border-radius: 50%;
             background: var(--panel);
             backdrop-filter: blur(26px) saturate(140%);
             -webkit-backdrop-filter: blur(26px) saturate(140%);
-            border-radius: 20px;
-            padding: 42px 38px 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
             color: var(--text);
         }
 
-        .intro-card h1 { font-family: 'Lora', serif; font-size: 36px; font-weight: 500; line-height: 1.12; }
-        .intro-card .intro-sub { font-size: 13.5px; color: var(--faint); margin: 6px 0 4px; }
-
-        .intro-feature { display: flex; align-items: flex-start; gap: 15px; text-align: left; margin-bottom: 18px; }
-        .intro-feature .ico { flex: none; width: 28px; height: 28px; margin-top: 1px; }
-        .intro-feature p { font-size: 14px; line-height: 1.45; color: var(--text); }
-
-        .intro-fine { font-size: 11.5px; line-height: 1.5; color: var(--faint); margin: 24px 0 20px; }
-        .intro-card .button { padding: 13px 16px; font-size: 14.5px; border-radius: 10px; }
-
-        .intro-credit {
-            margin-bottom: 28px;
-            font-size: 11.5px;
-            color: var(--faint);
-            letter-spacing: 0.3px;
+        .intro-ring {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);   /* start the drain at twelve o'clock */
+            pointer-events: none;
         }
+
+        .intro-ring circle { fill: none; stroke-width: 1.6; }
+        .ring-track { stroke: rgba(236, 234, 228, 0.1); }
+
+        .ring-run {
+            stroke: var(--accent);
+            /* 2 * pi * 97 */
+            stroke-dasharray: 609.47;
+            stroke-dashoffset: 0;
+            animation: intro-drain 6s linear forwards;
+        }
+
+        @keyframes intro-drain {
+            from { stroke-dashoffset: 0; }
+            to   { stroke-dashoffset: 609.47; }
+        }
+
+        /* Someone who would rather not watch a timer still gets the ring, just
+           not the sweep. The auto-close is a timer in script either way. */
+        @media (prefers-reduced-motion: reduce) {
+            .ring-run { animation: none; stroke-dashoffset: 0; opacity: 0.35; }
+        }
+
+        .intro-inner { width: 72%; }
+
+        .intro-card h1 { font-family: 'Lora', serif; font-size: 31px; font-weight: 500; line-height: 1.14; }
+        .intro-card .intro-sub { font-size: 12.5px; color: var(--faint); margin: 7px 0 3px; }
+
+        .intro-credit { font-size: 11.5px; color: var(--faint); letter-spacing: 0.3px; }
 
         .intro-credit a {
             color: var(--dim);
@@ -742,12 +767,36 @@
 
         .intro-credit a:hover { color: var(--accent); border-bottom-color: var(--accent); }
 
+        .intro-keys {
+            margin-top: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            font-size: 12px;
+            color: var(--dim);
+            line-height: 1.5;
+        }
+
+        .intro-keys em {
+            font-style: normal;
+            font-family: 'Courier New', monospace;
+            padding: 1px 5px;
+            margin: 0 1px;
+            border-radius: 4px;
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        .intro-fine { margin-top: 18px; font-size: 11px; color: var(--faint); }
+
         @media (max-width: 640px) {
             #sheet { bottom: 88px; max-height: 58vh; }
             .dock-btn { width: 38px; height: 38px; }
             .dock-tip { display: none; }
-            .intro-card { padding: 30px 22px 26px; border-radius: 16px; }
-            .intro-card h1 { font-size: 28px; }
+            .intro-card { width: min(86vmin, 360px); height: min(86vmin, 360px); }
+            .intro-card h1 { font-size: 25px; }
+            .intro-inner { width: 76%; }
+            .intro-keys { font-size: 11px; margin-top: 18px; }
             #source-card { width: 116px; bottom: 82px; right: 12px; }
             .breath-row { grid-template-columns: repeat(3, 1fr); }
     

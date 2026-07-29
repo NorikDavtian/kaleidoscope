@@ -166,6 +166,12 @@ contracts with the count.
 `Breath Depth` sets how far the swing carries. It runs independently of the
 Animate button.
 
+## Opening
+
+The welcome disc sits over the live scope with a ring that drains over six
+seconds, then opens the studio on its own. Click it, or press Enter, Space or
+Esc, to skip. `I` brings it back.
+
 ## Dock and keys
 
 The controls live in a dock rather than a sidebar: one panel at a time, opened

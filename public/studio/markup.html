@@ -2,58 +2,29 @@
 
     <!-- Intro — the scope runs live behind it, so the first thing you see is
          the thing itself rather than a description of it. -->
-    <div id="intro">
+    <div id="intro" onclick="enterStudio()">
         <div class="intro-card">
-            <h1>Refracted Descent</h1>
-            <div class="intro-sub">A polycentral kaleidoscope studio</div>
-            <div class="intro-credit">
-                by <a href="https://norik.io" target="_blank" rel="noopener noreferrer">norik.io</a>
-            </div>
-
-            <div class="intro-feature">
-                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#d97757" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.6"/>
-                    <path d="M21 15l-5-5L5 21"/>
-                </svg>
-                <p>Feed it noise, a painted plate, or your own image.</p>
-            </div>
-
-            <div class="intro-feature">
-                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#d97757" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/>
-                    <path d="M18.6 2.8V6.4h-3.6"/>
-                </svg>
-                <p>Drag the artwork to turn it by hand. Let go and it coasts.</p>
-            </div>
-
-            <div class="intro-feature">
-                <svg class="ico" viewBox="0 0 24 24" fill="#d97757">
-                    <path d="M6 3l4 6H2z"/>
-                    <rect x="13" y="3" width="8" height="6" rx="1"/>
-                    <path d="M2 21v-7h7z"/>
-                    <path d="M21 21v-7h-7z"/>
-                </svg>
-                <p>Switch mirror arrangements — radial, triangle, square — for different patterns.</p>
-            </div>
-
-            <div class="intro-fine">
-                Everything renders in your browser. No image you choose ever leaves this machine.
-            </div>
-
-            <button class="button" onclick="enterStudio()">Enter the studio</button>
-
-        </div>
-    </div>
-
-    <div id="drop-veil">
-        <div class="drop-veil-card">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                <circle cx="8.5" cy="8.5" r="1.6"/>
-                <path d="M21 15l-5-5L5 21"/>
+            <!-- Countdown ring. Drains over six seconds, then the studio opens. -->
+            <svg class="intro-ring" viewBox="0 0 200 200" aria-hidden="true">
+                <circle class="ring-track" cx="100" cy="100" r="97"/>
+                <circle class="ring-run" cx="100" cy="100" r="97"/>
             </svg>
-            <span id="drop-veil-msg">Drop to feed it in</span>
+
+            <div class="intro-inner">
+                <h1>Refracted Descent</h1>
+                <div class="intro-sub">A polycentral kaleidoscope studio</div>
+                <div class="intro-credit">
+                    by <a href="https://norik.io" target="_blank" rel="noopener noreferrer"
+                          onclick="event.stopPropagation()">norik.io</a>
+                </div>
+
+                <div class="intro-keys">
+                    <span>Drag the artwork to turn it</span>
+                    <span><em>1</em>–<em>8</em> panels · <em>H</em> cinema · <em>F</em> fullscreen</span>
+                </div>
+
+                <div class="intro-fine">Everything renders in your browser.</div>
+            </div>
         </div>
     </div>
 
