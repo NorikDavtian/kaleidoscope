@@ -769,41 +769,7 @@
             color: var(--text);
         }
 
-        #intro-orb {
-            position: absolute;
-            inset: 0;
-            z-index: 1;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            pointer-events: none;
-        }
-
-        /* The well sits behind the particles, not over them: painted on top it
-           swallowed the middle of the sphere and left only a rim. Stacking is
-           explicit because both are positioned — well 0, points 1, words 2. */
-        .intro-card::after {
-            z-index: 0;
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            pointer-events: none;
-            background: radial-gradient(circle closest-side,
-                rgba(9, 9, 13, 0.93) 0 40%,
-                rgba(9, 9, 13, 0.72) 62%,
-                rgba(9, 9, 13, 0.30) 82%,
-                transparent 100%);
-        }
-
-        .intro-inner {
-            position: relative;
-            z-index: 2;
-            width: 72%;
-            /* The points run behind the words; this keeps them legible without
-               dimming the field itself. */
-            text-shadow: 0 1px 14px rgba(6, 6, 10, 0.96), 0 0 34px rgba(6, 6, 10, 0.85);
-        }
+        .intro-inner { width: 72%; }
 
         .intro-card h1 { font-family: 'Lora', serif; font-size: 31px; font-weight: 500; line-height: 1.14; }
         .intro-card .intro-sub { font-size: 12.5px; color: var(--faint); margin: 7px 0 3px; }
@@ -881,10 +847,6 @@
          the thing itself rather than a description of it. -->
     <div id="intro" onclick="introBackdropClick(event)">
         <div class="intro-card">
-            <!-- The same particle shell as the breath guide, dimmer and slower,
-                 sitting behind the text as a backdrop. -->
-            <canvas id="intro-orb" aria-hidden="true"></canvas>
-
             <div class="intro-inner">
                 <h1>Refracted Descent</h1>
                 <div class="intro-sub">A polycentral kaleidoscope studio</div>
@@ -3044,8 +3006,6 @@
                 tablesDirty = true;
             }
 
-            if (!document.getElementById('intro').classList.contains('gone')) drawIntroOrb();
-
             if (anySectionAuto()) stepSections(nowMs);
 
             if (plateAnim && params.source === 'image') {
@@ -4091,7 +4051,6 @@
         // uploading the buffer dominates the cost and grows with the square of
         // the side. Points are soft, so the upscale costs nothing visually.
         const breathOrb = { side: 300, spin: 0, ctx: null, img: null };
-        const introOrb  = { side: 300, spin: 1.9, ctx: null, img: null };
 
         function drawOrb() {
             breathOrb.side = Math.max(80, Math.min(300, Math.round(params.orbSize)));
@@ -4099,10 +4058,6 @@
                       params.orbStrength, 0.0016, 0.38);
         }
 
-        // The welcome runs the same shell, dimmer and slower, as a backdrop.
-        function drawIntroOrb() {
-            renderOrb(document.getElementById('intro-orb'), introOrb, 0.30, 0.0009, -0.26);
-        }
 
         function syncBreathGuide() {
             const guide = document.getElementById('breath-guide');

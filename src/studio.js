@@ -1615,8 +1615,6 @@
                 tablesDirty = true;
             }
 
-            if (!document.getElementById('intro').classList.contains('gone')) drawIntroOrb();
-
             if (anySectionAuto()) stepSections(nowMs);
 
             if (plateAnim && params.source === 'image') {
@@ -2662,7 +2660,6 @@
         // uploading the buffer dominates the cost and grows with the square of
         // the side. Points are soft, so the upscale costs nothing visually.
         const breathOrb = { side: 300, spin: 0, ctx: null, img: null };
-        const introOrb  = { side: 300, spin: 1.9, ctx: null, img: null };
 
         function drawOrb() {
             breathOrb.side = Math.max(80, Math.min(300, Math.round(params.orbSize)));
@@ -2670,10 +2667,6 @@
                       params.orbStrength, 0.0016, 0.38);
         }
 
-        // The welcome runs the same shell, dimmer and slower, as a backdrop.
-        function drawIntroOrb() {
-            renderOrb(document.getElementById('intro-orb'), introOrb, 0.30, 0.0009, -0.26);
-        }
 
         function syncBreathGuide() {
             const guide = document.getElementById('breath-guide');
