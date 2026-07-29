@@ -838,6 +838,15 @@
             transition: background 0.15s ease, color 0.15s ease;
         }
 
+        .intro-enjoy {
+            margin-top: 20px;
+            font-family: 'Lora', serif;
+            font-size: 13px;
+            font-style: italic;
+            letter-spacing: 1.4px;
+            color: rgba(236, 234, 228, 0.42);
+        }
+
         .intro-share svg { width: 13px; height: 13px; }
         .intro-share:hover { background: var(--surface-2); color: var(--text); }
 
