@@ -9,6 +9,7 @@ They are referenced by `BASE_PLATES` in `kaleidoscope-studio-polycentral.html`:
 | `masks.jpg` | Masks |
 | `corsairs.jpg` | Corsairs |
 | `companions.jpg` | Companions |
+| `syndicate.jpg` | Syndicate |
 
 Any entry whose file is missing removes itself from the grid, so the studio
 works with none, some, or all of them present.

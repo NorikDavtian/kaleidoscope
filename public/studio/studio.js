@@ -169,6 +169,7 @@
             { id: 'masks',     name: 'Masks',     src: 'plates/masks.jpg' },
             { id: 'corsairs',  name: 'Corsairs',  src: 'plates/corsairs.jpg' },
             { id: 'companions',name: 'Companions',src: 'plates/companions.jpg' },
+            { id: 'syndicate', name: 'Syndicate', src: 'plates/syndicate.jpg' },
             { id: 'stilllife', name: 'Still Life' },
             { id: 'meadow',    name: 'Meadow' },
             { id: 'linocut',   name: 'Linocut' },
