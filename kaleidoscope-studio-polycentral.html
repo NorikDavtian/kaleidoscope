@@ -587,24 +587,26 @@
         .breath-row button:hover { background: var(--surface-2); color: var(--text); }
         .breath-row button.active { background: var(--accent-bg); color: var(--accent); font-weight: 500; }
 
+        /* Centred on the artwork — the thing you rest your eyes on while
+           following it, rather than something tucked into a corner. */
         #breath-guide {
             position: fixed;
-            left: 50%;
-            bottom: 42px;
-            transform: translateX(-50%);
+            inset: 0;
             z-index: 13;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 14px;
+            justify-content: center;
+            gap: 18px;
             pointer-events: none;
+            transition: opacity 0.4s ease;
         }
 
         #breath-guide.off { display: none; }
 
         #breath-ring {
-            width: 84px;
-            height: 84px;
+            width: 108px;
+            height: 108px;
             border-radius: 50%;
             border: 1.5px solid rgba(250, 249, 245, 0.6);
             /* Scale is written per frame from the breath, so no CSS transition:
@@ -1087,6 +1089,14 @@
                 <button id="breath-progressive" onclick="setBreath('progressive')">Longer<em>lengthens</em></button>
             </div>
 
+            <div class="lock-row">
+                <span>Guide ring on the canvas</span>
+                <button class="sec-btn on" id="breath-guide-toggle" onclick="toggleBreathGuide()"
+                        title="Show or hide the ring you breathe along with">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>
+                </button>
+            </div>
+
             <div class="control-group">
                 <label>Breath Depth</label>
                 <div class="slider-container">
@@ -1337,6 +1347,7 @@
             bpm: 16,          // beat the automatic transitions are locked to
             breath: 'calm',   // off | box | calm | deep | progressive
             breathDepth: 0.6, // how far the breath swings the colour and scale
+            breathGuide: true,// show the ring to breathe along with
             imgZoom: 1.04,    // how much of the source image one wedge covers
             imgPanX: 0.51,     // centre of the sampled patch, in source uv
             imgPanY: 0.69,
@@ -3715,6 +3726,19 @@
             return true;
         }
 
+        function syncBreathGuide() {
+            const guide = document.getElementById('breath-guide');
+            const on = params.breath !== 'off' && params.breathGuide;
+            if (guide) guide.className = on ? '' : 'off';
+            const btn = document.getElementById('breath-guide-toggle');
+            if (btn) btn.className = params.breathGuide ? 'sec-btn on' : 'sec-btn';
+        }
+
+        function toggleBreathGuide() {
+            params.breathGuide = !params.breathGuide;
+            syncBreathGuide();
+        }
+
         function setBreath(mode) {
             params.breath = mode;
             breathT = 0;
@@ -3722,8 +3746,7 @@
                 const el = document.getElementById('breath-' + m);
                 if (el) el.className = (m === mode) ? 'active' : '';
             });
-            const guide = document.getElementById('breath-guide');
-            if (guide) guide.className = mode === 'off' ? 'off' : '';
+            syncBreathGuide();
             if (mode === 'off') {
                 breathValue = 0;
                 if (!needsLoop()) noLoop(); else loop();

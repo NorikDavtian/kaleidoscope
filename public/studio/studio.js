@@ -29,6 +29,7 @@
             bpm: 16,          // beat the automatic transitions are locked to
             breath: 'calm',   // off | box | calm | deep | progressive
             breathDepth: 0.6, // how far the breath swings the colour and scale
+            breathGuide: true,// show the ring to breathe along with
             imgZoom: 1.04,    // how much of the source image one wedge covers
             imgPanX: 0.51,     // centre of the sampled patch, in source uv
             imgPanY: 0.69,
@@ -2407,6 +2408,19 @@
             return true;
         }
 
+        function syncBreathGuide() {
+            const guide = document.getElementById('breath-guide');
+            const on = params.breath !== 'off' && params.breathGuide;
+            if (guide) guide.className = on ? '' : 'off';
+            const btn = document.getElementById('breath-guide-toggle');
+            if (btn) btn.className = params.breathGuide ? 'sec-btn on' : 'sec-btn';
+        }
+
+        function toggleBreathGuide() {
+            params.breathGuide = !params.breathGuide;
+            syncBreathGuide();
+        }
+
         function setBreath(mode) {
             params.breath = mode;
             breathT = 0;
@@ -2414,8 +2428,7 @@
                 const el = document.getElementById('breath-' + m);
                 if (el) el.className = (m === mode) ? 'active' : '';
             });
-            const guide = document.getElementById('breath-guide');
-            if (guide) guide.className = mode === 'off' ? 'off' : '';
+            syncBreathGuide();
             if (mode === 'off') {
                 breathValue = 0;
                 if (!needsLoop()) noLoop(); else loop();

@@ -163,8 +163,9 @@ contracts with the count.
 | Deep | 6 in · 7 out, no holds |
 | Longer | starts at 4·2·6·1 and stretches to 1.8x over ~5 minutes |
 
-`Breath Depth` sets how far the swing carries. It runs independently of the
-Animate button.
+`Breath Depth` sets how far the swing carries. The guide ring sits in the middle
+of the canvas and can be switched off from the Breathing panel, leaving the
+motion without the prompt. Breathing runs independently of the Animate button.
 
 ## Opening
 

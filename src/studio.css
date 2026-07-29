@@ -569,24 +569,26 @@
         .breath-row button:hover { background: var(--surface-2); color: var(--text); }
         .breath-row button.active { background: var(--accent-bg); color: var(--accent); font-weight: 500; }
 
+        /* Centred on the artwork — the thing you rest your eyes on while
+           following it, rather than something tucked into a corner. */
         #breath-guide {
             position: fixed;
-            left: 50%;
-            bottom: 42px;
-            transform: translateX(-50%);
+            inset: 0;
             z-index: 13;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 14px;
+            justify-content: center;
+            gap: 18px;
             pointer-events: none;
+            transition: opacity 0.4s ease;
         }
 
         #breath-guide.off { display: none; }
 
         #breath-ring {
-            width: 84px;
-            height: 84px;
+            width: 108px;
+            height: 108px;
             border-radius: 50%;
             border: 1.5px solid rgba(250, 249, 245, 0.6);
             /* Scale is written per frame from the breath, so no CSS transition:
