@@ -794,6 +794,49 @@
             mask-image: radial-gradient(circle closest-side, #000 0 74%, transparent 84%);
         }
 
+        /* The circle guide: a painted ring cut from its background by a
+           feathered radial mask (set from JS, where the border and softness
+           live). Absolute, so it centres over the backdrop canvas rather than
+           sitting beside it in the flex row; no filter, for the same
+           re-rasterisation reason as the orb above. */
+        #breath-circle {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: var(--c-size, 300px);
+            height: var(--c-size, 300px);
+            margin-left: calc(var(--c-size, 300px) / -2);
+            margin-top: calc(var(--c-size, 300px) / -2);
+            border-radius: 50%;
+            will-change: transform;
+            pointer-events: none;
+        }
+
+        #breath-circle.off { display: none; }
+
+        /* The typed breath range. */
+        .breath-range {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--dim);
+            font-size: 11px;
+        }
+
+        .breath-num {
+            width: 74px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            border-radius: 8px;
+            padding: 6px 8px;
+            font: inherit;
+            font-size: 12px;
+        }
+
+        .breath-num:disabled { opacity: 0.35; }
+        .breath-num:focus-visible { outline: 1px solid var(--dim); }
+
         /* Out of the flow, or its height would push the ring off centre. */
         #breath-stage {
             position: absolute;

@@ -46,6 +46,7 @@
 
     <div id="breath-guide">
         <canvas id="breath-ring"></canvas>
+        <div id="breath-circle" class="off"></div>
         <div id="breath-stage"></div>
     </div>
 
@@ -158,6 +159,18 @@
                 </button>
             </div>
 
+            <label class="edge-label" id="rad-type-label">Radial</label>
+            <div class="breath-row edge-row" id="rad-type-row">
+                <button id="rad-mirror" class="active" onclick="setRadType('mirror')" title="Fold and reflect — the classic mirrored wedge">Mirror</button>
+                <button id="rad-pinwheel" onclick="setRadType('pinwheel')" title="Rotation only — the wedge repeats without reflecting">Pinwheel</button>
+                <button id="rad-spiral" onclick="setRadType('spiral')" title="Mirrors bent into logarithmic spiral arms">Spiral</button>
+            </div>
+
+            <div class="breath-row edge-row off" id="rad-dir-row">
+                <button id="rad-dir-left" onclick="setRadDir('left')" title="Turn the arms anticlockwise">↺ Left</button>
+                <button id="rad-dir-right" class="active" onclick="setRadDir('right')" title="Turn the arms clockwise">↻ Right</button>
+            </div>
+
             <label class="edge-label off" id="tri-type-label">Triangle</label>
             <div class="breath-row edge-row off" id="tri-type-row">
                 <button id="tri-equilateral" class="active" onclick="setTriType('equilateral')" title="60°·60°·60° mirrors">Equilateral</button>
@@ -222,7 +235,7 @@
         </div>
 
         <div class="control-section" id="panel-colour">
-            <h3>Colour<span class="sec-tools"><input type="color" id="pb-color" class="sec-swatch" value="#2e8b74" title="Base colour — palettes are built from this" oninput="setPaletteBase(this.value)"><button class="sec-btn" id="sec-colour-lock" title="Lock colour — Randomize leaves it alone" onclick="toggleSection('colour','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize colour only" onclick="randomSection('colour')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-colour-auto" title="Let colour drift on its own" onclick="toggleSection('colour','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
+            <h3>Colour<span class="sec-tools"><button class="switch on" id="power-colour" onclick="toggleSectionPower('colour')" aria-pressed="true" title="Off drops the palette to a neutral grey ramp. On brings your colours back.">On</button><input type="color" id="pb-color" class="sec-swatch" value="#2e8b74" title="Base colour — palettes are built from this" oninput="setPaletteBase(this.value)"><button class="sec-btn" id="sec-colour-lock" title="Lock colour — Randomize leaves it alone" onclick="toggleSection('colour','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize colour only" onclick="randomSection('colour')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-colour-auto" title="Let colour drift on its own" onclick="toggleSection('colour','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
 
             <div class="pal-scroll" id="pal-scroll"></div>
             <div class="hint">Scroll and stop anywhere — whatever lands here is applied to the reflections. The further you go, the further the colours wander.</div>
@@ -268,7 +281,7 @@
         </div>
 
         <div class="control-section" id="panel-motion">
-            <h3>Motion<span class="sec-tools"><button class="sec-btn" id="sec-motion-lock" title="Lock motion — Randomize leaves it alone" onclick="toggleSection('motion','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize motion only" onclick="randomSection('motion')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-motion-auto" title="Let motion drift on its own" onclick="toggleSection('motion','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
+            <h3>Motion<span class="sec-tools"><button class="switch on" id="power-motion" onclick="toggleSectionPower('motion')" aria-pressed="true" title="Off stills the piece — flow, spin and trail go to zero. On brings the movement back.">On</button><button class="sec-btn" id="sec-motion-lock" title="Lock motion — Randomize leaves it alone" onclick="toggleSection('motion','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize motion only" onclick="randomSection('motion')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-motion-auto" title="Let motion drift on its own" onclick="toggleSection('motion','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
 
             <div class="control-group">
                 <label for="flow">Colour Flow</label>
@@ -310,7 +323,15 @@
                 </div>
             </div>
 
-            <div class="hint">Tempo paces everything that moves on its own — colour, spin, and the section transitions — with 60 as the reference the sliders are tuned against. Perspective is the lens: inside the orb it sets the view angle, and on the flat canvas it zooms — low is a telescope, high a wide angle. Colour Flow moves the generated field's palette, so with an image source it only shows once Field Mix is above 0; Spin turns the mirrors either way. Drag the artwork to turn it by hand.</div>
+            <label class="edge-label">Drift Every</label>
+            <div class="breath-row edge-row">
+                <button id="drift-10" onclick="setDriftEvery(10)" title="Step to fresh targets every ten seconds or so">10s</button>
+                <button id="drift-20" class="active" onclick="setDriftEvery(20)" title="Step to fresh targets every twenty seconds or so">20s</button>
+                <button id="drift-30" onclick="setDriftEvery(30)" title="Step to fresh targets every thirty seconds or so">30s</button>
+            </div>
+            <div class="hint">How often the sections set to drift step to fresh targets. Each step glides in over a few seconds and then holds, which keeps the frames cheap between moves; the hard swaps — shape, seed, plate — run at half this pace.</div>
+
+            <div class="hint">Tempo paces everything that moves on its own — colour and spin — with 60 as the reference the sliders are tuned against. Perspective is the lens: inside the orb it sets the view angle, and on the flat canvas it zooms — low is a telescope, high a wide angle. Colour Flow moves the generated field's palette, so with an image source it only shows once Field Mix is above 0; Spin turns the mirrors either way. Drag the artwork to turn it by hand.</div>
         </div>
 
         <div class="control-section" id="panel-breathing">
@@ -323,14 +344,52 @@
                 <button id="breath-progressive" onclick="setBreath('progressive')">Longer<em>lengthens</em></button>
             </div>
 
-            <div class="lock-row">
-                <span>Guide orb on the canvas</span>
-                <button class="switch" id="breath-guide-toggle" onclick="toggleBreathGuide()"
-                        aria-pressed="false"
-                        title="Show or hide the ring you breathe along with">Off</button>
+            <label class="edge-label">Pace</label>
+            <div class="breath-row edge-row">
+                <button id="pace-steady" class="active" onclick="setBreathPace('steady')" title="The cycle keeps one length">Steady</button>
+                <button id="pace-progressive" onclick="setBreathPace('progressive')" title="The cycle lengthens gently over the first five minutes, from one end of your range to the other">Progressive</button>
             </div>
 
-            <label class="edge-label">Orb backdrop</label>
+            <div class="control-group">
+                <label>Cycle seconds — blank keeps the pattern's own</label>
+                <div class="breath-range">
+                    <input type="number" class="breath-num" id="breathFrom" min="4" max="120" step="1" placeholder="auto" onchange="setBreathRange()">
+                    <span>to</span>
+                    <input type="number" class="breath-num" id="breathTo" min="4" max="240" step="1" placeholder="auto" onchange="setBreathRange()">
+                </div>
+            </div>
+            <div class="hint">Type your own ideal breath. Steady holds the cycle at the first number; Progressive lengthens it from the first to the second as you settle in.</div>
+
+            <div class="lock-row">
+                <span>Guide on the canvas</span>
+                <button class="switch on" id="breath-guide-toggle" onclick="toggleBreathGuide()"
+                        aria-pressed="true"
+                        title="Show or hide the guide you breathe along with">On</button>
+            </div>
+
+            <label class="edge-label">Guide style</label>
+            <div class="breath-row edge-row">
+                <button id="gstyle-orb" class="active" onclick="setGuideStyle('orb')" title="A shell of drifting particles">Orb</button>
+                <button id="gstyle-circle" onclick="setGuideStyle('circle')" title="A plain ring — adjust its border, softness and colour below">Circle</button>
+            </div>
+
+            <div class="control-group off" id="circle-border-row">
+                <label for="circleBorder">Circle Border</label>
+                <div class="slider-container">
+                    <input type="range" id="circleBorder" min="1" max="40" step="1" value="4" oninput="setCircleBorder(this.value)">
+                    <span class="value-display" id="circleBorder-value">4</span>
+                </div>
+            </div>
+
+            <div class="control-group off" id="circle-blur-row">
+                <label for="circleBlur">Circle Softness</label>
+                <div class="slider-container">
+                    <input type="range" id="circleBlur" min="0" max="40" step="1" value="6" oninput="setCircleBlur(this.value)">
+                    <span class="value-display" id="circleBlur-value">6</span>
+                </div>
+            </div>
+
+            <label class="edge-label">Backdrop</label>
             <div class="breath-row edge-row">
                 <button id="bg-none" onclick="setOrbBackdrop('none')">None</button>
                 <button id="bg-dark" class="active" onclick="setOrbBackdrop('dark')">Dark</button>
@@ -363,7 +422,7 @@
             </div>
 
             <div class="control-group" id="orb-size-row">
-                <label for="orbSize">Orb Size</label>
+                <label for="orbSize">Guide Size</label>
                 <div class="slider-container">
                     <input type="range" id="orbSize" min="120" max="620" step="10" value="300" oninput="setOrbSize(this.value)">
                     <span class="value-display" id="orbSize-value">300</span>
@@ -380,9 +439,9 @@
 
             <div class="lock-row">
                 <span>Stage label</span>
-                <button class="switch on" id="breath-label-toggle" onclick="toggleBreathLabel()"
-                        aria-pressed="true"
-                        title="Show or hide the Breathe in / Hold / Breathe out text">On</button>
+                <button class="switch" id="breath-label-toggle" onclick="toggleBreathLabel()"
+                        aria-pressed="false"
+                        title="Show or hide the Breathe in / Hold / Breathe out text">Off</button>
             </div>
 
             <div class="breath-row edge-row" id="label-pos-row">
@@ -391,7 +450,7 @@
                 <button id="lblpos-bottom" onclick="setLabelPos('bottom')">Bottom</button>
             </div>
 
-            <div class="control-group" id="label-size-row">
+            <div class="control-group off" id="label-size-row">
                 <label for="breathLabelSize">Label Size</label>
                 <div class="slider-container">
                     <input type="range" id="breathLabelSize" min="9" max="34" step="1" value="12" oninput="setLabelSize(this.value)">
@@ -410,7 +469,15 @@
         </div>
 
         <div class="control-section" id="panel-params">
-            <h3>Parameters<span class="sec-tools"><button class="sec-btn" id="sec-params-lock" title="Lock parameters — Randomize leaves it alone" onclick="toggleSection('params','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize parameters only" onclick="randomSection('params')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-params-auto" title="Let parameters drift on its own" onclick="toggleSection('params','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
+            <h3>Parameters<span class="sec-tools"><button class="switch on" id="power-params" onclick="toggleSectionPower('params')" aria-pressed="true" title="Off rests every parameter at zero — the mirrors show the source plainly. On brings your values back.">On</button><button class="sec-btn" id="sec-params-lock" title="Lock parameters — Randomize leaves it alone" onclick="toggleSection('params','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize parameters only" onclick="randomSection('params')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-params-auto" title="Let parameters drift on its own" onclick="toggleSection('params','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
+
+            <label class="edge-label">Intensity</label>
+            <div class="breath-row edge-row">
+                <button id="pstr-low" onclick="setParamStrength('low')" title="A gentle touch — an image source stays clearly recognisable as the origin">Low</button>
+                <button id="pstr-medium" onclick="setParamStrength('medium')" title="Halfway between the source and the full effect">Medium</button>
+                <button id="pstr-high" class="active" onclick="setParamStrength('high')" title="The sliders below at full strength">High</button>
+            </div>
+            <div class="hint">How much of these parameters reaches the scope. The sliders keep their values — intensity blends each one up from its resting floor, so you can flick between subtle and full without losing the recipe.</div>
 
             <div class="control-group">
                 <label for="folds">Mirror Folds</label>

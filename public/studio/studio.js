@@ -13,8 +13,17 @@
             // close up seamlessly: equilateral (60·60·60), right isosceles
             // (45·45·90) and the half-equilateral scalene (30·60·90).
             triType: 'equilateral',
+            // How the Radial scope treats its wedge: mirror folds and reflects,
+            // pinwheel repeats the wedge by rotation alone, spiral keeps the
+            // mirrors but bends them into logarithmic spiral arms.
+            radType: 'mirror',
+            // Handedness for the chiral variants: flips the spiral's arm
+            // direction and the pinwheel's lean. Mirror has no handedness.
+            radDir: 'right',
             trail: 0,         // frame persistence while in motion
             folds: 5,        // mirror count — default 10, the tetractys
+            paramStrength: 1, // how much of the parameters reaches the scope —
+                              // Low 0.35 | Medium 0.7 | High 1
             moire: 0.01,       // interference depth
             mfreq: 3.3,       // fringe frequency
             detune: 1.48,     // ratio between the two interfering systems
@@ -31,15 +40,22 @@
             rotation: 350,
             flow: 1,          // palette phase drift per frame
             spin: 0.3,        // rotation per frame
-            bpm: 16,          // beat the automatic transitions are locked to
+            bpm: 16,          // paces everything that moves on its own
+            driftEvery: 20,   // seconds between auto-drift steps — 10 | 20 | 30
             breath: 'off',    // off | box | calm | deep | progressive
+            breathPace: 'steady', // steady | progressive — for any pattern
+            breathFrom: 0,    // seconds per cycle; 0 = the pattern's own length
+            breathTo: 0,      // progressive target; 0 = 1.8 × from
             breathDepth: 0.6, // how far the breath swings the colour and scale
-            breathGuide: false,// show the orb to breathe along with
-            breathLabel: true,// and the stage text under it
+            breathGuide: true,// show the guide to breathe along with
+            breathLabel: false,// and the stage text under it
             breathLabelSize: 12,
             breathLabelPos: 'below',  // below | centre | bottom
-            orbSize: 300,     // diameter of the breath orb, in px
-            orbStrength: 1,   // how strongly it reads against the artwork
+            orbSize: 300,     // diameter of the breath guide, in px
+            orbStrength: 1,   // how strongly the particles read against the artwork
+            guideStyle: 'orb',// orb (particle shell) | circle (drawn ring)
+            circleBorder: 4,  // ring thickness of the circle guide, in px
+            circleBlur: 6,    // softness feathered into the ring's edges, in px
             orbTint: 'white', // white | ink | palette | warm | cool | depth
             orbBackdrop: 'dark',  // none | dark | glass
             orbBackdropAlpha: 1,  // how strongly the backdrop reads
@@ -58,6 +74,11 @@
         };
 
         let defaultParams = JSON.parse(JSON.stringify(params));
+
+        // How hard the spiral radial variant shears angle by log radius —
+        // radians of turn per e-fold of depth. Baked into both samplers, so
+        // the CPU and GL renders of the same state agree.
+        const SPIRAL_BEND = 0.85;
 
         const PREVIEW_SIDE = 360;
         const ANIM_SIDE = 560;
@@ -942,7 +963,7 @@
             'uniform sampler2D uSrc;',
             'uniform float uSeed;',
             'uniform int uPass, uTess, uOct;',
-            'uniform float uFolds, uRot, uDescent, uAngular, uTwist, uWarp;',
+            'uniform float uFolds, uRot, uRadMode, uRadDir, uDescent, uAngular, uTwist, uWarp;',
             'uniform float uMoire, uMFreq, uDetune, uBands, uRings, uContrast;',
             'uniform float uPhaseX, uPhaseY, uRipple;',
             'uniform float uZX, uZY, uPanX, uPanY, uIC, uIS, uIW;',
@@ -997,10 +1018,14 @@
             '    } else {',
             '        float wedge = 6.28318530718 / uFolds;',
             '        float hw = wedge * 0.5;',
-            '        th = atan(dy, dx) - uRot;',
+            // uRadMode: 0 mirror, 1 pinwheel (no reflection), 2 spiral
+            // (angle sheared by log radius before the fold)
+            '        float lg = log(r + 0.045);',
+            '        th = atan(dy, dx) * uRadDir - uRot;',
+            '        if (uRadMode > 1.5) th += lg * ' + SPIRAL_BEND.toFixed(4) + ';',
             '        th = th - floor(th / wedge) * wedge;',
-            '        if (th > hw) th = wedge - th;',
-            '        lr = log(r + 0.045) * uDescent;',
+            '        if (abs(uRadMode - 1.0) > 0.5 && th > hw) th = wedge - th;',
+            '        lr = lg * uDescent;',
             '        u = lr + th * uTwist * 4.0;',
             '        v = th * uAngular * 6.0 + uPhaseY * 0.01;',
             '    }',
@@ -1168,7 +1193,7 @@
             if (!gl) return false;
 
             fieldProg = makeProgram(FRAG_SRC,
-                ['uSrc', 'uSeed', 'uPass', 'uTess', 'uOct', 'uFolds', 'uRot', 'uDescent',
+                ['uSrc', 'uSeed', 'uPass', 'uTess', 'uOct', 'uFolds', 'uRot', 'uRadMode', 'uRadDir', 'uDescent',
                  'uAngular', 'uTwist', 'uWarp', 'uMoire', 'uMFreq', 'uDetune', 'uBands',
                  'uRings', 'uContrast', 'uPhaseX', 'uPhaseY', 'uRipple', 'uZX', 'uZY',
                  'uPanX', 'uPanY', 'uIC', 'uIS', 'uIW']);
@@ -1229,19 +1254,22 @@
             const ia = params.imgAngle * Math.PI / 180;
 
             gl.uniform1i(P.u.uTess, tess ? 1 : 0);
-            gl.uniform1i(P.u.uOct, params.octaves);
+            gl.uniform1i(P.u.uOct, effParam('octaves'));
             gl.uniform1f(P.u.uSeed, (params.seed % 9973) * 0.6180339887);
-            gl.uniform1f(P.u.uFolds, params.folds);
+            gl.uniform1f(P.u.uFolds, effParam('folds'));
             gl.uniform1f(P.u.uRot, params.rotation * Math.PI / 180);
-            gl.uniform1f(P.u.uDescent, params.descent);
-            gl.uniform1f(P.u.uAngular, params.angular);
-            gl.uniform1f(P.u.uTwist, params.twist);
-            gl.uniform1f(P.u.uWarp, params.warp);
-            gl.uniform1f(P.u.uMoire, params.moire);
+            gl.uniform1f(P.u.uRadMode, params.radType === 'pinwheel' ? 1
+                                     : params.radType === 'spiral' ? 2 : 0);
+            gl.uniform1f(P.u.uRadDir, params.radDir === 'left' ? -1 : 1);
+            gl.uniform1f(P.u.uDescent, effParam('descent'));
+            gl.uniform1f(P.u.uAngular, effParam('angular'));
+            gl.uniform1f(P.u.uTwist, effParam('twist'));
+            gl.uniform1f(P.u.uWarp, effParam('warp'));
+            gl.uniform1f(P.u.uMoire, effParam('moire'));
             gl.uniform1f(P.u.uMFreq, params.mfreq);
             gl.uniform1f(P.u.uDetune, params.detune);
-            gl.uniform1f(P.u.uBands, params.bands);
-            gl.uniform1f(P.u.uRings, params.rings);
+            gl.uniform1f(P.u.uBands, effParam('bands'));
+            gl.uniform1f(P.u.uRings, effParam('rings'));
             gl.uniform1f(P.u.uContrast, params.contrast);
             gl.uniform1f(P.u.uPhaseX, phaseX);
             gl.uniform1f(P.u.uPhaseY, phaseY);
@@ -1252,7 +1280,7 @@
             gl.uniform1f(P.u.uPanY, params.imgPanY);
             gl.uniform1f(P.u.uIC, Math.cos(ia));
             gl.uniform1f(P.u.uIS, Math.sin(ia));
-            gl.uniform1f(P.u.uIW, params.imgWarp);
+            gl.uniform1f(P.u.uIW, effParam('imgWarp'));
         }
 
         function bindFieldProgram() {
@@ -1317,8 +1345,8 @@
 
             const useImage = (params.source === 'image' && srcCanvas) ? 1 : 0;
             gl.uniform1i(P.u.uUseImage, useImage);
-            gl.uniform1f(P.u.uMix, useImage ? params.mix : 1);
-            gl.uniform1f(P.u.uSeam, params.seam);
+            gl.uniform1f(P.u.uMix, useImage ? effParam('mix') : 1);
+            gl.uniform1f(P.u.uSeam, effParam('seam'));
             gl.uniform1f(P.u.uShift, params.shift + animPhase + 1000);
             for (let i = 0; i < 5; i++) {
                 const c = hexToRgb(params.colorPalette[i]);
@@ -1395,22 +1423,26 @@
 
             const c = side / 2;
             const scale = 1 / (side / 2);
-            const wedge = (Math.PI * 2) / params.folds;
+            const wedge = (Math.PI * 2) / effParam('folds');
             const half = wedge / 2;
             const base = params.rotation * Math.PI / 180;
+            // 0 mirror, 1 pinwheel, 2 spiral — mirrors the shader's uRadMode.
+            const RT = params.radType === 'pinwheel' ? 1
+                     : params.radType === 'spiral' ? 2 : 0;
+            const DIR = params.radDir === 'left' ? -1 : 1;
 
-            const oct = params.octaves;
-            const W = params.warp;
-            const D = params.descent;
-            const A = params.angular;
-            const T = params.twist;
-            const M = params.moire;
+            const oct = effParam('octaves');
+            const W = effParam('warp');
+            const D = effParam('descent');
+            const A = effParam('angular');
+            const T = effParam('twist');
+            const M = effParam('moire');
             const MF = params.mfreq;
             const DT = params.detune;
-            const bands = params.bands;
-            const rings = params.rings;
+            const bands = effParam('bands');
+            const rings = effParam('rings');
             const contrast = params.contrast;
-            const IW = params.imgWarp;
+            const IW = effParam('imgWarp');
 
             // Sampling is set up so that one unit of wedge space covers the same
             // number of source pixels horizontally as vertically — otherwise a
@@ -1444,13 +1476,24 @@
                         v = dy * A * 2.2;                    // Angular → scale
                     } else {
                         // ── polar, then kaleidoscope fold: wrap into one wedge
-                        //    and mirror it
-                        th = Math.atan2(dy, dx) - base;
+                        //    and mirror it. Pinwheel keeps the wrap but skips
+                        //    the mirror, so the wedge repeats by rotation and
+                        //    its edges read as seams — that is the look.
+                        //    Spiral shears the angle by log radius before the
+                        //    fold, which bends the mirror lines into
+                        //    logarithmic spiral arms; the reflection stays, so
+                        //    it remains seamless.
+                        //    Handedness flips the angle itself, which turns
+                        //    the spiral's arms the other way and mirror-images
+                        //    the pinwheel's lean in one stroke.
+                        const lg = Math.log(r + 0.045);
+                        th = Math.atan2(dy, dx) * DIR - base;
+                        if (RT === 2) th += lg * SPIRAL_BEND;
                         th = th - Math.floor(th / wedge) * wedge;
-                        if (th > half) th = wedge - th;
+                        if (RT !== 1 && th > half) th = wedge - th;
 
                         // ── logarithmic descent + angular shear (the spiral)
-                        lr = Math.log(r + 0.045) * D;
+                        lr = lg * D;
                         u = lr + th * T * 4;
                         v = th * A * 6 + phaseY * 0.01;
                     }
@@ -1531,7 +1574,7 @@
         // until the palette actually changes. Animation only moves the phase.
         function buildTables() {
             buildLUT();
-            const seam = params.seam;
+            const seam = effParam('seam');
             for (let i = 0; i < 256; i++) {
                 palR[i] = lut[i * 3];
                 palG[i] = lut[i * 3 + 1];
@@ -1565,7 +1608,7 @@
             const px = img.pixels;
             const n = cacheSide * cacheSide;
             const useImage = cachedImage;
-            const mix = useImage ? params.mix : 1;
+            const mix = useImage ? effParam('mix') : 1;
 
             // Phase as the same 16-bit fixed point the field is stored in, so
             // the wrap is just integer overflow inside the mask.
@@ -1748,6 +1791,46 @@
                 const el = document.getElementById(id);
                 if (el) el.classList.toggle('off', mode !== 'triangle');
             });
+            // The orb reads the same radial fold, so its variants apply there too.
+            ['rad-type-label', 'rad-type-row'].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el) el.classList.toggle('off', mode !== 'radial' && mode !== 'orb');
+            });
+            syncRadDirRow();
+            refreshShareUI();
+            scheduleRender();
+        }
+
+        const RAD_TYPES = ['mirror', 'pinwheel', 'spiral'];
+
+        // Unlike the triangle types this reshapes the field itself, so it goes
+        // through scheduleRender rather than a plain redraw.
+        function setRadType(t) {
+            params.radType = RAD_TYPES.indexOf(t) >= 0 ? t : 'mirror';
+            RAD_TYPES.forEach(function (k) {
+                const el = document.getElementById('rad-' + k);
+                if (el) el.className = (k === params.radType) ? 'active' : '';
+            });
+            syncRadDirRow();
+            refreshShareUI();
+            scheduleRender();
+        }
+
+        // Only the chiral variants get a direction — a mirror has none.
+        function syncRadDirRow() {
+            const row = document.getElementById('rad-dir-row');
+            if (!row) return;
+            const scoped = params.tiling === 'radial' || params.tiling === 'orb';
+            row.classList.toggle('off', !scoped || params.radType === 'mirror');
+            ['left', 'right'].forEach(function (d) {
+                const el = document.getElementById('rad-dir-' + d);
+                if (el) el.className = (d === params.radDir) ? 'active' : '';
+            });
+        }
+
+        function setRadDir(d) {
+            params.radDir = d === 'left' ? 'left' : 'right';
+            syncRadDirRow();
             refreshShareUI();
             scheduleRender();
         }
@@ -1912,9 +1995,12 @@
                 spinAngle += params.spin * 0.008 * BREATH_SPIN * f;
                 const g = document.getElementById('breath-stage');
                 if (g && g.textContent !== breathStage) g.textContent = breathStage;
+                const scale = 'scale(' + (0.62 + breathValue * 0.38) + ')';
                 const ring = document.getElementById('breath-ring');
-                if (ring) ring.style.transform = 'scale(' + (0.62 + breathValue * 0.38) + ')';
-                if (params.breathGuide) drawOrb();
+                if (ring) ring.style.transform = scale;
+                const circ = document.getElementById('breath-circle');
+                if (circ) circ.style.transform = scale;
+                if (params.breathGuide && params.guideStyle === 'orb') drawOrb();
                 tablesDirty = true;
             }
 
@@ -2041,7 +2127,7 @@
         // Rebuilt only when the shape, size, softness, folds or canvas change.
         function buildMask(w, h) {
             const key = [params.edgeMask, params.edgeSize, params.edgeSoft,
-                         params.folds, w, h].join('|');
+                         effParam('folds'), w, h].join('|');
             if (key === maskKey && maskCv) return maskCv;
 
             if (!maskCv) { maskCv = document.createElement('canvas'); maskCtx = maskCv.getContext('2d'); }
@@ -2052,7 +2138,7 @@
             c.clearRect(0, 0, w, h);
 
             const R = Math.min(w, h) / 2 * params.edgeSize;
-            const folds = Math.max(3, params.folds);
+            const folds = Math.max(3, effParam('folds'));
 
             let lobes = 0, amp = 0;
             if (params.edgeMask === 'petal')   { lobes = folds;     amp = 0.13; }
@@ -2453,6 +2539,16 @@
                     setSlider('mix', 0);
                     setSlider('imgWarp', 0);
 
+                    // And it should open looking like the picture you loaded:
+                    // parameters rest at their floors and the cells go big, so
+                    // the mirrors show it at familiar scale. Flip Parameters
+                    // back on when you want it abstract.
+                    if (!secPower.params) toggleSectionPower('params');
+                    if (params.cellSize < 460) {
+                        params.cellSize = 460;
+                        setSlider('cellSize', 460);
+                    }
+
                     setSource('image');
 
                     // Standalone this is undefined and the image simply stays
@@ -2829,6 +2925,8 @@
                 document.getElementById('color' + (i + 1)).value = params.colorPalette[i];
                 document.getElementById('color' + (i + 1) + '-value').textContent = params.colorPalette[i];
             }
+            // The circle guide's palette and depth tints read the live colours.
+            updateCircleStyle();
         }
 
         function applyPreset(name) {
@@ -2864,9 +2962,19 @@
         function breathCycle() {
             const pat = BREATH_PATTERNS[params.breath];
             if (!pat) return null;
-            if (params.breath !== 'progressive') return pat;
-            // Stretch up to 1.8x over about five minutes, then hold there.
-            const k = 1 + Math.min(0.8, breathT / 320);
+            const natural = pat[0] + pat[1] + pat[2] + pat[3];
+            // The typed range overrides the pattern's own length; blank inputs
+            // (0) keep it. Steady holds the cycle at `from`. Progressive —
+            // whether chosen as a pace or via the Longer pattern — stretches
+            // from `from` to `to` over about five minutes, then holds there;
+            // `to` left blank means 1.8× from, the old Longer stretch.
+            const from = params.breathFrom > 0 ? params.breathFrom : natural;
+            let len = from;
+            if (params.breathPace === 'progressive' || params.breath === 'progressive') {
+                const to = params.breathTo > 0 ? params.breathTo : from * 1.8;
+                len = from + (to - from) * Math.min(1, breathT / 320);
+            }
+            const k = len / natural;
             return [pat[0] * k, pat[1] * k, pat[2] * k, pat[3] * k];
         }
 
@@ -3138,6 +3246,7 @@
         }
 
         function drawOrb() {
+            if (params.guideStyle !== 'orb') return;   // the circle owns the guide
             breathOrb.side = Math.max(80, Math.min(300, Math.round(params.orbSize)));
             renderOrb(document.getElementById('breath-ring'), breathOrb,
                       params.orbStrength, 0.0016, 0.38);
@@ -3202,6 +3311,27 @@
 
             const row = document.getElementById('label-size-row');
             if (row) row.className = params.breathLabel ? 'control-group' : 'control-group off';
+
+            ['steady', 'progressive'].forEach(function (k) {
+                const el2 = document.getElementById('pace-' + k);
+                if (el2) el2.className = (k === params.breathPace) ? 'active' : '';
+            });
+            const toEl = document.getElementById('breathTo');
+            if (toEl) toEl.disabled = params.breathPace !== 'progressive'
+                                      && params.breath !== 'progressive';
+
+            ['orb', 'circle'].forEach(function (k) {
+                const el2 = document.getElementById('gstyle-' + k);
+                if (el2) el2.className = (k === params.guideStyle) ? 'active' : '';
+            });
+            const circle = params.guideStyle === 'circle';
+            const srow = document.getElementById('orb-strength-row');
+            if (srow) srow.className = circle ? 'control-group off' : 'control-group';
+            ['circle-border-row', 'circle-blur-row'].forEach(function (id) {
+                const el2 = document.getElementById(id);
+                if (el2) el2.className = circle ? 'control-group' : 'control-group off';
+            });
+            updateCircleStyle();
         }
 
         function toggleBreathGuide() {
@@ -3212,6 +3342,86 @@
         function toggleBreathLabel() {
             params.breathLabel = !params.breathLabel;
             syncBreathGuide();
+        }
+
+        function setBreathPace(p) {
+            params.breathPace = p === 'progressive' ? 'progressive' : 'steady';
+            breathT = 0;    // a new pace restarts the stretch from `from`
+            syncBreathGuide();
+        }
+
+        // Blank or nonsense reads as "the pattern's own length" rather than an
+        // error — the inputs are an override, not a requirement.
+        function setBreathRange() {
+            const read = function (id, lo, hi) {
+                const el = document.getElementById(id);
+                const v = el ? parseFloat(el.value) : NaN;
+                return (isFinite(v) && v > 0) ? Math.min(hi, Math.max(lo, v)) : 0;
+            };
+            params.breathFrom = read('breathFrom', 4, 120);
+            params.breathTo = read('breathTo', 4, 240);
+            breathT = 0;
+            syncBreathGuide();
+        }
+
+        function setGuideStyle(s) {
+            params.guideStyle = s === 'circle' ? 'circle' : 'orb';
+            // The canvas keeps the backdrop either way; only the particles go.
+            if (params.guideStyle === 'circle') {
+                const cv = document.getElementById('breath-ring');
+                if (cv && cv.width) cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+            }
+            syncBreathGuide();
+        }
+
+        function setCircleBorder(v) {
+            params.circleBorder = parseFloat(v);
+            setSlider('circleBorder', params.circleBorder);
+            syncBreathGuide();
+        }
+
+        function setCircleBlur(v) {
+            params.circleBlur = parseFloat(v);
+            setSlider('circleBlur', params.circleBlur);
+            syncBreathGuide();
+        }
+
+        // The circle's colour, adapted from the tint choice: palette and depth
+        // read the live palette, so the ring recolours with the artwork.
+        function circleColors() {
+            const p = params.colorPalette;
+            switch (params.orbTint) {
+                case 'palette': return 'conic-gradient(' + p[1] + ',' + p[2] + ',' +
+                    p[3] + ',' + p[4] + ',' + p[3] + ',' + p[2] + ',' + p[1] + ')';
+                case 'warm':  return 'linear-gradient(135deg, #ffd9a0, #ff8a5c, #e05a3a)';
+                case 'cool':  return 'linear-gradient(135deg, #b7e3ff, #6fb4ff, #5a6dff)';
+                case 'depth': return 'radial-gradient(circle, ' + p[4] + ', ' + p[1] + ')';
+                case 'ink':   return 'rgba(16, 16, 20, 0.92)';
+                default:      return 'rgba(250, 249, 245, 0.92)';
+            }
+        }
+
+        // The ring is a painted background cut by a feathered radial mask —
+        // deliberately no `filter`: a real blur re-rasterises on every breath
+        // frame, while a mask is painted once and only the transform moves.
+        function updateCircleStyle() {
+            const el = document.getElementById('breath-circle');
+            if (!el) return;
+            const on = params.breathGuide && params.guideStyle === 'circle';
+            el.classList.toggle('off', !on);
+            if (!on) return;
+            const half = params.orbSize / 2;
+            const B = params.circleBorder;
+            const F = Math.max(0.5, params.circleBlur);   // 0 keeps a whisper of AA
+            el.style.setProperty('--c-size', params.orbSize + 'px');
+            el.style.background = circleColors();
+            const m = 'radial-gradient(circle closest-side,' +
+                ' transparent ' + Math.max(0, half - B - 2 * F) + 'px,' +
+                ' #000 ' + Math.max(0, half - B - F) + 'px,' +
+                ' #000 ' + (half - F) + 'px,' +
+                ' transparent ' + half + 'px)';
+            el.style.webkitMask = m;
+            el.style.mask = m;
         }
 
         // `ink` is reachable but unlisted: Glass switches to it, and moving off
@@ -3251,6 +3461,7 @@
                 if (el) el.className = (k === mode) ? 'active' : '';
             });
             drawOrb();
+            updateCircleStyle();
         }
 
         function setOrbSize(v) {
@@ -3316,44 +3527,47 @@
             imgAngle:[0, 359, 1],  imgWarp: [0, 0.18],    mix:     [0, 0.4]
         };
 
-        // `every` and `ease` are in beats, so one BPM governs the whole cadence.
         const SECTIONS = {
             // The step is the shape; the keys are everything else the panel
             // holds, so a locked shape still leaves the section plenty to move.
             symmetry: { step: true,
-                        keys: ['cellSize', 'cellAngle', 'edgeSize', 'edgeSoft'],
-                        every: [8, 16], ease: [6, 12] },
-            seed:     { step: true,  keys: [],           every: [4, 10] },
+                        keys: ['cellSize', 'cellAngle', 'edgeSize', 'edgeSoft'] },
+            seed:     { step: true,  keys: [] },
             // The image controls belong to Source. Leaving them out meant its
             // lock only ever held the plate, while Randomize kept moving the
             // zoom, pan and mix underneath it.
-            source:   { step: true,  every: [8, 18], ease: [6, 14],
+            source:   { step: true,
                         keys: ['imgZoom', 'imgPanX', 'imgPanY', 'imgAngle',
                                'imgWarp', 'mix'] },
-            motion:   { keys: ['flow', 'spin', 'trail', 'orbFov'], ease: [6, 14] },
+            motion:   { keys: ['flow', 'spin', 'trail', 'orbFov'] },
             params:   { keys: ['folds', 'moire', 'mfreq', 'detune', 'descent', 'angular',
                                'twist', 'warp', 'octaves', 'bands', 'rings', 'shift',
-                               'seam', 'contrast', 'rotation'], ease: [6, 14] },
-            colour:   { palette: true, every: [6, 14], ease: [4, 10] }
+                               'seam', 'contrast', 'rotation'] },
+            colour:   { palette: true }
         };
 
-        // 1 BPM is a one-minute beat, so a Parameters morph can run six minutes.
         function beatMs() { return 60000 / Math.max(1, params.bpm || 30); }
 
-        // BPM sets the pace of everything that moves on its own, not just the
-        // section transitions. 60 is the reference the flow and spin sliders
-        // were tuned against, so below it the whole piece slows together.
+        // BPM sets the pace of everything that moves per-frame — colour flow,
+        // spin, the breath. 60 is the reference the sliders were tuned against.
         function motionRate() { return Math.max(1, params.bpm || 30) / 60; }
-        function beats(range) {
-            return range[0] + Math.random() * (range[1] - range[0]);
-        }
 
-        let beatClock = 0, beatLast = 0, breathLast = 0;
+        // Auto-drift cadence, in wall-clock seconds. Sections used to ease
+        // toward fresh targets continuously, which kept the field re-solving
+        // on every frame for as long as a drift was switched on. Now they
+        // step: pick targets every driftEvery seconds (jittered, so sections
+        // never all move at once), glide there over a few seconds, then hold —
+        // and a held field costs nothing but the colour pass to redraw.
+        function driftWait() { return params.driftEvery * (0.9 + Math.random() * 0.4); }
+        function driftTrans() { return Math.min(8, params.driftEvery * 0.35); }
+
+        let beatClock = 0, beatLast = 0, breathLast = 0, driftClock = 0;
         function advanceBeatClock(now) {
             if (!beatLast) { beatLast = now; return; }
             const dt = Math.min(250, now - beatLast);   // ignore tab-away gaps
             beatLast = now;
             beatClock += dt / beatMs();
+            driftClock += dt / 1000;
         }
 
         const secState = {};
@@ -3380,6 +3594,7 @@
                 st.auto = !st.auto;
                 if (st.auto) {
                     st.due = 0;                    // act on the next frame
+                    st.nextAt = 0;
                     st.target = null;
                     beatLast = 0;                  // resync the clock
                 }
@@ -3397,6 +3612,133 @@
             });
         }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // SECTION POWER
+        //
+        // Breathing-style off switches for Parameters, Colour and Motion. Off
+        // does not merely pause the section — it rests it: parameters sink to
+        // their floors (zero wherever the slider allows, so with an image or
+        // video source the mirrors show it plainly), motion stills completely,
+        // colour drops to a neutral grey ramp. The values you had are stashed
+        // and come back exactly on switch-on. Drift and Randomize leave a
+        // powered-off section alone.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const GREY_RAMP = ['#141414', '#3d3d3d', '#707070', '#a9a9a9', '#e4e4e4'];
+        const secPower = { params: null, colour: null, motion: null };
+
+        // Zero, or the slider's own floor where zero is out of range — folds
+        // rests at 3, which is also the widest wedge the scope can show.
+        function powerFloor(k) {
+            const s = document.getElementById(k);
+            const lo = s ? parseFloat(s.min) : 0;
+            return Math.max(0, isNaN(lo) ? 0 : lo);
+        }
+
+        // ── Parameter intensity ──
+        // A lens over the Parameters section rather than a rewrite: the
+        // sliders keep the values you set, and the renderer blends each one
+        // from its resting floor up to that value by this much. Low keeps an
+        // image source clearly recognisable as the origin; High is the full
+        // effect. Frequencies and phases (mfreq, detune, shift, rotation,
+        // contrast) stay unscaled — they change character, not amount. The
+        // image-facing amounts (mix, imgWarp) scale too: they are what paints
+        // over a picture, and Low is the promise that the origin stays legible.
+        const STRENGTH_KEYS = ['folds', 'moire', 'descent', 'angular', 'twist',
+                               'warp', 'octaves', 'bands', 'rings', 'seam',
+                               'mix', 'imgWarp'];
+
+        function effParam(k) {
+            if (params.paramStrength >= 1 || STRENGTH_KEYS.indexOf(k) < 0) return params[k];
+            const lo = powerFloor(k);
+            const v = lo + (params[k] - lo) * params.paramStrength;
+            return INT_PARAMS.indexOf(k) >= 0 ? Math.round(v) : v;
+        }
+
+        const PARAM_STRENGTHS = { low: 0.35, medium: 0.7, high: 1 };
+
+        function setParamStrength(level) {
+            params.paramStrength = PARAM_STRENGTHS[level] !== undefined
+                ? PARAM_STRENGTHS[level]
+                : Math.min(1, Math.max(0, parseFloat(level) || 1));
+            syncParamStrengthUI();
+            maskKey = '';          // the edge mask follows the effective folds
+            tablesDirty = true;    // and the seam glow lives in the colour tables
+            refreshShareUI();
+            scheduleRender();
+        }
+
+        function syncParamStrengthUI() {
+            const level = params.paramStrength <= 0.5 ? 'low'
+                        : params.paramStrength < 1 ? 'medium' : 'high';
+            Object.keys(PARAM_STRENGTHS).forEach(function (k) {
+                const el = document.getElementById('pstr-' + k);
+                if (el) el.className = (k === level) ? 'active' : '';
+            });
+        }
+
+        function toggleSectionPower(name) {
+            const stash = secPower[name];
+            if (stash) {
+                secPower[name] = null;
+                if (name === 'colour') {
+                    params.colorPalette = stash.palette;
+                    setPaletteUI();
+                } else {
+                    Object.keys(stash).forEach(function (k) {
+                        params[k] = stash[k];
+                        setSlider(k, stash[k]);
+                    });
+                }
+            } else if (name === 'colour') {
+                secPower.colour = { palette: params.colorPalette.slice() };
+                params.colorPalette = GREY_RAMP.slice();
+                setPaletteUI();
+            } else {
+                const keys = name === 'motion' ? ['flow', 'spin', 'trail']
+                                               : SECTIONS.params.keys;
+                const held = {};
+                keys.forEach(function (k) {
+                    held[k] = params[k];
+                    params[k] = powerFloor(k);
+                    setSlider(k, params[k]);
+                });
+                secPower[name] = held;
+            }
+            syncPowerSwitches();
+            refreshShareUI();
+            tablesDirty = true;
+            scheduleRender();
+        }
+
+        function syncPowerSwitches() {
+            Object.keys(secPower).forEach(function (name) {
+                const btn = document.getElementById('power-' + name);
+                if (!btn) return;
+                const on = !secPower[name];
+                btn.className = on ? 'switch on' : 'switch';
+                btn.textContent = on ? 'On' : 'Off';
+                btn.setAttribute('aria-pressed', on);
+            });
+        }
+
+        // A reset or an applied link replaces the values wholesale; restoring
+        // a stash over them would resurrect a state the user already left.
+        function clearSectionPower() {
+            secPower.params = secPower.colour = secPower.motion = null;
+            syncPowerSwitches();
+        }
+
+        const DRIFT_STEPS = [10, 20, 30];
+
+        function setDriftEvery(s) {
+            params.driftEvery = DRIFT_STEPS.indexOf(s) >= 0 ? s : 20;
+            DRIFT_STEPS.forEach(function (k) {
+                const el = document.getElementById('drift-' + k);
+                if (el) el.className = (k === params.driftEvery) ? 'active' : '';
+            });
+        }
+
         function rangeRoll(k) {
             const r = RANGES[k];
             if (!r) return params[k];
@@ -3407,7 +3749,7 @@
         // Roll just this section, leaving everything else where it is.
         function randomSection(name) {
             const cfg = SECTIONS[name];
-            if (!cfg) return;
+            if (!cfg || secPower[name]) return;   // powered off — resting
             beginFade();
 
             (cfg.keys || []).forEach(function (k) {
@@ -3456,18 +3798,18 @@
             fadeAmt = 1;
         }
 
-        // Everything below is interpolated across a beat window rather than
-        // stepped by a fixed amount per frame, so the cadence follows BPM and
-        // stays the same whatever frame rate the machine manages.
-        function retarget(name, st, cfg, now) {
+        // Glides are interpolated against the wall clock rather than stepped
+        // per frame, so the cadence stays the same whatever frame rate the
+        // machine manages.
+        function retarget(name, st, cfg) {
             st.from = {};
             st.target = {};
             (cfg.keys || []).forEach(function (k) {
                 st.from[k] = params[k];
                 st.target[k] = rangeRoll(k);
             });
-            st.t0 = beatClock;
-            st.dur = beats(cfg.ease || [6, 14]);
+            st.t0 = driftClock;
+            st.dur = driftTrans();
         }
 
         function stepSections(now) {
@@ -3477,18 +3819,21 @@
 
             Object.keys(SECTIONS).forEach(function (name) {
                 const st = secState[name];
-                if (!st.auto) return;
+                if (!st.auto || secPower[name]) return;   // powered-off holds still
                 const cfg = SECTIONS[name];
 
-                // ── the ones that can only step — held while the lock is on ──
-                if (!st.lock && (cfg.step || cfg.palette) && beatClock >= st.due) {
+                // ── the ones that can only step — held while the lock is on.
+                //    The hard swaps (shape, seed, plate) run at half cadence:
+                //    they are the jarring ones, and the cross-dissolve only
+                //    softens so much ──
+                if (!st.lock && (cfg.step || cfg.palette) && driftClock >= st.due) {
                     if (name === 'symmetry' && shapeLock) {
                         // The shape alone is pinned; the window still advances
                         // so unlocking rejoins the cadence rather than jumping.
-                        st.due = beatClock + beats(cfg.every);
+                        st.due = driftClock + driftWait() * 2;
                     } else {
                     if (st.due !== 0) beginFade();
-                    st.due = beatClock + beats(cfg.every);
+                    st.due = driftClock + driftWait() * (cfg.palette ? 1 : 2);
 
                     if (name === 'symmetry') {
                         // The orb joins the morph cycle only where it can render.
@@ -3510,31 +3855,35 @@
                     } else if (name === 'colour') {
                         st.palFrom = params.colorPalette.slice();
                         st.palTarget = paletteFrom(paletteBase, (Math.random() * 60) | 0);
-                        st.palT0 = beatClock;
-                        st.palDur = beats(cfg.ease || [4, 10]);
+                        st.palT0 = driftClock;
+                        st.palDur = driftTrans();
                     }
                     }
                 }
 
-                // ── continuous keys, eased across the window ──
+                // ── continuous keys: glide to the target, then hold until the
+                //    next window — the hold is where the frames get cheap ──
                 if ((cfg.keys || []).length && !st.lock) {
-                    if (!st.target || beatClock >= st.t0 + st.dur) retarget(name, st, cfg, now);
-                    const u = st.dur > 0 ? Math.min(1, (beatClock - st.t0) / st.dur) : 1;
-                    const e = u * u * (3 - 2 * u);
-                    cfg.keys.forEach(function (k) {
-                        const r = RANGES[k];
-                        let v = st.from[k] + (st.target[k] - st.from[k]) * e;
-                        if (r && r[2] === 1) v = Math.round(v);
-                        if (v === params[k]) return;
-                        params[k] = v;
-                        if (uiDue) setSlider(k, (r && r[2] === 1) ? v : +v.toFixed(2));
-                        touched = true;
-                    });
+                    if (!st.target && driftClock >= (st.nextAt || 0)) retarget(name, st, cfg);
+                    if (st.target) {
+                        const u = st.dur > 0 ? Math.min(1, (driftClock - st.t0) / st.dur) : 1;
+                        const e = u * u * (3 - 2 * u);
+                        cfg.keys.forEach(function (k) {
+                            const r = RANGES[k];
+                            let v = st.from[k] + (st.target[k] - st.from[k]) * e;
+                            if (r && r[2] === 1) v = Math.round(v);
+                            if (v === params[k]) return;
+                            params[k] = v;
+                            if (uiDue) setSlider(k, (r && r[2] === 1) ? v : +v.toFixed(2));
+                            touched = true;
+                        });
+                        if (u >= 1) { st.target = null; st.nextAt = driftClock + driftWait(); }
+                    }
                 }
 
                 // ── palette, eased the same way ──
                 if (name === 'colour' && st.palTarget && st.palFrom) {
-                    const u = st.palDur > 0 ? Math.min(1, (beatClock - st.palT0) / st.palDur) : 1;
+                    const u = st.palDur > 0 ? Math.min(1, (driftClock - st.palT0) / st.palDur) : 1;
                     const e = u * u * (3 - 2 * u);
                     let moved = false;
                     for (let i = 0; i < 5; i++) {
@@ -3722,7 +4071,11 @@
         // reaching by hand, but they make for poor dice rolls. An uploaded image
         // is never swapped out from under you; a built-in plate may be.
         function randomSeedAndUpdate() {
-            const locked = function (sec) { return secState[sec] && secState[sec].lock; };
+            // A powered-off section is resting at its floors — Randomize
+            // treats that the same as a lock rather than waking it.
+            const locked = function (sec) {
+                return (secState[sec] && secState[sec].lock) || !!secPower[sec];
+            };
             const keepSeed = params.seed, keepTiling = params.tiling;
             const keep = {};
             Object.keys(SECTIONS).forEach(function (name) {
@@ -3824,8 +4177,12 @@
             refreshSrcRegion();
 
             updateSeedDisplay();
+            clearSectionPower();
+            syncParamStrengthUI();
+            setDriftEvery(params.driftEvery);
             setTiling(params.tiling);
             setTriType(params.triType);
+            setRadType(params.radType);
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -3841,7 +4198,7 @@
             'mfreq', 'detune', 'descent', 'angular', 'twist', 'warp', 'octaves',
             'bands', 'rings', 'shift', 'seam', 'contrast', 'rotation', 'flow',
             'spin', 'trail', 'orbFov', 'imgZoom', 'imgPanX', 'imgPanY', 'imgAngle',
-            'imgWarp', 'mix'];
+            'imgWarp', 'mix', 'radType', 'radDir', 'paramStrength'];   // appended — key order is what old links decode by
 
         function b64url(str) {
             return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -3888,8 +4245,11 @@
             } else {
                 setSource(params.source === 'image' ? 'generated' : params.source);
             }
+            clearSectionPower();
+            syncParamStrengthUI();
             setTiling(params.tiling);
             setTriType(params.triType);
+            setRadType(params.radType);
             refreshSrcRegion();
             return true;
         }
