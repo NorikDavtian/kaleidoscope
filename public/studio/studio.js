@@ -255,19 +255,41 @@
         // A video source is the animated plate with its frames coming from a
         // file: draw the current frame to a canvas, hand that to the GPU, and
         // let the existing per-frame re-upload do the rest.
+        function ensureVideoEl() {
+            if (plateVideo) return;
+            plateVideo = document.createElement('video');
+            plateVideo.muted = true;              // required for autoplay
+            plateVideo.loop = true;
+            plateVideo.autoplay = true;
+            plateVideo.playsInline = true;
+            plateVideo.setAttribute('playsinline', '');
+            plateVideo.crossOrigin = 'anonymous';
+            plateVideo.style.display = 'none';
+            document.body.appendChild(plateVideo);
+        }
+
+        // The frame-to-canvas handoff both video paths share. Returns the
+        // dimensions, or null while the metadata has not arrived.
+        function adoptVideoSurface() {
+            const w = plateVideo.videoWidth, h = plateVideo.videoHeight;
+            if (!w || !h) return null;
+            if (!videoCv) { videoCv = document.createElement('canvas'); videoCtx = videoCv.getContext('2d'); }
+            videoCv.width = w; videoCv.height = h;
+            videoCtx.drawImage(plateVideo, 0, 0, w, h);
+
+            if (srcHolder) { srcHolder.remove(); srcHolder = null; }
+            srcPixels = null;                     // the CPU path cannot follow a video
+            srcW = w; srcH = h;
+            srcCanvas = videoCv;
+            srcTexDirty = true;
+            videoLive = true;
+            plateAnim = true;
+            return { w: w, h: h };
+        }
+
         function useVideoPlate(meta, name) {
             stopMovingSources();
-            if (!plateVideo) {
-                plateVideo = document.createElement('video');
-                plateVideo.muted = true;              // required for autoplay
-                plateVideo.loop = true;
-                plateVideo.autoplay = true;
-                plateVideo.playsInline = true;
-                plateVideo.setAttribute('playsinline', '');
-                plateVideo.crossOrigin = 'anonymous';
-                plateVideo.style.display = 'none';
-                document.body.appendChild(plateVideo);
-            }
+            ensureVideoEl();
 
             let i = 0;
             const attempt = function () {
@@ -281,24 +303,14 @@
 
             plateVideo.onerror = attempt;
             plateVideo.onloadeddata = function () {
-                const w = plateVideo.videoWidth, h = plateVideo.videoHeight;
-                if (!w || !h) return;
-                if (!videoCv) { videoCv = document.createElement('canvas'); videoCtx = videoCv.getContext('2d'); }
-                videoCv.width = w; videoCv.height = h;
-                videoCtx.drawImage(plateVideo, 0, 0, w, h);
-
-                if (srcHolder) { srcHolder.remove(); srcHolder = null; }
-                srcPixels = null;                     // the CPU path cannot follow a video
-                srcW = w; srcH = h;
-                srcCanvas = videoCv;
-                srcTexDirty = true;
-                videoLive = true;
-                plateAnim = true;
+                const d = adoptVideoSurface();
+                if (!d) return;
                 activeBase = meta.id;
+                activeUpload = null;
                 markActiveThumb(meta.id);
                 setDropLabel('Upload');
                 setSourceMeta(thumbURL(videoCv), name,
-                    w + ' × ' + h + ' · built-in video');
+                    d.w + ' × ' + d.h + ' · built-in video');
                 setSource('image');
                 plateVideo.play().catch(function () {});
                 loop();
@@ -734,6 +746,12 @@
             if (none) none.classList.toggle('active', id === 'none');
             const up = document.getElementById('thumb-upload');
             if (up) up.classList.toggle('active', id === 'upload');
+            const ug = document.getElementById('upload-grid');
+            if (ug) {
+                Array.prototype.forEach.call(ug.children, function (el) {
+                    el.classList.toggle('active', el.id === 'thumb-' + id);
+                });
+            }
             refreshThumbLocks();
         }
 
@@ -775,6 +793,7 @@
 
         function useBasePlate(id, name) {
             const meta = plateById(id);
+            activeUpload = null;      // a built-in takes over from any upload
 
             if (meta && meta.video) { useVideoPlate(meta, name); return; }
             if (meta && meta.src && meta.animated) { useAnimatedPlate(meta, name); return; }
@@ -2507,8 +2526,63 @@
             scheduleRender();
         }
 
-        function onFilePicked(file) {
-            if (!file) return;
+        // ═══════════════════════════════════════════════════════════════════════
+        // USER UPLOADS
+        //
+        // Every image or video you drop or pick is kept as its own plate in an
+        // Uploads row under the built-ins, so a batch arrives whole and you
+        // can flick between them. Nothing here ever leaves the machine unless
+        // the app's share hook stores an image you activated. The row has one
+        // lock: held (the default), drift and Randomize leave your chosen
+        // upload alone; released, they shuffle among your uploads the way the
+        // built-ins shuffle among themselves — never dropping you back to a
+        // built-in on their own.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let userPlates = [];
+        let userSeq = 0;
+        let activeUpload = null;   // id of the upload in use, or null
+        let uploadsLock = true;
+
+        function shortName(name) {
+            return name.length > 26 ? name.slice(0, 24) + '…' : name;
+        }
+
+        // The picture should open looking like itself: nothing painted over
+        // it, parameters at their floors, cells big enough to read.
+        function familiarStart() {
+            params.mix = 0;
+            params.imgWarp = 0;
+            setSlider('mix', 0);
+            setSlider('imgWarp', 0);
+            if (!secPower.params) toggleSectionPower('params');
+            if (params.cellSize < 460) {
+                params.cellSize = 460;
+                setSlider('cellSize', 460);
+            }
+        }
+
+        function onFilesPicked(list) {
+            const files = Array.prototype.slice.call(list || []).filter(function (f) {
+                return f && (f.type.indexOf('image') === 0 || f.type.indexOf('video') === 0);
+            });
+            files.forEach(function (f, i) {
+                addUserFile(f, i === files.length - 1);   // the last one takes the stage
+            });
+            return files.length > 0;
+        }
+
+        function addUserFile(file, activate) {
+            if (file.type.indexOf('video') === 0) {
+                const p = { id: 'u' + (++userSeq), name: file.name, kind: 'video',
+                            url: URL.createObjectURL(file), thumb: null };
+                userPlates.push(p);
+                addUploadThumb(p);
+                if (activate) playUserVideo(p, true);
+                else makeVideoThumb(p);
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = function (ev) {
                 loadImage(ev.target.result, function (loaded) {
@@ -2520,36 +2594,13 @@
                         loaded.resize(Math.round(loaded.width * k), Math.round(loaded.height * k));
                     }
                     loaded.loadPixels();
-                    srcPixels = loaded.pixels;
-                    srcW = loaded.width;
-                    srcH = loaded.height;
-                    srcCanvas = loaded.canvas;
-                    srcTexDirty = true;
-                    stopMovingSources();
-                    activeBase = null;
-                    markActiveThumb('upload');
-
-                    const short = file.name.length > 26 ? file.name.slice(0, 24) + '…' : file.name;
-                    setDropLabel(short);
-                    setSourceMeta(thumbURL(loaded.canvas), short, srcW + ' × ' + srcH + ' · yours, never uploaded');
-
-                    // An upload is worth seeing before it gets painted over.
-                    params.mix = 0;
-                    params.imgWarp = 0;
-                    setSlider('mix', 0);
-                    setSlider('imgWarp', 0);
-
-                    // And it should open looking like the picture you loaded:
-                    // parameters rest at their floors and the cells go big, so
-                    // the mirrors show it at familiar scale. Flip Parameters
-                    // back on when you want it abstract.
-                    if (!secPower.params) toggleSectionPower('params');
-                    if (params.cellSize < 460) {
-                        params.cellSize = 460;
-                        setSlider('cellSize', 460);
-                    }
-
-                    setSource('image');
+                    const p = { id: 'u' + (++userSeq), name: file.name, kind: 'image',
+                                img: loaded, thumb: thumbURL(loaded.canvas),
+                                w: loaded.width, h: loaded.height };
+                    userPlates.push(p);
+                    addUploadThumb(p);
+                    if (!activate) return;
+                    applyUserImage(p, true);
 
                     // Standalone this is undefined and the image simply stays
                     // local; under the app it is stored so the link carries it.
@@ -2567,6 +2618,125 @@
                 });
             };
             reader.readAsDataURL(file);
+        }
+
+        function useUserPlate(id) {
+            const p = userPlates.filter(function (x) { return x.id === id; })[0];
+            if (!p) return;
+            if (p.kind === 'video') playUserVideo(p, false);
+            else applyUserImage(p, false);
+        }
+
+        function applyUserImage(p, fresh) {
+            stopMovingSources();
+            srcPixels = p.img.pixels;
+            srcW = p.img.width;
+            srcH = p.img.height;
+            srcCanvas = p.img.canvas;
+            srcTexDirty = true;
+            activeBase = null;
+            activeUpload = p.id;
+            markActiveThumb('upload-' + p.id);
+            setDropLabel(shortName(p.name));
+            setSourceMeta(p.thumb, shortName(p.name), srcW + ' × ' + srcH + ' · yours, never uploaded');
+            if (fresh) familiarStart();
+            setSource('image');
+        }
+
+        function playUserVideo(p, fresh) {
+            stopMovingSources();
+            ensureVideoEl();
+            plateVideo.onerror = function () {
+                showVeil(true, 'That video would not play');
+                setTimeout(function () { showVeil(false); }, 1600);
+            };
+            plateVideo.onloadeddata = function () {
+                const d = adoptVideoSurface();
+                if (!d) return;
+                activeBase = null;
+                activeUpload = p.id;
+                if (!p.thumb) {
+                    p.thumb = thumbURL(videoCv);
+                    refreshUploadThumb(p);
+                }
+                markActiveThumb('upload-' + p.id);
+                setDropLabel(shortName(p.name));
+                setSourceMeta(p.thumb, shortName(p.name),
+                    d.w + ' × ' + d.h + ' · your video, never uploaded');
+                if (fresh) familiarStart();
+                setSource('image');
+                plateVideo.play().catch(function () {});
+                loop();
+            };
+            plateVideo.src = p.url;
+            plateVideo.load();
+        }
+
+        // A first frame for the tile of a video that has not played yet, from
+        // a throwaway element so the live one is never disturbed.
+        function makeVideoThumb(p) {
+            const v = document.createElement('video');
+            v.muted = true;
+            v.playsInline = true;
+            v.preload = 'auto';
+            v.onloadeddata = function () {
+                if (!v.videoWidth) return;
+                const c = document.createElement('canvas');
+                c.width = v.videoWidth; c.height = v.videoHeight;
+                c.getContext('2d').drawImage(v, 0, 0);
+                if (!p.thumb) { p.thumb = thumbURL(c); refreshUploadThumb(p); }
+                v.removeAttribute('src');
+                v.load();
+            };
+            v.src = p.url;
+        }
+
+        function addUploadThumb(p) {
+            ['uploads-head', 'upload-grid'].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('off');
+            });
+            const grid = document.getElementById('upload-grid');
+            if (!grid) return;
+            const btn = document.createElement('button');
+            btn.className = 'thumb';
+            btn.id = 'thumb-upload-' + p.id;
+            const im = document.createElement('img');
+            im.alt = p.name;
+            if (p.thumb) im.src = p.thumb;
+            const cap = document.createElement('span');
+            cap.textContent = shortName(p.name);
+            btn.appendChild(im);
+            btn.appendChild(cap);
+            btn.onclick = function () { useUserPlate(p.id); };
+            grid.appendChild(btn);
+        }
+
+        function refreshUploadThumb(p) {
+            const btn = document.getElementById('thumb-upload-' + p.id);
+            const im = btn && btn.querySelector('img');
+            if (im && p.thumb) im.src = p.thumb;
+        }
+
+        function toggleUploadsLock() {
+            uploadsLock = !uploadsLock;
+            const el = document.getElementById('uploads-lock');
+            if (el) {
+                el.className = uploadsLock ? 'sec-btn on' : 'sec-btn';
+                el.setAttribute('aria-pressed', uploadsLock);
+            }
+        }
+
+        // Drift and Randomize call this instead of touching uploads directly:
+        // it returns true when it moved to another of your uploads.
+        function shuffleUserPlate() {
+            if (activeUpload === null || uploadsLock || userPlates.length < 2) return false;
+            const others = userPlates.filter(function (p) {
+                return p.id !== activeUpload && (p.kind !== 'image' || p.img);
+            });
+            if (!others.length) return false;
+            useUserPlate(others[(Math.random() * others.length) | 0].id);
+            return true;
         }
 
         // When the page is served by the app, a shared generation arrives with
@@ -2608,7 +2778,8 @@
             if (dt.items && dt.items.length) {
                 for (let i = 0; i < dt.items.length; i++) {
                     const it = dt.items[i];
-                    if (it.kind === 'file' && (!it.type || it.type.indexOf('image') === 0)) return true;
+                    if (it.kind === 'file' && (!it.type || it.type.indexOf('image') === 0
+                                                        || it.type.indexOf('video') === 0)) return true;
                 }
                 return false;
             }
@@ -2639,16 +2810,14 @@
             showVeil(false);
 
             const dt = e.dataTransfer;
-            const f = dt && dt.files && dt.files[0];
-            if (!f) return;
-            if (f.type.indexOf('image') !== 0) {
-                showVeil(true, 'That is not an image');
+            if (!dt || !dt.files || !dt.files.length) return;
+            if (!onFilesPicked(dt.files)) {
+                showVeil(true, 'That is not an image or a video');
                 setTimeout(function () { showVeil(false); }, 1600);
                 return;
             }
             // Dropping is intent enough to get past the front door.
             enterStudio();
-            onFilePicked(f);
         });
 
         // A file dropped outside the window would otherwise navigate away from
@@ -3767,6 +3936,11 @@
                 params.seed = Math.floor(Math.random() * 999999) + 1;
                 updateSeedDisplay();
             } else if (name === 'source') {
+                // An upload in use: shuffle among your own, or hold if locked.
+                if (activeUpload !== null) {
+                    if (!shuffleUserPlate()) scheduleRender();
+                    return;
+                }
                 if (imageLocked) { scheduleRender(); return; }
                 const avail = BASE_PLATES.filter(function (x) { return !x.missing; });
                 const b = avail[(Math.random() * avail.length) | 0];
@@ -3847,7 +4021,9 @@
                         updateSeedDisplay();
                         touched = true;
                     } else if (name === 'source') {
-                        if (params.source === 'image' && activeBase !== null && !imageLocked) {
+                        if (params.source === 'image' && activeUpload !== null) {
+                            shuffleUserPlate();   // holds still while locked
+                        } else if (params.source === 'image' && activeBase !== null && !imageLocked) {
                             const avail = BASE_PLATES.filter(function (x) { return !x.missing; });
                             const b = avail[(Math.random() * avail.length) | 0];
                             useBasePlate(b.id, b.name);
@@ -4146,8 +4322,11 @@
 
             if (locked('source')) { scheduleRender(); return; }
 
-            // Swap plates only if we're on a built-in one and it is not pinned.
-            if (params.source === 'image' && activeBase !== null && !imageLocked) {
+            // Swap plates only among their own kind: an unlocked upload moves
+            // to another upload, a built-in that is not pinned to a built-in.
+            if (params.source === 'image' && activeUpload !== null) {
+                if (shuffleUserPlate()) return;
+            } else if (params.source === 'image' && activeBase !== null && !imageLocked) {
                 const avail = BASE_PLATES.filter(function (x) { return !x.missing; });
                 const b = avail[ri(0, avail.length - 1)];
                 useBasePlate(b.id, b.name);
