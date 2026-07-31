@@ -510,6 +510,22 @@
                 </div>
             </div>
 
+            <div class="control-group" id="disco-motion-row">
+                <label for="discoMotion">Motion Drive</label>
+                <div class="slider-container">
+                    <input type="range" id="discoMotion" min="0" max="2" step="0.05" value="1" oninput="setDiscoMotionDrive(this.value)">
+                    <span class="value-display" id="discoMotion-value">1</span>
+                </div>
+            </div>
+
+            <div class="control-group" id="disco-params-row">
+                <label for="discoParams">Parameter Drive</label>
+                <div class="slider-container">
+                    <input type="range" id="discoParams" min="0" max="2" step="0.05" value="1" oninput="setDiscoParamDrive(this.value)">
+                    <span class="value-display" id="discoParams-value">1</span>
+                </div>
+            </div>
+
             <div class="lock-row" id="disco-ball-row">
                 <span>Equalizer ball on the canvas</span>
                 <button class="switch on" id="disco-ball-toggle" onclick="toggleDiscoBall()"
@@ -523,7 +539,7 @@
                         aria-pressed="true"
                         title="The spherical sound waves from VFX No. 18, rippling with the level">On</button>
             </div>
-            <div class="hint">Disco listens to the microphone: warp swells with the level, the mirrors kick on the bass, colour runs with the treble. Noise Floor is the gate — sound quieter than it counts as silence, so a humming room does not dance on its own. Audio is analysed and discarded — nothing is recorded.</div>
+            <div class="hint">Disco listens to the microphone: warp swells with the level, the mirrors kick on the bass, colour runs with the treble — and the parameters sway too, twist with the bass, moiré with the treble. Motion Drive scales the spin and colour push; Parameter Drive scales how far the field bends. Both leave your sliders untouched. Noise Floor is the gate — sound quieter than it counts as silence. Audio is analysed and discarded — nothing is recorded.</div>
         </div>
 
         <div class="control-section" id="panel-params">

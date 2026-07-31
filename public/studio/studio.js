@@ -3888,9 +3888,12 @@
                                'mix', 'imgWarp'];
 
         function effParam(k) {
-            if (params.paramStrength >= 1 || STRENGTH_KEYS.indexOf(k) < 0) return params[k];
-            const lo = powerFloor(k);
-            const v = lo + (params[k] - lo) * params.paramStrength;
+            let v = params[k];
+            if (params.paramStrength < 1 && STRENGTH_KEYS.indexOf(k) >= 0) {
+                const lo = powerFloor(k);
+                v = lo + (v - lo) * params.paramStrength;
+            }
+            if (disco) v = discoModParam(k, v);
             return INT_PARAMS.indexOf(k) >= 0 ? Math.round(v) : v;
         }
 
@@ -3985,6 +3988,31 @@
         let discoWaves = true;
         let discoSens = 1;
         let discoFloor = 0.06;     // ambient noise below this is silence
+        let discoMotionDrive = 1;  // how hard the sound pushes spin and flow
+        let discoParamDrive = 1;   // how far it bends the field parameters
+
+        // What the sound adds on top of each field parameter, applied at
+        // render time exactly like the intensity lens — the sliders never
+        // move, and switching disco off leaves no residue. Twist sways with
+        // the bass, moiré shimmers with the treble, rings pump on the bass.
+        function discoModParam(k, v) {
+            const d = discoParamDrive;
+            if (!d) return v;
+            if (k === 'twist') return v + Math.sin(discoSpin * 0.045) * discoBass * 0.6 * d;
+            if (k === 'moire') return v + discoTreble * 0.3 * d;
+            if (k === 'rings') return v + discoBass * 0.5 * d;
+            return v;
+        }
+
+        function setDiscoMotionDrive(v) {
+            discoMotionDrive = parseFloat(v);
+            setSlider('discoMotion', discoMotionDrive);
+        }
+
+        function setDiscoParamDrive(v) {
+            discoParamDrive = parseFloat(v);
+            setSlider('discoParams', discoParamDrive);
+        }
         let waveA = 0, waveA2 = 50;   // the original's angle / angle2
         let discoAudioCtx = null, discoAnalyser = null, discoBins = null, discoMic = null;
         let discoSrcNode = null;
@@ -4182,15 +4210,18 @@
                 discoTreble += (t - discoTreble) * (t > discoTreble ? 0.5 : 0.12);
             }
 
-            ripple = discoBaseRipple * (1 + discoLevel * 1.5);
+            ripple = discoBaseRipple * (1 + discoLevel * 1.5 * discoParamDrive);
             // Re-solving the field is the expensive part, so it only happens
-            // on the GPU and only when the level actually moved.
-            if (glReady && Math.abs(discoLevel - discoApplied) > 0.004) {
+            // on the GPU — and only while there is actually sound to follow:
+            // the parameter sways move every frame, but a silent room idles.
+            const activity = discoLevel + discoBass + discoTreble;
+            if (glReady && (Math.abs(discoLevel - discoApplied) > 0.004 ||
+                            (discoParamDrive > 0 && activity > 0.02))) {
                 fieldDirty = true;
                 discoApplied = discoLevel;
             }
-            spinAngle += discoBass * 0.012 * f60;
-            animPhase += discoTreble * 0.02 * f60;
+            spinAngle += discoBass * 0.012 * f60 * discoMotionDrive;
+            animPhase += discoTreble * 0.02 * f60 * discoMotionDrive;
             tablesDirty = true;
             discoSpin += (0.3 + discoBass * 2.4) * f60;
             if (discoBall || discoWaves) drawDiscoOverlay();
