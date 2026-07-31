@@ -487,6 +487,13 @@
                 <button id="disco-on" onclick="setDisco(true)" title="Listen to the microphone and move with the sound">On</button>
             </div>
 
+            <div class="control-group" id="disco-mic-row">
+                <label for="disco-mic-select">Microphone</label>
+                <select id="disco-mic-select" class="disco-select" onchange="setDiscoMic(this.value)">
+                    <option value="">Default microphone</option>
+                </select>
+            </div>
+
             <div class="control-group" id="disco-sens-row">
                 <label for="discoSens">Sensitivity</label>
                 <div class="slider-container">

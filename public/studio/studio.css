@@ -864,6 +864,19 @@
         }
 
         .breath-num:disabled { opacity: 0.35; }
+
+        .disco-select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            border-radius: 8px;
+            padding: 6px 8px;
+            font: inherit;
+            font-size: 12px;
+        }
+
+        .disco-select option { background: #16161c; }
         .breath-num:focus-visible { outline: 1px solid var(--dim); }
 
         /* Out of the flow, or its height would push the ring off centre. */

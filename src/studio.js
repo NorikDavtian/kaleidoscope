@@ -4019,18 +4019,63 @@
             }
         }
 
+        let discoMicId = '';
+
+        // The device menu. Labels only exist once a stream has been granted,
+        // so this runs again after the mic opens and on hardware changes.
+        function populateDiscoMics() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+            navigator.mediaDevices.enumerateDevices().then(function (devs) {
+                const sel = document.getElementById('disco-mic-select');
+                if (!sel) return;
+                const mics = devs.filter(function (d) { return d.kind === 'audioinput'; });
+                sel.innerHTML = '';
+                const def = document.createElement('option');
+                def.value = '';
+                def.textContent = 'Default microphone';
+                sel.appendChild(def);
+                mics.forEach(function (d, i) {
+                    if (!d.deviceId || d.deviceId === 'default') return;
+                    const o = document.createElement('option');
+                    o.value = d.deviceId;
+                    o.textContent = d.label || ('Microphone ' + (i + 1));
+                    sel.appendChild(o);
+                });
+                sel.value = discoMicId;
+                if (sel.value !== discoMicId) { sel.value = ''; discoMicId = ''; }
+            }).catch(function () {});
+        }
+
+        function setDiscoMic(id) {
+            discoMicId = id || '';
+            // A live session swaps over in place; off, the choice just waits.
+            if (disco) {
+                stopDiscoAudio();
+                startDiscoAudio();
+            }
+        }
+
         function startDiscoAudio() {
             if (discoAnalyser) return;
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-            navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+            const wants = discoMicId ? { deviceId: { exact: discoMicId } } : true;
+            navigator.mediaDevices.getUserMedia({ audio: wants }).then(function (stream) {
                 discoMic = stream;
                 discoAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                // Chrome hands contexts over suspended when the gesture chain
+                // is lost across the permission prompt; a suspended context
+                // reads permanent silence and everything sits still.
+                if (discoAudioCtx.resume) discoAudioCtx.resume().catch(function () {});
                 const src = discoAudioCtx.createMediaStreamSource(stream);
                 discoAnalyser = discoAudioCtx.createAnalyser();
                 discoAnalyser.fftSize = 512;
                 discoAnalyser.smoothingTimeConstant = 0.55;
                 src.connect(discoAnalyser);
                 discoBins = new Uint8Array(discoAnalyser.frequencyBinCount);
+                populateDiscoMics();     // labels are readable now
+                if (navigator.mediaDevices.addEventListener) {
+                    navigator.mediaDevices.addEventListener('devicechange', populateDiscoMics);
+                }
             }, function () {
                 showVeil(true, 'Microphone unavailable or refused');
                 setTimeout(function () { showVeil(false); }, 1600);
@@ -4096,6 +4141,11 @@
         // Per frame while disco is on. Fast attack, slower release — the beat
         // hits, the glow lingers.
         function discoStep(f60) {
+            // The context can fall back to suspended (tab switches, focus
+            // loss); nudge it awake rather than reading silence forever.
+            if (discoAudioCtx && discoAudioCtx.state === 'suspended' && discoAudioCtx.resume) {
+                discoAudioCtx.resume().catch(function () {});
+            }
             if (discoAnalyser && discoBins) {
                 discoAnalyser.getByteFrequencyData(discoBins);
                 const n = discoBins.length;
@@ -4106,9 +4156,13 @@
                     if (i < bassN) bass += discoBins[i];
                     else if (i >= trebleFrom) treble += discoBins[i];
                 }
-                const lvl = discoGate(all / n / 255) * discoSens;
-                const b = discoGate(bass / bassN / 255) * discoSens;
-                const t = discoGate(treble / (n - trebleFrom) / 255) * discoSens;
+                // Byte-frequency averages sit low for voice and music — a loud
+                // room rarely clears 0.5 — so the gear ratio lifts them into a
+                // range the visuals actually show.
+                const GEAR = 2.2;
+                const lvl = Math.min(1.5, discoGate(all / n / 255) * GEAR * discoSens);
+                const b = Math.min(1.5, discoGate(bass / bassN / 255) * GEAR * discoSens);
+                const t = Math.min(1.5, discoGate(treble / (n - trebleFrom) / 255) * GEAR * discoSens);
                 discoLevel += (lvl - discoLevel) * (lvl > discoLevel ? 0.5 : 0.12);
                 discoBass += (b - discoBass) * (b > discoBass ? 0.6 : 0.15);
                 discoTreble += (t - discoTreble) * (t > discoTreble ? 0.5 : 0.12);
@@ -4151,7 +4205,11 @@
             const c = side / 2;
             const r = c * 0.62;
             const D = Math.PI / 180;
-            const rn2 = discoLevel * 100;
+            // At exact silence the original's frequencies are 10·sin(0) = 0
+            // and the whole curve collapses to a single point — the shell
+            // simply vanished between sounds. A small idle term keeps it
+            // undulating gently, and the sound blooms it from there.
+            const rn2 = 8 + discoLevel * 100;
             const freq = 10 * Math.sin(waveA * D * rn2);
             const freq2 = 10 * Math.sin(waveA2 * D * rn2 / 2);
             const t = discoSpin * D * 0.35;
