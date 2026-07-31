@@ -68,11 +68,12 @@
             <h3>Source<span class="sec-tools"><button class="sec-btn" id="sec-source-lock" title="Lock source — Randomize leaves it alone" onclick="toggleSection('source','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize source only" onclick="randomSection('source')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-source-auto" title="Let source drift on its own" onclick="toggleSection('source','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
             <label class="edge-label">Intensity</label>
             <div class="breath-row edge-row">
+                <button id="sstr-verylow" onclick="setSrcStrength('verylow')" title="Untouched — no field over the picture, no image warp, cells all the way open">Very Low</button>
                 <button id="sstr-low" onclick="setSrcStrength('low')" title="Barely worked — wide cells, almost no field over the picture, so it looks like the source">Low</button>
                 <button id="sstr-medium" onclick="setSrcStrength('medium')" title="Half worked — the source still reads, with the field coming through">Medium</button>
                 <button id="sstr-high" class="active" onclick="setSrcStrength('high')" title="The sliders below at full strength">High</button>
             </div>
-            <div class="hint">How hard the scope works the source. Low opens the cells wide and holds the field mix and image warp back, so a photo or video reads as itself; Medium lets the field through; High is your sliders as set. They never move — this is a lens over them.</div>
+            <div class="hint">How hard the scope works the source. Very Low is the source and the mirrors alone — no field mix, no image warp, cells all the way open; Low keeps a trace of both; Medium lets the field through; High is your sliders as set. They never move — this is a lens over them.</div>
 
             <div class="thumb-grid" id="thumb-grid"></div>
 

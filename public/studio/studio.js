@@ -3983,12 +3983,18 @@
             return INT_PARAMS.indexOf(k) >= 0 ? Math.round(v) : v;
         }
 
-        const SRC_STRENGTHS = { low: 0.35, medium: 0.7, high: 1 };
+        // Very Low is exactly zero: no field over the picture, no warp on it,
+        // the cells all the way open — the source and the mirrors, nothing else.
+        const SRC_STRENGTHS = { verylow: 0, low: 0.35, medium: 0.7, high: 1 };
 
         function setSrcStrength(level) {
-            params.srcStrength = SRC_STRENGTHS[level] !== undefined
-                ? SRC_STRENGTHS[level]
-                : Math.min(1, Math.max(0, parseFloat(level) || 1));
+            if (SRC_STRENGTHS[level] !== undefined) {
+                params.srcStrength = SRC_STRENGTHS[level];
+            } else {
+                // `|| 1` would swallow a legitimate zero, so parse first.
+                const n = parseFloat(level);
+                params.srcStrength = isFinite(n) ? Math.min(1, Math.max(0, n)) : 1;
+            }
             syncSrcStrengthUI();
             refreshShareUI();
             refreshSrcRegion();      // the sampled patch moved with the cells
@@ -3996,7 +4002,8 @@
         }
 
         function syncSrcStrengthUI() {
-            const level = params.srcStrength <= 0.5 ? 'low'
+            const level = params.srcStrength <= 0.02 ? 'verylow'
+                        : params.srcStrength <= 0.5 ? 'low'
                         : params.srcStrength < 1 ? 'medium' : 'high';
             Object.keys(SRC_STRENGTHS).forEach(function (k) {
                 const el = document.getElementById('sstr-' + k);
