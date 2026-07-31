@@ -1257,6 +1257,34 @@
             <div class="thumb-grid off" id="upload-grid"></div>
 
             <input type="file" id="file-input" accept="image/*,video/*" multiple style="display:none" onchange="onFilesPicked(this.files); this.value = ''">
+            <div id="video-controls" class="off">
+                <label class="edge-label">Video</label>
+
+                <div class="control-group">
+                    <label for="videoTrimA">Start</label>
+                    <div class="slider-container">
+                        <input type="range" id="videoTrimA" min="0" max="10" step="0.1" value="0" oninput="setVideoTrim('a', this.value)">
+                        <span class="value-display" id="videoTrimA-value">0.0s</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="videoTrimB">End</label>
+                    <div class="slider-container">
+                        <input type="range" id="videoTrimB" min="0" max="10" step="0.1" value="10" oninput="setVideoTrim('b', this.value)">
+                        <span class="value-display" id="videoTrimB-value">10.0s</span>
+                    </div>
+                </div>
+
+                <div class="lock-row">
+                    <span>Sound</span>
+                    <button class="switch on" id="video-mute-toggle" onclick="toggleVideoMute()"
+                            aria-pressed="true"
+                            title="Hear the clip, or run it silent">On</button>
+                </div>
+                <div class="hint">The clip loops between Start and End, so you can hold on the few seconds worth watching.</div>
+            </div>
+
             <div id="img-controls" class="off">
                 <!-- The source, with the patch the scope is reading marked on it.
                      Without this you are adjusting Zoom and Pan blind. -->
@@ -2207,6 +2235,70 @@
         let plateVideo = null, videoCv = null, videoCtx = null, videoLive = false;
         let camStream = null, camUsed = false;
 
+        // Playback settings for whatever video is on: the piece of it that
+        // loops, and whether it is heard. A live camera has neither — it has
+        // no duration to trim and nothing to hear.
+        let vidTrimA = 0, vidTrimB = 0, vidMuted = false, vidTrimmable = false;
+
+        function syncVideoControls() {
+            const box = document.getElementById('video-controls');
+            if (box) box.classList.toggle('off', !vidTrimmable);
+            const m = document.getElementById('video-mute-toggle');
+            if (m) {
+                m.className = vidMuted ? 'switch' : 'switch on';
+                m.textContent = vidMuted ? 'Off' : 'On';
+                m.setAttribute('aria-pressed', !vidMuted);
+            }
+            if (!vidTrimmable) return;
+            const dur = (plateVideo && isFinite(plateVideo.duration)) ? plateVideo.duration : 0;
+            [['videoTrimA', vidTrimA], ['videoTrimB', vidTrimB]].forEach(function (p) {
+                const s = document.getElementById(p[0]);
+                if (s) { s.max = dur.toFixed(2); s.value = p[1]; }
+                const d = document.getElementById(p[0] + '-value');
+                if (d) d.textContent = p[1].toFixed(1) + 's';
+            });
+        }
+
+        // Called when a video becomes the source: the trim opens to the whole
+        // clip, and the sound follows whose video it is.
+        function adoptVideoPlayback(muted) {
+            vidTrimmable = !!(plateVideo && isFinite(plateVideo.duration) && plateVideo.duration > 0);
+            vidTrimA = 0;
+            vidTrimB = vidTrimmable ? plateVideo.duration : 0;
+            vidMuted = !!muted;
+            if (plateVideo) plateVideo.muted = vidMuted;
+            syncVideoControls();
+        }
+
+        function setVideoTrim(which, v) {
+            const t = parseFloat(v) || 0;
+            const dur = (plateVideo && isFinite(plateVideo.duration)) ? plateVideo.duration : 0;
+            // A quarter second of clearance, or the loop would land on its own
+            // end point and stutter in place.
+            if (which === 'a') vidTrimA = Math.min(t, Math.max(0, vidTrimB - 0.25));
+            else vidTrimB = Math.max(t, Math.min(dur, vidTrimA + 0.25));
+            if (plateVideo && plateVideo.currentTime < vidTrimA) plateVideo.currentTime = vidTrimA;
+            syncVideoControls();
+        }
+
+        function toggleVideoMute() {
+            vidMuted = !vidMuted;
+            if (plateVideo) {
+                plateVideo.muted = vidMuted;
+                // Unmuting a clip the browser silently muted to let it autoplay
+                // needs the play call repeated, or it stays quiet.
+                if (!vidMuted && plateVideo.paused) plateVideo.play().catch(function () {});
+            }
+            syncVideoControls();
+        }
+
+        // Per frame while a video is live: keep playback inside the trim.
+        function holdVideoTrim() {
+            if (!vidTrimmable || !plateVideo || vidTrimB <= vidTrimA) return;
+            const t = plateVideo.currentTime;
+            if (t >= vidTrimB || t < vidTrimA - 0.25) plateVideo.currentTime = vidTrimA;
+        }
+
         // Live camera as a source: the stream lands in the same shared video
         // element and rides the per-frame frame-to-canvas path the video
         // plates use. Nothing is recorded and nothing leaves the machine —
@@ -2236,6 +2328,7 @@
                         d.w + ' × ' + d.h + ' · live, never recorded');
                     if (!camUsed) { camUsed = true; familiarStart(); }
                     setSource('image');
+                    adoptVideoPlayback(true);   // a live feed has nothing to trim
                     plateVideo.play().catch(function () {});
                     loop();
                 };
@@ -2259,6 +2352,10 @@
             plateVideo.setAttribute('playsinline', '');
             plateVideo.crossOrigin = 'anonymous';
             plateVideo.style.display = 'none';
+            // The trim is held on the element's own clock as well as in the
+            // frame loop: a backgrounded tab throttles rAF to nothing while
+            // the video keeps playing, and the clip would run past its end.
+            plateVideo.addEventListener('timeupdate', holdVideoTrim);
             document.body.appendChild(plateVideo);
         }
 
@@ -2307,6 +2404,7 @@
                 setSourceMeta(thumbURL(videoCv), name,
                     d.w + ' × ' + d.h + ' · built-in video');
                 setSource('image');
+                adoptVideoPlayback(true);      // built-ins open silent
                 plateVideo.play().catch(function () {});
                 loop();
             };
@@ -2332,6 +2430,8 @@
                 camStream = null;
             }
             if (plateVideo && plateVideo.srcObject) plateVideo.srcObject = null;
+            vidTrimmable = false;
+            syncVideoControls();
             if (animFrames) {
                 animFrames.forEach(function (f) { if (f.frame.close) f.frame.close(); });
                 animFrames = null;
@@ -4059,6 +4159,7 @@
                         imgDirty = true;
                     }
                 } else if (videoLive && plateVideo && plateVideo.readyState >= 2) {
+                    holdVideoTrim();
                     videoCtx.drawImage(plateVideo, 0, 0, videoCv.width, videoCv.height);
                     srcTexDirty = true;
                     imgDirty = true;
@@ -4686,9 +4787,11 @@
                 // Your own clip gets its sound — the drop or click that chose
                 // it is the user gesture autoplay policy wants. If the browser
                 // still refuses, mute and keep the picture moving.
-                plateVideo.muted = false;
+                adoptVideoPlayback(false);
                 plateVideo.play().catch(function () {
+                    vidMuted = true;
                     plateVideo.muted = true;
+                    syncVideoControls();
                     plateVideo.play().catch(function () {});
                 });
                 loop();

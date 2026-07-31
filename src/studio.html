@@ -88,6 +88,34 @@
             <div class="thumb-grid off" id="upload-grid"></div>
 
             <input type="file" id="file-input" accept="image/*,video/*" multiple style="display:none" onchange="onFilesPicked(this.files); this.value = ''">
+            <div id="video-controls" class="off">
+                <label class="edge-label">Video</label>
+
+                <div class="control-group">
+                    <label for="videoTrimA">Start</label>
+                    <div class="slider-container">
+                        <input type="range" id="videoTrimA" min="0" max="10" step="0.1" value="0" oninput="setVideoTrim('a', this.value)">
+                        <span class="value-display" id="videoTrimA-value">0.0s</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="videoTrimB">End</label>
+                    <div class="slider-container">
+                        <input type="range" id="videoTrimB" min="0" max="10" step="0.1" value="10" oninput="setVideoTrim('b', this.value)">
+                        <span class="value-display" id="videoTrimB-value">10.0s</span>
+                    </div>
+                </div>
+
+                <div class="lock-row">
+                    <span>Sound</span>
+                    <button class="switch on" id="video-mute-toggle" onclick="toggleVideoMute()"
+                            aria-pressed="true"
+                            title="Hear the clip, or run it silent">On</button>
+                </div>
+                <div class="hint">The clip loops between Start and End, so you can hold on the few seconds worth watching.</div>
+            </div>
+
             <div id="img-controls" class="off">
                 <!-- The source, with the patch the scope is reading marked on it.
                      Without this you are adjusting Zoom and Pan blind. -->
