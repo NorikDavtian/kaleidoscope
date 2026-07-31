@@ -539,6 +539,22 @@
                         aria-pressed="true"
                         title="The spherical sound waves from VFX No. 18, rippling with the level">On</button>
             </div>
+
+            <label class="edge-label">Wave colour</label>
+            <div class="breath-row edge-row">
+                <button id="wave-palette" class="active" onclick="setDiscoWaveTint('palette')" title="Follows the artwork's live palette">Palette</button>
+                <button id="wave-warm" onclick="setDiscoWaveTint('warm')">Warm</button>
+                <button id="wave-cool" onclick="setDiscoWaveTint('cool')">Cool</button>
+                <button id="wave-white" onclick="setDiscoWaveTint('white')">White</button>
+                <input type="color" id="wave-color" class="sec-swatch" value="#6fb4ff" title="Your own wave colour" oninput="setDiscoWaveColor(this.value)">
+            </div>
+
+            <label class="edge-label">Background</label>
+            <div class="breath-row edge-row">
+                <button id="disco-bg-low" onclick="setDiscoBg('low')" title="The artwork rests faint and flares with the sound">Low</button>
+                <button id="disco-bg-medium" onclick="setDiscoBg('medium')" title="Half-lit in silence, full on the peaks">Medium</button>
+                <button id="disco-bg-high" class="active" onclick="setDiscoBg('high')" title="Always fully lit">High</button>
+            </div>
             <div class="hint">Disco listens to the microphone: warp swells with the level, the mirrors kick on the bass, colour runs with the treble — and the parameters sway too, twist with the bass, moiré with the treble. Motion Drive scales the spin and colour push; Parameter Drive scales how far the field bends. Both leave your sliders untouched. Noise Floor is the gate — sound quieter than it counts as silence. Audio is analysed and discarded — nothing is recorded.</div>
         </div>
 

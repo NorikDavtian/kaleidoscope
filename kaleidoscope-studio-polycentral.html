@@ -1708,6 +1708,22 @@
                         aria-pressed="true"
                         title="The spherical sound waves from VFX No. 18, rippling with the level">On</button>
             </div>
+
+            <label class="edge-label">Wave colour</label>
+            <div class="breath-row edge-row">
+                <button id="wave-palette" class="active" onclick="setDiscoWaveTint('palette')" title="Follows the artwork's live palette">Palette</button>
+                <button id="wave-warm" onclick="setDiscoWaveTint('warm')">Warm</button>
+                <button id="wave-cool" onclick="setDiscoWaveTint('cool')">Cool</button>
+                <button id="wave-white" onclick="setDiscoWaveTint('white')">White</button>
+                <input type="color" id="wave-color" class="sec-swatch" value="#6fb4ff" title="Your own wave colour" oninput="setDiscoWaveColor(this.value)">
+            </div>
+
+            <label class="edge-label">Background</label>
+            <div class="breath-row edge-row">
+                <button id="disco-bg-low" onclick="setDiscoBg('low')" title="The artwork rests faint and flares with the sound">Low</button>
+                <button id="disco-bg-medium" onclick="setDiscoBg('medium')" title="Half-lit in silence, full on the peaks">Medium</button>
+                <button id="disco-bg-high" class="active" onclick="setDiscoBg('high')" title="Always fully lit">High</button>
+            </div>
             <div class="hint">Disco listens to the microphone: warp swells with the level, the mirrors kick on the bass, colour runs with the treble — and the parameters sway too, twist with the bass, moiré with the treble. Motion Drive scales the spin and colour push; Parameter Drive scales how far the field bends. Both leave your sliders untouched. Noise Floor is the gate — sound quieter than it counts as silence. Audio is analysed and discarded — nothing is recorded.</div>
         </div>
 
@@ -5915,6 +5931,58 @@
         let discoFloor = 0.06;     // ambient noise below this is silence
         let discoMotionDrive = 1;  // how hard the sound pushes spin and flow
         let discoParamDrive = 1;   // how far it bends the field parameters
+        let discoWaveTint = 'palette';   // palette | warm | cool | white | custom
+        let discoWaveColor = '#6fb4ff';
+        let discoBg = 'high';      // low | medium | high — the artwork's floor brightness
+
+        // At Low the artwork rests faint and flares with the signal; High
+        // never dims. The floor is what the silence looks like.
+        const DISCO_BG_BASE = { low: 0.22, medium: 0.5, high: 1 };
+
+        function setDiscoWaveTint(t) {
+            discoWaveTint = t;
+            ['palette', 'warm', 'cool', 'white'].forEach(function (k) {
+                const el = document.getElementById('wave-' + k);
+                if (el) el.className = (k === discoWaveTint) ? 'active' : '';
+            });
+        }
+
+        function setDiscoWaveColor(hex) {
+            discoWaveColor = hex;
+            setDiscoWaveTint('custom');
+        }
+
+        function discoWaveRGB() {
+            switch (discoWaveTint) {
+                case 'warm':   return [255, 158, 92];
+                case 'cool':   return [111, 180, 255];
+                case 'white':  return [246, 245, 240];
+                case 'custom': return hexToRgb(discoWaveColor);
+                default: {
+                    // The adaptive one: a slow lerp between two palette notes.
+                    const p2 = hexToRgb(params.colorPalette[2]);
+                    const p4 = hexToRgb(params.colorPalette[4]);
+                    const k = 0.5 + 0.5 * Math.sin(waveA * 0.05);
+                    return [Math.round(p2[0] + (p4[0] - p2[0]) * k),
+                            Math.round(p2[1] + (p4[1] - p2[1]) * k),
+                            Math.round(p2[2] + (p4[2] - p2[2]) * k)];
+                }
+            }
+        }
+
+        function setCanvasDim(v) {
+            const w = document.getElementById('canvas-wrap');
+            if (w) w.style.opacity = v >= 1 ? '' : v.toFixed(3);
+        }
+
+        function setDiscoBg(level) {
+            discoBg = DISCO_BG_BASE[level] ? level : 'high';
+            ['low', 'medium', 'high'].forEach(function (k) {
+                const el = document.getElementById('disco-bg-' + k);
+                if (el) el.className = (k === discoBg) ? 'active' : '';
+            });
+            if (!disco || discoBg === 'high') setCanvasDim(1);
+        }
 
         // What the sound adds on top of each field parameter, applied at
         // render time exactly like the intensity lens — the sliders never
@@ -5967,6 +6035,7 @@
                 loop();
             } else {
                 ripple = discoBaseRipple;
+                setCanvasDim(1);
                 stopDiscoAudio();
                 if (!needsLoop()) noLoop();
                 scheduleRender();
@@ -6149,6 +6218,12 @@
             animPhase += discoTreble * 0.02 * f60 * discoMotionDrive;
             tablesDirty = true;
             discoSpin += (0.3 + discoBass * 2.4) * f60;
+
+            // The background dimmer: silence rests at the floor, the signal
+            // lifts it toward full light. Opacity only — compositor-cheap.
+            const bgBase = DISCO_BG_BASE[discoBg];
+            if (bgBase < 1) setCanvasDim(Math.min(1, bgBase + (1 - bgBase) * discoLevel * 1.6));
+
             if (discoBall || discoWaves) drawDiscoOverlay();
         }
 
@@ -6185,13 +6260,8 @@
             const t = discoSpin * D * 0.35;
             const rotC = Math.cos(t), rotS = Math.sin(t);
 
-            const p2 = hexToRgb(params.colorPalette[2]);
-            const p4 = hexToRgb(params.colorPalette[4]);
-            const k = 0.5 + 0.5 * Math.sin(waveA * 0.05);
-            g.strokeStyle = 'rgba(' +
-                Math.round(p2[0] + (p4[0] - p2[0]) * k) + ',' +
-                Math.round(p2[1] + (p4[1] - p2[1]) * k) + ',' +
-                Math.round(p2[2] + (p4[2] - p2[2]) * k) + ',0.5)';
+            const rgb = discoWaveRGB();
+            g.strokeStyle = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',0.5)';
             g.lineWidth = 0.6 + Math.random() * Math.min(3.5, rn2 * 0.04);
 
             g.beginPath();
