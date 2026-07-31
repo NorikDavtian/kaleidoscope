@@ -2492,7 +2492,7 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         const PANELS = ['source', 'symmetry', 'colour', 'motion',
-                        'breathing', 'params', 'share'];
+                        'breathing', 'params', 'share', 'disco'];
         let openPanelName = null;
 
         function openPanel(name) {
@@ -2513,6 +2513,7 @@
             // first control — opening with 1–8 otherwise left focus stranded
             // wherever it was.
             sheet.focus({ preventScroll: true });
+            syncDiscoDock();
         }
 
         function closePanel() {
@@ -2533,6 +2534,7 @@
                 const d = document.getElementById('dock-' + wasOpen);
                 if (d) d.focus({ preventScroll: true });
             }
+            syncDiscoDock();
         }
 
         // Clicking away from the sheet closes it. The dock is exempt, or its own
@@ -3988,17 +3990,21 @@
         let discoLevel = 0, discoBass = 0, discoTreble = 0;
         let discoSpin = 0, discoBaseRipple = 1, discoApplied = -1;
 
+        // The dock ball glows for either reason — its panel is open, or the
+        // scope is actually listening — so panel highlighting and the live
+        // state never fight over the class.
+        function syncDiscoDock() {
+            const dock = document.getElementById('dock-disco');
+            if (dock) dock.className = 'dock-btn' +
+                ((disco || openPanelName === 'disco') ? ' on' : '');
+        }
+
         function setDisco(on) {
             disco = !!on;
-            const dock = document.getElementById('dock-disco');
-            if (dock) dock.className = 'dock-btn' + (disco ? ' on' : '');
+            syncDiscoDock();
             ['off', 'on'].forEach(function (k) {
                 const el = document.getElementById('disco-' + k);
                 if (el) el.className = ((k === 'on') === disco) ? 'active' : '';
-            });
-            ['disco-sens-row', 'disco-floor-row', 'disco-ball-row', 'disco-waves-row'].forEach(function (id) {
-                const el = document.getElementById(id);
-                if (el) el.classList.toggle('off', !disco);
             });
             syncDiscoOverlay();
             if (disco) {

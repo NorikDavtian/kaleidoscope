@@ -1491,43 +1491,6 @@
                 </div>
             </div>
 
-            <label class="edge-label">Disco</label>
-            <div class="breath-row edge-row">
-                <button id="disco-off" class="active" onclick="setDisco(false)">Off</button>
-                <button id="disco-on" onclick="setDisco(true)" title="Listen to the microphone and move with the sound">On</button>
-            </div>
-
-            <div class="control-group off" id="disco-sens-row">
-                <label for="discoSens">Sensitivity</label>
-                <div class="slider-container">
-                    <input type="range" id="discoSens" min="0.2" max="3" step="0.05" value="1" oninput="setDiscoSens(this.value)">
-                    <span class="value-display" id="discoSens-value">1</span>
-                </div>
-            </div>
-
-            <div class="control-group off" id="disco-floor-row">
-                <label for="discoFloor">Noise Floor</label>
-                <div class="slider-container">
-                    <input type="range" id="discoFloor" min="0" max="0.4" step="0.01" value="0.06" oninput="setDiscoFloor(this.value)">
-                    <span class="value-display" id="discoFloor-value">0.06</span>
-                </div>
-            </div>
-
-            <div class="lock-row off" id="disco-ball-row">
-                <span>Equalizer ball on the canvas</span>
-                <button class="switch on" id="disco-ball-toggle" onclick="toggleDiscoBall()"
-                        aria-pressed="true"
-                        title="The point-sphere from VFX No. 18, bouncing with the sound">On</button>
-            </div>
-
-            <div class="lock-row off" id="disco-waves-row">
-                <span>Sound waves on the canvas</span>
-                <button class="switch on" id="disco-waves-toggle" onclick="toggleDiscoWaves()"
-                        aria-pressed="true"
-                        title="The spherical sound waves from VFX No. 18, rippling with the level">On</button>
-            </div>
-            <div class="hint">Disco listens to the microphone: warp swells with the level, the mirrors kick on the bass, colour runs with the treble. Noise Floor is the gate — sound quieter than it counts as silence, so a humming room does not dance on its own. Audio is analysed and discarded — nothing is recorded.</div>
-
             <label class="edge-label">Drift Every</label>
             <div class="breath-row edge-row">
                 <button id="drift-10" onclick="setDriftEvery(10)" title="Step to fresh targets every ten seconds or so">10s</button>
@@ -1671,6 +1634,45 @@
                 </div>
             </div>
             <div class="hint">The colour runs forward as you breathe in and back as you breathe out, and the whole field swells with it. Follow the ring on the canvas.</div>
+        </div>
+
+        <div class="control-section" id="panel-disco">
+            <h3>Disco</h3>
+            <div class="breath-row">
+                <button id="disco-off" class="active" onclick="setDisco(false)">Off</button>
+                <button id="disco-on" onclick="setDisco(true)" title="Listen to the microphone and move with the sound">On</button>
+            </div>
+
+            <div class="control-group" id="disco-sens-row">
+                <label for="discoSens">Sensitivity</label>
+                <div class="slider-container">
+                    <input type="range" id="discoSens" min="0.2" max="3" step="0.05" value="1" oninput="setDiscoSens(this.value)">
+                    <span class="value-display" id="discoSens-value">1</span>
+                </div>
+            </div>
+
+            <div class="control-group" id="disco-floor-row">
+                <label for="discoFloor">Noise Floor</label>
+                <div class="slider-container">
+                    <input type="range" id="discoFloor" min="0" max="0.4" step="0.01" value="0.06" oninput="setDiscoFloor(this.value)">
+                    <span class="value-display" id="discoFloor-value">0.06</span>
+                </div>
+            </div>
+
+            <div class="lock-row" id="disco-ball-row">
+                <span>Equalizer ball on the canvas</span>
+                <button class="switch on" id="disco-ball-toggle" onclick="toggleDiscoBall()"
+                        aria-pressed="true"
+                        title="The point-sphere from VFX No. 18, bouncing with the sound">On</button>
+            </div>
+
+            <div class="lock-row" id="disco-waves-row">
+                <span>Sound waves on the canvas</span>
+                <button class="switch on" id="disco-waves-toggle" onclick="toggleDiscoWaves()"
+                        aria-pressed="true"
+                        title="The spherical sound waves from VFX No. 18, rippling with the level">On</button>
+            </div>
+            <div class="hint">Disco listens to the microphone: warp swells with the level, the mirrors kick on the bass, colour runs with the treble. Noise Floor is the gate — sound quieter than it counts as silence, so a humming room does not dance on its own. Audio is analysed and discarded — nothing is recorded.</div>
         </div>
 
         <div class="control-section" id="panel-params">
@@ -1861,9 +1863,9 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l11 7-11 7z" fill="currentColor" stroke="none"/></svg>
                 <span class="dock-tip">Animate <em>A</em></span>
             </button>
-            <button class="dock-btn" id="dock-disco" onclick="setDisco(!disco)" aria-label="Disco">
+            <button class="dock-btn" id="dock-disco" onclick="openPanel('disco')" aria-label="Disco">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3.6"/><circle cx="12" cy="13.2" r="7.2"/><path d="M5.2 10.7h13.6"/><path d="M5.2 15.7h13.6"/><path d="M9.4 6.5c-1.5 4.3-1.5 9.1 0 13.4"/><path d="M14.6 6.5c1.5 4.3 1.5 9.1 0 13.4"/></svg>
-                <span class="dock-tip">Disco</span>
+                <span class="dock-tip">Disco <em>8</em></span>
             </button>
             <button class="dock-btn" id="dock-fs" onclick="toggleFullscreen()" aria-label="Fullscreen">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/></svg>
@@ -4379,7 +4381,7 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         const PANELS = ['source', 'symmetry', 'colour', 'motion',
-                        'breathing', 'params', 'share'];
+                        'breathing', 'params', 'share', 'disco'];
         let openPanelName = null;
 
         function openPanel(name) {
@@ -4400,6 +4402,7 @@
             // first control — opening with 1–8 otherwise left focus stranded
             // wherever it was.
             sheet.focus({ preventScroll: true });
+            syncDiscoDock();
         }
 
         function closePanel() {
@@ -4420,6 +4423,7 @@
                 const d = document.getElementById('dock-' + wasOpen);
                 if (d) d.focus({ preventScroll: true });
             }
+            syncDiscoDock();
         }
 
         // Clicking away from the sheet closes it. The dock is exempt, or its own
@@ -5875,17 +5879,21 @@
         let discoLevel = 0, discoBass = 0, discoTreble = 0;
         let discoSpin = 0, discoBaseRipple = 1, discoApplied = -1;
 
+        // The dock ball glows for either reason — its panel is open, or the
+        // scope is actually listening — so panel highlighting and the live
+        // state never fight over the class.
+        function syncDiscoDock() {
+            const dock = document.getElementById('dock-disco');
+            if (dock) dock.className = 'dock-btn' +
+                ((disco || openPanelName === 'disco') ? ' on' : '');
+        }
+
         function setDisco(on) {
             disco = !!on;
-            const dock = document.getElementById('dock-disco');
-            if (dock) dock.className = 'dock-btn' + (disco ? ' on' : '');
+            syncDiscoDock();
             ['off', 'on'].forEach(function (k) {
                 const el = document.getElementById('disco-' + k);
                 if (el) el.className = ((k === 'on') === disco) ? 'active' : '';
-            });
-            ['disco-sens-row', 'disco-floor-row', 'disco-ball-row', 'disco-waves-row'].forEach(function (id) {
-                const el = document.getElementById(id);
-                if (el) el.classList.toggle('off', !disco);
             });
             syncDiscoOverlay();
             if (disco) {
