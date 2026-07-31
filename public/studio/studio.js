@@ -290,6 +290,7 @@
         function useVideoPlate(meta, name) {
             stopMovingSources();
             ensureVideoEl();
+            plateVideo.muted = true;     // built-ins stay silent; uploads unmute
 
             let i = 0;
             const attempt = function () {
@@ -2665,7 +2666,14 @@
                     d.w + ' × ' + d.h + ' · your video, never uploaded');
                 if (fresh) familiarStart();
                 setSource('image');
-                plateVideo.play().catch(function () {});
+                // Your own clip gets its sound — the drop or click that chose
+                // it is the user gesture autoplay policy wants. If the browser
+                // still refuses, mute and keep the picture moving.
+                plateVideo.muted = false;
+                plateVideo.play().catch(function () {
+                    plateVideo.muted = true;
+                    plateVideo.play().catch(function () {});
+                });
                 loop();
             };
             plateVideo.src = p.url;

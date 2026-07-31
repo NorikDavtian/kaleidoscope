@@ -529,6 +529,11 @@
             color: var(--dim);
             padding: 4px 2px;
             text-align: center;
+            /* Upload filenames arrive at any length — clip, never overrun. */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         .thumb-seed { position: relative; opacity: 1; }
@@ -639,7 +644,14 @@
         }
 
         .src-caption { font-size: 11px; line-height: 1.45; color: var(--faint); margin-bottom: 13px; text-align: center; }
-        .src-caption strong { display: block; color: var(--text); font-weight: 500; }
+        .src-caption strong {
+            display: block;
+            color: var(--text);
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
         /* ── Colour ────────────────────────────────────────────────────────── */
         .pal-scroll {
@@ -2096,6 +2108,7 @@
         function useVideoPlate(meta, name) {
             stopMovingSources();
             ensureVideoEl();
+            plateVideo.muted = true;     // built-ins stay silent; uploads unmute
 
             let i = 0;
             const attempt = function () {
@@ -4471,7 +4484,14 @@
                     d.w + ' × ' + d.h + ' · your video, never uploaded');
                 if (fresh) familiarStart();
                 setSource('image');
-                plateVideo.play().catch(function () {});
+                // Your own clip gets its sound — the drop or click that chose
+                // it is the user gesture autoplay policy wants. If the browser
+                // still refuses, mute and keep the picture moving.
+                plateVideo.muted = false;
+                plateVideo.play().catch(function () {
+                    plateVideo.muted = true;
+                    plateVideo.play().catch(function () {});
+                });
                 loop();
             };
             plateVideo.src = p.url;
