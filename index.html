@@ -521,6 +521,10 @@
 
         .thumb img { width: 100%; height: 50px; object-fit: cover; display: block; }
 
+        /* Upload tiles carry no caption — the media is the label, the
+           filename lives in the tooltip — so the picture takes the full tile. */
+        .thumb-media img { height: 64px; }
+
         .thumb span {
             display: block;
             font-family: 'Poppins', sans-serif;
@@ -529,6 +533,11 @@
             color: var(--dim);
             padding: 4px 2px;
             text-align: center;
+            /* Upload filenames arrive at any length — clip, never overrun. */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         .thumb-seed { position: relative; opacity: 1; }
@@ -639,7 +648,14 @@
         }
 
         .src-caption { font-size: 11px; line-height: 1.45; color: var(--faint); margin-bottom: 13px; text-align: center; }
-        .src-caption strong { display: block; color: var(--text); font-weight: 500; }
+        .src-caption strong {
+            display: block;
+            color: var(--text);
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
         /* ── Colour ────────────────────────────────────────────────────────── */
         .pal-scroll {
@@ -739,6 +755,19 @@
 
         /* Centred on the artwork — the thing you rest your eyes on while
            following it, rather than something tucked into a corner. */
+        /* The equalizer ball, floating over the artwork like the breath
+           guide does. Its own layer: disco and breathing can coexist. */
+        #disco-ball {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 8;
+            pointer-events: none;
+        }
+
+        #disco-ball.off { display: none; }
+
         #breath-guide {
             position: fixed;
             inset: 0;
@@ -853,6 +882,19 @@
         }
 
         .breath-num:disabled { opacity: 0.35; }
+
+        .disco-select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            border-radius: 8px;
+            padding: 6px 8px;
+            font: inherit;
+            font-size: 12px;
+        }
+
+        .disco-select option { background: #16161c; }
         .breath-num:focus-visible { outline: 1px solid var(--dim); }
 
         /* Out of the flow, or its height would push the ring off centre. */
@@ -927,7 +969,16 @@
         #source-card.off { display: none; }
         #source-card.faded { opacity: 0; pointer-events: none; }
         #source-card img { width: 100%; display: block; border-radius: 7px; }
-        #source-card .card-title { font-size: 12.5px; font-weight: 600; margin-top: 8px; line-height: 1.3; }
+        #source-card .card-title {
+            font-size: 12.5px;
+            font-weight: 600;
+            margin-top: 8px;
+            line-height: 1.3;
+            /* Filenames arrive at any length — clip, never overrun the card. */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         #source-card .card-sub { font-size: 10.5px; color: var(--faint); line-height: 1.4; margin-top: 2px; }
 
         #drop-veil {
@@ -1162,6 +1213,8 @@
         </div>
     </div>
 
+    <canvas id="disco-ball" class="off"></canvas>
+
     <div id="breath-guide">
         <canvas id="breath-ring"></canvas>
         <div id="breath-circle" class="off"></div>
@@ -1182,9 +1235,56 @@
         <button class="sheet-close" onclick="closePanel()" title="Close (Esc)" aria-label="Close panel">×</button>
         <div class="control-section" id="panel-source">
             <h3>Source<span class="sec-tools"><button class="sec-btn" id="sec-source-lock" title="Lock source — Randomize leaves it alone" onclick="toggleSection('source','lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg></button><button class="sec-btn" title="Randomize source only" onclick="randomSection('source')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.6" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.4" cy="8.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.6" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></svg></button><button class="sec-btn" id="sec-source-auto" title="Let source drift on its own" onclick="toggleSection('source','auto')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M18.6 2.9V6.5h-3.6"/></svg></button></span></h3>
+            <label class="edge-label">Intensity</label>
+            <div class="breath-row edge-row">
+                <button id="sstr-verylow" onclick="setSrcStrength('verylow')" title="Untouched — no field over the picture, no image warp, cells all the way open">Very Low</button>
+                <button id="sstr-low" onclick="setSrcStrength('low')" title="Barely worked — wide cells, almost no field over the picture, so it looks like the source">Low</button>
+                <button id="sstr-medium" onclick="setSrcStrength('medium')" title="Half worked — the source still reads, with the field coming through">Medium</button>
+                <button id="sstr-high" class="active" onclick="setSrcStrength('high')" title="The sliders below at full strength">High</button>
+            </div>
+            <div class="hint">How hard the scope works the source. Very Low is the source and the mirrors alone — no field mix, no image warp, cells all the way open; Low keeps a trace of both; Medium lets the field through; High is your sliders as set. They never move — this is a lens over them.</div>
+
             <div class="thumb-grid" id="thumb-grid"></div>
 
-            <input type="file" id="file-input" accept="image/*" style="display:none" onchange="onFilePicked(this.files[0])">
+            <div class="lock-row off" id="uploads-head">
+                <span>Uploads — yours, never leaving this machine</span>
+                <button class="sec-btn on" id="uploads-lock" aria-pressed="true"
+                        title="Hold the chosen upload — unlock to let drift and Randomize shuffle between your uploads"
+                        onclick="toggleUploadsLock()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/></svg>
+                </button>
+            </div>
+            <div class="thumb-grid off" id="upload-grid"></div>
+
+            <input type="file" id="file-input" accept="image/*,video/*" multiple style="display:none" onchange="onFilesPicked(this.files); this.value = ''">
+            <div id="video-controls" class="off">
+                <label class="edge-label">Video</label>
+
+                <div class="control-group">
+                    <label for="videoTrimA">Start</label>
+                    <div class="slider-container">
+                        <input type="range" id="videoTrimA" min="0" max="10" step="0.1" value="0" oninput="setVideoTrim('a', this.value)">
+                        <span class="value-display" id="videoTrimA-value">0.0s</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="videoTrimB">End</label>
+                    <div class="slider-container">
+                        <input type="range" id="videoTrimB" min="0" max="10" step="0.1" value="10" oninput="setVideoTrim('b', this.value)">
+                        <span class="value-display" id="videoTrimB-value">10.0s</span>
+                    </div>
+                </div>
+
+                <div class="lock-row">
+                    <span>Sound</span>
+                    <button class="switch on" id="video-mute-toggle" onclick="toggleVideoMute()"
+                            aria-pressed="true"
+                            title="Hear the clip, or run it silent">On</button>
+                </div>
+                <div class="hint">The clip loops between Start and End, so you can hold on the few seconds worth watching.</div>
+            </div>
+
             <div id="img-controls" class="off">
                 <!-- The source, with the patch the scope is reading marked on it.
                      Without this you are adjusting Zoom and Pan blind. -->
@@ -1530,13 +1630,14 @@
                 </div>
             </div>
 
-            <label class="edge-label">Orb colour</label>
+            <label class="edge-label">Guide colour</label>
             <div class="breath-row edge-row">
                 <button id="tint-white" class="active" onclick="setOrbTint('white')">White</button>
                 <button id="tint-palette" onclick="setOrbTint('palette')">Palette</button>
                 <button id="tint-warm" onclick="setOrbTint('warm')">Warm</button>
                 <button id="tint-cool" onclick="setOrbTint('cool')">Cool</button>
                 <button id="tint-depth" onclick="setOrbTint('depth')">Depth</button>
+                <input type="color" id="tint-color" class="sec-swatch" value="#6fb4ff" title="Your own guide colour" oninput="setOrbColor(this.value)">
             </div>
 
             <div class="control-group" id="orb-size-row">
@@ -1584,6 +1685,84 @@
                 </div>
             </div>
             <div class="hint">The colour runs forward as you breathe in and back as you breathe out, and the whole field swells with it. Follow the ring on the canvas.</div>
+        </div>
+
+        <div class="control-section" id="panel-disco">
+            <h3>Disco</h3>
+            <div class="breath-row">
+                <button id="disco-off" class="active" onclick="setDisco(false)">Off</button>
+                <button id="disco-on" onclick="setDisco(true)" title="Listen to the microphone and move with the sound">On</button>
+            </div>
+
+            <div class="control-group" id="disco-mic-row">
+                <label for="disco-mic-select">Microphone</label>
+                <select id="disco-mic-select" class="disco-select" onchange="setDiscoMic(this.value)">
+                    <option value="">Default microphone</option>
+                </select>
+            </div>
+
+            <div class="control-group" id="disco-sens-row">
+                <label for="discoSens">Sensitivity</label>
+                <div class="slider-container">
+                    <input type="range" id="discoSens" min="0.2" max="3" step="0.05" value="1" oninput="setDiscoSens(this.value)">
+                    <span class="value-display" id="discoSens-value">1</span>
+                </div>
+            </div>
+
+            <div class="control-group" id="disco-floor-row">
+                <label for="discoFloor">Noise Floor</label>
+                <div class="slider-container">
+                    <input type="range" id="discoFloor" min="0" max="0.4" step="0.01" value="0.06" oninput="setDiscoFloor(this.value)">
+                    <span class="value-display" id="discoFloor-value">0.06</span>
+                </div>
+            </div>
+
+            <div class="control-group" id="disco-motion-row">
+                <label for="discoMotion">Motion Drive</label>
+                <div class="slider-container">
+                    <input type="range" id="discoMotion" min="0" max="2" step="0.05" value="1" oninput="setDiscoMotionDrive(this.value)">
+                    <span class="value-display" id="discoMotion-value">1</span>
+                </div>
+            </div>
+
+            <div class="control-group" id="disco-params-row">
+                <label for="discoParams">Parameter Drive</label>
+                <div class="slider-container">
+                    <input type="range" id="discoParams" min="0" max="2" step="0.05" value="1" oninput="setDiscoParamDrive(this.value)">
+                    <span class="value-display" id="discoParams-value">1</span>
+                </div>
+            </div>
+
+            <div class="lock-row" id="disco-ball-row">
+                <span>Equalizer ball on the canvas</span>
+                <button class="switch on" id="disco-ball-toggle" onclick="toggleDiscoBall()"
+                        aria-pressed="true"
+                        title="The point-sphere from VFX No. 18, bouncing with the sound">On</button>
+            </div>
+
+            <div class="lock-row" id="disco-waves-row">
+                <span>Sound waves on the canvas</span>
+                <button class="switch on" id="disco-waves-toggle" onclick="toggleDiscoWaves()"
+                        aria-pressed="true"
+                        title="The spherical sound waves from VFX No. 18, rippling with the level">On</button>
+            </div>
+
+            <label class="edge-label">Wave colour</label>
+            <div class="breath-row edge-row">
+                <button id="wave-palette" class="active" onclick="setDiscoWaveTint('palette')" title="Follows the artwork's live palette">Palette</button>
+                <button id="wave-warm" onclick="setDiscoWaveTint('warm')">Warm</button>
+                <button id="wave-cool" onclick="setDiscoWaveTint('cool')">Cool</button>
+                <button id="wave-white" onclick="setDiscoWaveTint('white')">White</button>
+                <input type="color" id="wave-color" class="sec-swatch" value="#6fb4ff" title="Your own wave colour" oninput="setDiscoWaveColor(this.value)">
+            </div>
+
+            <label class="edge-label">Background</label>
+            <div class="breath-row edge-row">
+                <button id="disco-bg-low" onclick="setDiscoBg('low')" title="The artwork rests faint and flares with the sound">Low</button>
+                <button id="disco-bg-medium" onclick="setDiscoBg('medium')" title="Half-lit in silence, full on the peaks">Medium</button>
+                <button id="disco-bg-high" class="active" onclick="setDiscoBg('high')" title="Always fully lit">High</button>
+            </div>
+            <div class="hint">Disco listens to the microphone: warp swells with the level, the mirrors kick on the bass, colour runs with the treble — and the parameters sway too, twist with the bass, moiré with the treble. Motion Drive scales the spin and colour push; Parameter Drive scales how far the field bends. Both leave your sliders untouched. Noise Floor is the gate — sound quieter than it counts as silence. Audio is analysed and discarded — nothing is recorded.</div>
         </div>
 
         <div class="control-section" id="panel-params">
@@ -1774,6 +1953,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l11 7-11 7z" fill="currentColor" stroke="none"/></svg>
                 <span class="dock-tip">Animate <em>A</em></span>
             </button>
+            <button class="dock-btn" id="dock-disco" onclick="openPanel('disco')" aria-label="Disco">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3.6"/><circle cx="12" cy="13.2" r="7.2"/><path d="M5.2 10.7h13.6"/><path d="M5.2 15.7h13.6"/><path d="M9.4 6.5c-1.5 4.3-1.5 9.1 0 13.4"/><path d="M14.6 6.5c1.5 4.3 1.5 9.1 0 13.4"/></svg>
+                <span class="dock-tip">Disco <em>8</em></span>
+            </button>
             <button class="dock-btn" id="dock-fs" onclick="toggleFullscreen()" aria-label="Fullscreen">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/></svg>
                 <span class="dock-tip">Fullscreen <em>F</em></span>
@@ -1820,6 +2003,8 @@
             folds: 5,        // mirror count — default 10, the tetractys
             paramStrength: 1, // how much of the parameters reaches the scope —
                               // Low 0.35 | Medium 0.7 | High 1
+            srcStrength: 1,   // how hard the scope works the source — same three
+                              // steps, but Low also opens the cells wide
             moire: 0.01,       // interference depth
             mfreq: 3.3,       // fringe frequency
             detune: 1.48,     // ratio between the two interfering systems
@@ -1852,7 +2037,8 @@
             guideStyle: 'orb',// orb (particle shell) | circle (drawn ring)
             circleBorder: 4,  // ring thickness of the circle guide, in px
             circleBlur: 6,    // softness feathered into the ring's edges, in px
-            orbTint: 'white', // white | ink | palette | warm | cool | depth
+            orbTint: 'white', // white | ink | palette | warm | cool | depth | custom
+            orbColor: '#6fb4ff',  // the custom tint's colour
             orbBackdrop: 'dark',  // none | dark | glass
             orbBackdropAlpha: 1,  // how strongly the backdrop reads
             orbBackdropBlur: 9,   // px of frosting behind glass
@@ -2047,23 +2233,155 @@
         }
 
         let plateVideo = null, videoCv = null, videoCtx = null, videoLive = false;
+        let camStream = null, camUsed = false;
+
+        // Playback settings for whatever video is on: the piece of it that
+        // loops, and whether it is heard. A live camera has neither — it has
+        // no duration to trim and nothing to hear.
+        let vidTrimA = 0, vidTrimB = 0, vidMuted = false, vidTrimmable = false;
+
+        function syncVideoControls() {
+            const box = document.getElementById('video-controls');
+            if (box) box.classList.toggle('off', !vidTrimmable);
+            const m = document.getElementById('video-mute-toggle');
+            if (m) {
+                m.className = vidMuted ? 'switch' : 'switch on';
+                m.textContent = vidMuted ? 'Off' : 'On';
+                m.setAttribute('aria-pressed', !vidMuted);
+            }
+            if (!vidTrimmable) return;
+            const dur = (plateVideo && isFinite(plateVideo.duration)) ? plateVideo.duration : 0;
+            [['videoTrimA', vidTrimA], ['videoTrimB', vidTrimB]].forEach(function (p) {
+                const s = document.getElementById(p[0]);
+                if (s) { s.max = dur.toFixed(2); s.value = p[1]; }
+                const d = document.getElementById(p[0] + '-value');
+                if (d) d.textContent = p[1].toFixed(1) + 's';
+            });
+        }
+
+        // Called when a video becomes the source: the trim opens to the whole
+        // clip, and the sound follows whose video it is.
+        function adoptVideoPlayback(muted) {
+            vidTrimmable = !!(plateVideo && isFinite(plateVideo.duration) && plateVideo.duration > 0);
+            vidTrimA = 0;
+            vidTrimB = vidTrimmable ? plateVideo.duration : 0;
+            vidMuted = !!muted;
+            if (plateVideo) plateVideo.muted = vidMuted;
+            syncVideoControls();
+        }
+
+        function setVideoTrim(which, v) {
+            const t = parseFloat(v) || 0;
+            const dur = (plateVideo && isFinite(plateVideo.duration)) ? plateVideo.duration : 0;
+            // A quarter second of clearance, or the loop would land on its own
+            // end point and stutter in place.
+            if (which === 'a') vidTrimA = Math.min(t, Math.max(0, vidTrimB - 0.25));
+            else vidTrimB = Math.max(t, Math.min(dur, vidTrimA + 0.25));
+            if (plateVideo && plateVideo.currentTime < vidTrimA) plateVideo.currentTime = vidTrimA;
+            syncVideoControls();
+        }
+
+        function toggleVideoMute() {
+            vidMuted = !vidMuted;
+            if (plateVideo) {
+                plateVideo.muted = vidMuted;
+                // Unmuting a clip the browser silently muted to let it autoplay
+                // needs the play call repeated, or it stays quiet.
+                if (!vidMuted && plateVideo.paused) plateVideo.play().catch(function () {});
+            }
+            syncVideoControls();
+        }
+
+        // Per frame while a video is live: keep playback inside the trim.
+        function holdVideoTrim() {
+            if (!vidTrimmable || !plateVideo || vidTrimB <= vidTrimA) return;
+            const t = plateVideo.currentTime;
+            if (t >= vidTrimB || t < vidTrimA - 0.25) plateVideo.currentTime = vidTrimA;
+        }
+
+        // Live camera as a source: the stream lands in the same shared video
+        // element and rides the per-frame frame-to-canvas path the video
+        // plates use. Nothing is recorded and nothing leaves the machine —
+        // the frames go to the sampler and nowhere else.
+        function useCamera() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showVeil(true, 'No camera available here');
+                setTimeout(function () { showVeil(false); }, 1600);
+                return;
+            }
+            navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: false
+            }).then(function (stream) {
+                stopMovingSources();
+                ensureVideoEl();
+                plateVideo.muted = true;
+                camStream = stream;
+                plateVideo.onerror = null;
+                plateVideo.onloadeddata = function () {
+                    const d = adoptVideoSurface();
+                    if (!d) return;
+                    activeBase = null;
+                    activeUpload = null;
+                    markActiveThumb('camera');
+                    setSourceMeta(thumbURL(videoCv), 'Camera',
+                        d.w + ' × ' + d.h + ' · live, never recorded');
+                    if (!camUsed) { camUsed = true; familiarStart(); }
+                    setSource('image');
+                    adoptVideoPlayback(true);   // a live feed has nothing to trim
+                    plateVideo.play().catch(function () {});
+                    loop();
+                };
+                plateVideo.srcObject = stream;
+            }, function () {
+                showVeil(true, 'Camera unavailable or refused');
+                setTimeout(function () { showVeil(false); }, 1600);
+            });
+        }
 
         // A video source is the animated plate with its frames coming from a
         // file: draw the current frame to a canvas, hand that to the GPU, and
         // let the existing per-frame re-upload do the rest.
+        function ensureVideoEl() {
+            if (plateVideo) return;
+            plateVideo = document.createElement('video');
+            plateVideo.muted = true;              // required for autoplay
+            plateVideo.loop = true;
+            plateVideo.autoplay = true;
+            plateVideo.playsInline = true;
+            plateVideo.setAttribute('playsinline', '');
+            plateVideo.crossOrigin = 'anonymous';
+            plateVideo.style.display = 'none';
+            // The trim is held on the element's own clock as well as in the
+            // frame loop: a backgrounded tab throttles rAF to nothing while
+            // the video keeps playing, and the clip would run past its end.
+            plateVideo.addEventListener('timeupdate', holdVideoTrim);
+            document.body.appendChild(plateVideo);
+        }
+
+        // The frame-to-canvas handoff both video paths share. Returns the
+        // dimensions, or null while the metadata has not arrived.
+        function adoptVideoSurface() {
+            const w = plateVideo.videoWidth, h = plateVideo.videoHeight;
+            if (!w || !h) return null;
+            if (!videoCv) { videoCv = document.createElement('canvas'); videoCtx = videoCv.getContext('2d'); }
+            videoCv.width = w; videoCv.height = h;
+            videoCtx.drawImage(plateVideo, 0, 0, w, h);
+
+            if (srcHolder) { srcHolder.remove(); srcHolder = null; }
+            srcPixels = null;                     // the CPU path cannot follow a video
+            srcW = w; srcH = h;
+            srcCanvas = videoCv;
+            srcTexDirty = true;
+            videoLive = true;
+            plateAnim = true;
+            return { w: w, h: h };
+        }
+
         function useVideoPlate(meta, name) {
             stopMovingSources();
-            if (!plateVideo) {
-                plateVideo = document.createElement('video');
-                plateVideo.muted = true;              // required for autoplay
-                plateVideo.loop = true;
-                plateVideo.autoplay = true;
-                plateVideo.playsInline = true;
-                plateVideo.setAttribute('playsinline', '');
-                plateVideo.crossOrigin = 'anonymous';
-                plateVideo.style.display = 'none';
-                document.body.appendChild(plateVideo);
-            }
+            ensureVideoEl();
+            plateVideo.muted = true;     // built-ins stay silent; uploads unmute
 
             let i = 0;
             const attempt = function () {
@@ -2077,25 +2395,16 @@
 
             plateVideo.onerror = attempt;
             plateVideo.onloadeddata = function () {
-                const w = plateVideo.videoWidth, h = plateVideo.videoHeight;
-                if (!w || !h) return;
-                if (!videoCv) { videoCv = document.createElement('canvas'); videoCtx = videoCv.getContext('2d'); }
-                videoCv.width = w; videoCv.height = h;
-                videoCtx.drawImage(plateVideo, 0, 0, w, h);
-
-                if (srcHolder) { srcHolder.remove(); srcHolder = null; }
-                srcPixels = null;                     // the CPU path cannot follow a video
-                srcW = w; srcH = h;
-                srcCanvas = videoCv;
-                srcTexDirty = true;
-                videoLive = true;
-                plateAnim = true;
+                const d = adoptVideoSurface();
+                if (!d) return;
                 activeBase = meta.id;
+                activeUpload = null;
                 markActiveThumb(meta.id);
                 setDropLabel('Upload');
                 setSourceMeta(thumbURL(videoCv), name,
-                    w + ' × ' + h + ' · built-in video');
+                    d.w + ' × ' + d.h + ' · built-in video');
                 setSource('image');
+                adoptVideoPlayback(true);      // built-ins open silent
                 plateVideo.play().catch(function () {});
                 loop();
             };
@@ -2114,6 +2423,15 @@
             videoLive = false;
             plateAnim = false;
             if (plateVideo) plateVideo.pause();
+            // The webcam light must go out the moment anything else takes
+            // over — a paused stream still counts as watching.
+            if (camStream) {
+                camStream.getTracks().forEach(function (t) { t.stop(); });
+                camStream = null;
+            }
+            if (plateVideo && plateVideo.srcObject) plateVideo.srcObject = null;
+            vidTrimmable = false;
+            syncVideoControls();
             if (animFrames) {
                 animFrames.forEach(function (f) { if (f.frame.close) f.frame.close(); });
                 animFrames = null;
@@ -2452,6 +2770,19 @@
             up.onclick = function () { document.getElementById('file-input').click(); };
             grid.appendChild(up);
 
+            const cam = document.createElement('button');
+            cam.className = 'thumb thumb-upload';
+            cam.id = 'thumb-camera';
+            cam.title = 'Feed the scope your camera — live, never recorded';
+            cam.innerHTML = '<span class="up-face">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+                'stroke-linecap="round" stroke-linejoin="round">' +
+                '<path d="M4 8.5h3l1.6-2.3h6.8L17 8.5h3v10H4z"/>' +
+                '<circle cx="12" cy="13.2" r="3.1"/></svg></span>' +
+                '<span>Camera</span>';
+            cam.onclick = function () { useCamera(); };
+            grid.appendChild(cam);
+
             refreshSeedTile();
 
             BASE_PLATES.forEach(function (b) {
@@ -2530,6 +2861,14 @@
             if (none) none.classList.toggle('active', id === 'none');
             const up = document.getElementById('thumb-upload');
             if (up) up.classList.toggle('active', id === 'upload');
+            const cam = document.getElementById('thumb-camera');
+            if (cam) cam.classList.toggle('active', id === 'camera');
+            const ug = document.getElementById('upload-grid');
+            if (ug) {
+                Array.prototype.forEach.call(ug.children, function (el) {
+                    el.classList.toggle('active', el.id === 'thumb-' + id);
+                });
+            }
             refreshThumbLocks();
         }
 
@@ -2571,6 +2910,7 @@
 
         function useBasePlate(id, name) {
             const meta = plateById(id);
+            activeUpload = null;      // a built-in takes over from any upload
 
             if (meta && meta.video) { useVideoPlate(meta, name); return; }
             if (meta && meta.src && meta.animated) { useAnimatedPlate(meta, name); return; }
@@ -3747,7 +4087,7 @@
 
         function needsLoop() {
             return animating || dragging || Math.abs(dragVel) > 0.0004 ||
-                   params.breath !== 'off' ||
+                   params.breath !== 'off' || disco ||
                    (plateAnim && params.source === 'image') ||
                    anySectionAuto() || fadeAmt > 0;
         }
@@ -3800,6 +4140,8 @@
                 tablesDirty = true;
             }
 
+            if (disco) discoStep(f60);
+
             if (!document.getElementById('intro').classList.contains('gone')) drawIntroOrb();
 
             if (anySectionAuto()) stepSections(nowMs);
@@ -3817,6 +4159,7 @@
                         imgDirty = true;
                     }
                 } else if (videoLive && plateVideo && plateVideo.readyState >= 2) {
+                    holdVideoTrim();
                     videoCtx.drawImage(plateVideo, 0, 0, videoCv.width, videoCv.height);
                     srcTexDirty = true;
                     imgDirty = true;
@@ -3863,7 +4206,10 @@
             } else {
                 // The buffer is square; drawn at the viewport diagonal it covers
                 // the frame at any rotation, so spin never exposes a corner.
-                const puff = 1 + (breathValue - 0.5) * params.breathDepth * 0.09;
+                // The breath swells outward only — the old centred swing put
+                // the exhale a few percent under the diagonal, and black
+                // corners peeked in at unlucky angles.
+                const puff = 1 + breathValue * params.breathDepth * 0.09;
                 const D = Math.sqrt(width * width + height * height) * puff
                         * lensZoom();
                 ctx.save();
@@ -4029,7 +4375,7 @@
         // square into two right isosceles triangles — the 45·45·90 scope.
         function drawSquareTiling(ctx, w, h, diagMirror) {
             const diag = Math.sqrt(w * w + h * h);
-            const len = Math.max(params.cellSize * lensZoom(), diag / (SQ_CAP - 1));
+            const len = Math.max(effParam('cellSize') * lensZoom(), diag / (SQ_CAP - 1));
             const outer = len / Math.SQRT1_2;      // len = sin(45°) · outer
             const ox = outer / 2, oy = outer / 2;
             const cells = Math.ceil(diag / len) + 1;
@@ -4097,7 +4443,7 @@
 
         function drawTriangleTiling(ctx, w, h) {
             const diag = Math.sqrt(w * w + h * h);
-            const len = Math.max(params.cellSize * lensZoom(), diag / 2 / (TRI_CAP - 1));
+            const len = Math.max(effParam('cellSize') * lensZoom(), diag / 2 / (TRI_CAP - 1));
             const outer = len / (Math.sqrt(3) / 2);
             const ox = len / 2, oy = len / Math.sqrt(3) / 2;
             const cx = w / 2, cy = h / 2;
@@ -4204,7 +4550,7 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         const PANELS = ['source', 'symmetry', 'colour', 'motion',
-                        'breathing', 'params', 'share'];
+                        'breathing', 'params', 'share', 'disco'];
         let openPanelName = null;
 
         function openPanel(name) {
@@ -4225,6 +4571,7 @@
             // first control — opening with 1–8 otherwise left focus stranded
             // wherever it was.
             sheet.focus({ preventScroll: true });
+            syncDiscoDock();
         }
 
         function closePanel() {
@@ -4245,6 +4592,7 @@
                 const d = document.getElementById('dock-' + wasOpen);
                 if (d) d.focus({ preventScroll: true });
             }
+            syncDiscoDock();
         }
 
         // Clicking away from the sheet closes it. The dock is exempt, or its own
@@ -4303,8 +4651,59 @@
             scheduleRender();
         }
 
-        function onFilePicked(file) {
-            if (!file) return;
+        // ═══════════════════════════════════════════════════════════════════════
+        // USER UPLOADS
+        //
+        // Every image or video you drop or pick is kept as its own plate in an
+        // Uploads row under the built-ins, so a batch arrives whole and you
+        // can flick between them. Nothing here ever leaves the machine unless
+        // the app's share hook stores an image you activated. The row has one
+        // lock: held (the default), drift and Randomize leave your chosen
+        // upload alone; released, they shuffle among your uploads the way the
+        // built-ins shuffle among themselves — never dropping you back to a
+        // built-in on their own.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let userPlates = [];
+        let userSeq = 0;
+        let activeUpload = null;   // id of the upload in use, or null
+        let uploadsLock = true;
+
+        function shortName(name) {
+            return name.length > 26 ? name.slice(0, 24) + '…' : name;
+        }
+
+        // The picture should open looking like itself: nothing painted over
+        // it, parameters at their floors, cells big enough to read.
+        function familiarStart() {
+            // The Source dial says all of this without touching a slider —
+            // wide cells, the field held back — so a picture opens looking
+            // like itself and one click takes you back to the full effect.
+            setSrcStrength('low');
+            if (!secPower.params) toggleSectionPower('params');
+        }
+
+        function onFilesPicked(list) {
+            const files = Array.prototype.slice.call(list || []).filter(function (f) {
+                return f && (f.type.indexOf('image') === 0 || f.type.indexOf('video') === 0);
+            });
+            files.forEach(function (f, i) {
+                addUserFile(f, i === files.length - 1);   // the last one takes the stage
+            });
+            return files.length > 0;
+        }
+
+        function addUserFile(file, activate) {
+            if (file.type.indexOf('video') === 0) {
+                const p = { id: 'u' + (++userSeq), name: file.name, kind: 'video',
+                            url: URL.createObjectURL(file), thumb: null };
+                userPlates.push(p);
+                addUploadThumb(p);
+                if (activate) playUserVideo(p, true);
+                else makeVideoThumb(p);
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = function (ev) {
                 loadImage(ev.target.result, function (loaded) {
@@ -4316,36 +4715,13 @@
                         loaded.resize(Math.round(loaded.width * k), Math.round(loaded.height * k));
                     }
                     loaded.loadPixels();
-                    srcPixels = loaded.pixels;
-                    srcW = loaded.width;
-                    srcH = loaded.height;
-                    srcCanvas = loaded.canvas;
-                    srcTexDirty = true;
-                    stopMovingSources();
-                    activeBase = null;
-                    markActiveThumb('upload');
-
-                    const short = file.name.length > 26 ? file.name.slice(0, 24) + '…' : file.name;
-                    setDropLabel(short);
-                    setSourceMeta(thumbURL(loaded.canvas), short, srcW + ' × ' + srcH + ' · yours, never uploaded');
-
-                    // An upload is worth seeing before it gets painted over.
-                    params.mix = 0;
-                    params.imgWarp = 0;
-                    setSlider('mix', 0);
-                    setSlider('imgWarp', 0);
-
-                    // And it should open looking like the picture you loaded:
-                    // parameters rest at their floors and the cells go big, so
-                    // the mirrors show it at familiar scale. Flip Parameters
-                    // back on when you want it abstract.
-                    if (!secPower.params) toggleSectionPower('params');
-                    if (params.cellSize < 460) {
-                        params.cellSize = 460;
-                        setSlider('cellSize', 460);
-                    }
-
-                    setSource('image');
+                    const p = { id: 'u' + (++userSeq), name: file.name, kind: 'image',
+                                img: loaded, thumb: thumbURL(loaded.canvas),
+                                w: loaded.width, h: loaded.height };
+                    userPlates.push(p);
+                    addUploadThumb(p);
+                    if (!activate) return;
+                    applyUserImage(p, true);
 
                     // Standalone this is undefined and the image simply stays
                     // local; under the app it is stored so the link carries it.
@@ -4363,6 +4739,130 @@
                 });
             };
             reader.readAsDataURL(file);
+        }
+
+        function useUserPlate(id) {
+            const p = userPlates.filter(function (x) { return x.id === id; })[0];
+            if (!p) return;
+            if (p.kind === 'video') playUserVideo(p, false);
+            else applyUserImage(p, false);
+        }
+
+        function applyUserImage(p, fresh) {
+            stopMovingSources();
+            srcPixels = p.img.pixels;
+            srcW = p.img.width;
+            srcH = p.img.height;
+            srcCanvas = p.img.canvas;
+            srcTexDirty = true;
+            activeBase = null;
+            activeUpload = p.id;
+            markActiveThumb('upload-' + p.id);
+            setSourceMeta(p.thumb, shortName(p.name), srcW + ' × ' + srcH + ' · yours, never uploaded');
+            if (fresh) familiarStart();
+            setSource('image');
+        }
+
+        function playUserVideo(p, fresh) {
+            stopMovingSources();
+            ensureVideoEl();
+            plateVideo.onerror = function () {
+                showVeil(true, 'That video would not play');
+                setTimeout(function () { showVeil(false); }, 1600);
+            };
+            plateVideo.onloadeddata = function () {
+                const d = adoptVideoSurface();
+                if (!d) return;
+                activeBase = null;
+                activeUpload = p.id;
+                if (!p.thumb) {
+                    p.thumb = thumbURL(videoCv);
+                    refreshUploadThumb(p);
+                }
+                markActiveThumb('upload-' + p.id);
+                setSourceMeta(p.thumb, shortName(p.name),
+                    d.w + ' × ' + d.h + ' · your video, never uploaded');
+                if (fresh) familiarStart();
+                setSource('image');
+                // Your own clip gets its sound — the drop or click that chose
+                // it is the user gesture autoplay policy wants. If the browser
+                // still refuses, mute and keep the picture moving.
+                adoptVideoPlayback(false);
+                plateVideo.play().catch(function () {
+                    vidMuted = true;
+                    plateVideo.muted = true;
+                    syncVideoControls();
+                    plateVideo.play().catch(function () {});
+                });
+                loop();
+            };
+            plateVideo.src = p.url;
+            plateVideo.load();
+        }
+
+        // A first frame for the tile of a video that has not played yet, from
+        // a throwaway element so the live one is never disturbed.
+        function makeVideoThumb(p) {
+            const v = document.createElement('video');
+            v.muted = true;
+            v.playsInline = true;
+            v.preload = 'auto';
+            v.onloadeddata = function () {
+                if (!v.videoWidth) return;
+                const c = document.createElement('canvas');
+                c.width = v.videoWidth; c.height = v.videoHeight;
+                c.getContext('2d').drawImage(v, 0, 0);
+                if (!p.thumb) { p.thumb = thumbURL(c); refreshUploadThumb(p); }
+                v.removeAttribute('src');
+                v.load();
+            };
+            v.src = p.url;
+        }
+
+        function addUploadThumb(p) {
+            ['uploads-head', 'upload-grid'].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('off');
+            });
+            const grid = document.getElementById('upload-grid');
+            if (!grid) return;
+            const btn = document.createElement('button');
+            btn.className = 'thumb thumb-media';
+            btn.id = 'thumb-upload-' + p.id;
+            btn.title = p.name;             // the filename lives in the tooltip
+            const im = document.createElement('img');
+            im.alt = p.name;
+            if (p.thumb) im.src = p.thumb;
+            btn.appendChild(im);
+            btn.onclick = function () { useUserPlate(p.id); };
+            grid.appendChild(btn);
+        }
+
+        function refreshUploadThumb(p) {
+            const btn = document.getElementById('thumb-upload-' + p.id);
+            const im = btn && btn.querySelector('img');
+            if (im && p.thumb) im.src = p.thumb;
+        }
+
+        function toggleUploadsLock() {
+            uploadsLock = !uploadsLock;
+            const el = document.getElementById('uploads-lock');
+            if (el) {
+                el.className = uploadsLock ? 'sec-btn on' : 'sec-btn';
+                el.setAttribute('aria-pressed', uploadsLock);
+            }
+        }
+
+        // Drift and Randomize call this instead of touching uploads directly:
+        // it returns true when it moved to another of your uploads.
+        function shuffleUserPlate() {
+            if (activeUpload === null || uploadsLock || userPlates.length < 2) return false;
+            const others = userPlates.filter(function (p) {
+                return p.id !== activeUpload && (p.kind !== 'image' || p.img);
+            });
+            if (!others.length) return false;
+            useUserPlate(others[(Math.random() * others.length) | 0].id);
+            return true;
         }
 
         // When the page is served by the app, a shared generation arrives with
@@ -4404,7 +4904,8 @@
             if (dt.items && dt.items.length) {
                 for (let i = 0; i < dt.items.length; i++) {
                     const it = dt.items[i];
-                    if (it.kind === 'file' && (!it.type || it.type.indexOf('image') === 0)) return true;
+                    if (it.kind === 'file' && (!it.type || it.type.indexOf('image') === 0
+                                                        || it.type.indexOf('video') === 0)) return true;
                 }
                 return false;
             }
@@ -4435,16 +4936,14 @@
             showVeil(false);
 
             const dt = e.dataTransfer;
-            const f = dt && dt.files && dt.files[0];
-            if (!f) return;
-            if (f.type.indexOf('image') !== 0) {
-                showVeil(true, 'That is not an image');
+            if (!dt || !dt.files || !dt.files.length) return;
+            if (!onFilesPicked(dt.files)) {
+                showVeil(true, 'That is not an image or a video');
                 setTimeout(function () { showVeil(false); }, 1600);
                 return;
             }
             // Dropping is intent enough to get past the front door.
             enterStudio();
-            onFilePicked(f);
         });
 
         // A file dropped outside the window would otherwise navigate away from
@@ -5030,7 +5529,8 @@
         // Backing resolution is capped and CSS scales it up: clearing and
         // uploading the buffer dominates the cost and grows with the square of
         // the side. Points are soft, so the upscale costs nothing visually.
-        const breathOrb = { side: 300, spin: 0, ctx: null, img: null };
+        // Only the welcome disc runs the particle shell now — the breathing
+        // guide draws itself as discrete balls, in drawOrb below.
         const introOrb  = { side: 300, spin: 1.9, ctx: null, img: null };
 
         // The welcome runs the same shell, dimmer and slower, as a backdrop.
@@ -5041,11 +5541,74 @@
                       [0.30, 0.34, 0.44], 0.98);
         }
 
+        // The tint, resolved to a colour pair the ball lerps across.
+        function orbBallColors() {
+            const p = params.colorPalette;
+            switch (params.orbTint) {
+                case 'palette': return [hexToRgb(p[1]), hexToRgb(p[4])];
+                case 'warm':    return [[255, 217, 160], [224, 90, 58]];
+                case 'cool':    return [[183, 227, 255], [90, 109, 255]];
+                case 'depth':   return [hexToRgb(p[4]), hexToRgb(p[1])];
+                case 'ink':     return [[24, 24, 30], [72, 72, 82]];
+                case 'custom': {
+                    // One chosen colour, darkened along the lerp so the far
+                    // side of the shell still reads as depth rather than flat.
+                    const h = hexToRgb(params.orbColor);
+                    return [h, [h[0] * 0.42, h[1] * 0.42, h[2] * 0.42]];
+                }
+                default:        return [[246, 245, 240], [168, 168, 176]];
+            }
+        }
+
+        let breathBallSpin = 0;
+
+        // The guide in the equalizer ball's language: discrete glowing balls
+        // rather than particle fog, laid on a Fibonacci sphere so it reads as
+        // a clean orb, turning slowly, with a soft radial ripple the breath
+        // deepens. The whole thing still swells on the ring's CSS transform.
         function drawOrb() {
             if (params.guideStyle !== 'orb') return;   // the circle owns the guide
-            breathOrb.side = Math.max(80, Math.min(300, Math.round(params.orbSize)));
-            renderOrb(document.getElementById('breath-ring'), breathOrb,
-                      params.orbStrength, 0.0016, 0.38);
+            const cv = document.getElementById('breath-ring');
+            if (!cv) return;
+            const side = Math.max(80, Math.min(620, Math.round(params.orbSize)));
+            if (cv.width !== side || cv.height !== side) { cv.width = side; cv.height = side; }
+            const g = cv.getContext('2d');
+            g.clearRect(0, 0, side, side);
+
+            const c = side / 2;
+            const N = 384;
+            const GA = 137.5 * Math.PI / 180;
+            const R = c * 0.74;
+            const spin = breathBallSpin;
+            const ripple = 0.025 + breathValue * 0.05;
+            const strength = Math.min(2, Math.max(0, params.orbStrength));
+            const pair = orbBallColors();
+            const a = pair[0], b = pair[1];
+
+            for (let i = 0; i < N; i++) {
+                const phi = Math.acos(1 - 2 * (i + 0.5) / N);
+                const th = i * GA + spin;
+                const r = R * (1 + Math.sin(spin * 2 + i) * ripple);
+                const sp = Math.sin(phi);
+                const x = r * sp * Math.cos(th);
+                const y = r * Math.cos(phi);
+                const z = r * sp * Math.sin(th);
+
+                const depth = 0.35 + 0.65 * (z / R + 1) / 2;
+                const k = i / N;
+                const size = (1.1 + 2.1 * depth) * (side / 300);
+
+                g.fillStyle = 'rgba(' +
+                    Math.round(a[0] + (b[0] - a[0]) * k) + ',' +
+                    Math.round(a[1] + (b[1] - a[1]) * k) + ',' +
+                    Math.round(a[2] + (b[2] - a[2]) * k) + ',' +
+                    Math.min(1, 0.85 * depth * strength).toFixed(3) + ')';
+                g.beginPath();
+                g.arc(c + x, c + y, size, 0, 6.28318);
+                g.fill();
+            }
+
+            breathBallSpin += 0.006;
         }
 
 
@@ -5193,6 +5756,7 @@
                 case 'cool':  return 'linear-gradient(135deg, #b7e3ff, #6fb4ff, #5a6dff)';
                 case 'depth': return 'radial-gradient(circle, ' + p[4] + ', ' + p[1] + ')';
                 case 'ink':   return 'rgba(16, 16, 20, 0.92)';
+                case 'custom': return params.orbColor;
                 default:      return 'rgba(250, 249, 245, 0.92)';
             }
         }
@@ -5258,6 +5822,11 @@
             });
             drawOrb();
             updateCircleStyle();
+        }
+
+        function setOrbColor(hex) {
+            params.orbColor = hex;
+            setOrbTint('custom');     // picking a colour is choosing it
         }
 
         function setOrbSize(v) {
@@ -5444,11 +6013,56 @@
                                'warp', 'octaves', 'bands', 'rings', 'seam',
                                'mix', 'imgWarp'];
 
+        // What the Source dial governs: how hard the scope works the picture.
+        // The two amounts that paint over it ease toward zero, and the cells
+        // open wide — a big cell shows a big piece of the source, which is
+        // what makes it recognisable as itself.
+        const SRC_STRENGTH_KEYS = ['mix', 'imgWarp'];
+        const SRC_WIDE_CELL = 760;
+
         function effParam(k) {
-            if (params.paramStrength >= 1 || STRENGTH_KEYS.indexOf(k) < 0) return params[k];
-            const lo = powerFloor(k);
-            const v = lo + (params[k] - lo) * params.paramStrength;
+            let v = params[k];
+            if (params.paramStrength < 1 && STRENGTH_KEYS.indexOf(k) >= 0) {
+                const lo = powerFloor(k);
+                v = lo + (v - lo) * params.paramStrength;
+            }
+            if (params.srcStrength < 1) {
+                if (SRC_STRENGTH_KEYS.indexOf(k) >= 0) {
+                    v *= params.srcStrength;
+                } else if (k === 'cellSize') {
+                    v += (SRC_WIDE_CELL - v) * (1 - params.srcStrength);
+                }
+            }
+            if (disco) v = discoModParam(k, v);
             return INT_PARAMS.indexOf(k) >= 0 ? Math.round(v) : v;
+        }
+
+        // Very Low is exactly zero: no field over the picture, no warp on it,
+        // the cells all the way open — the source and the mirrors, nothing else.
+        const SRC_STRENGTHS = { verylow: 0, low: 0.35, medium: 0.7, high: 1 };
+
+        function setSrcStrength(level) {
+            if (SRC_STRENGTHS[level] !== undefined) {
+                params.srcStrength = SRC_STRENGTHS[level];
+            } else {
+                // `|| 1` would swallow a legitimate zero, so parse first.
+                const n = parseFloat(level);
+                params.srcStrength = isFinite(n) ? Math.min(1, Math.max(0, n)) : 1;
+            }
+            syncSrcStrengthUI();
+            refreshShareUI();
+            refreshSrcRegion();      // the sampled patch moved with the cells
+            scheduleRender();
+        }
+
+        function syncSrcStrengthUI() {
+            const level = params.srcStrength <= 0.02 ? 'verylow'
+                        : params.srcStrength <= 0.5 ? 'low'
+                        : params.srcStrength < 1 ? 'medium' : 'high';
+            Object.keys(SRC_STRENGTHS).forEach(function (k) {
+                const el = document.getElementById('sstr-' + k);
+                if (el) el.className = (k === level) ? 'active' : '';
+            });
         }
 
         const PARAM_STRENGTHS = { low: 0.35, medium: 0.7, high: 1 };
@@ -5525,6 +6139,410 @@
             syncPowerSwitches();
         }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // DISCO
+        //
+        // The scope listens. Adapted from the author's equalizer ball
+        // (norik.io/vfx/no18): the phyllotaxis point sphere — golden-angle
+        // spiral, radius √i, the level-driven bounce and size pulse — comes
+        // over as a 2D-projected overlay, and the microphone level now drives
+        // the field itself: warp ripple swells on the overall level, the
+        // mirrors kick on the bass, colour runs with the treble. Audio is
+        // analysed and discarded — nothing is recorded.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let disco = false;
+        let discoBall = true;
+        let discoWaves = true;
+        let discoSens = 1;
+        let discoFloor = 0.06;     // ambient noise below this is silence
+        let discoMotionDrive = 1;  // how hard the sound pushes spin and flow
+        let discoParamDrive = 1;   // how far it bends the field parameters
+        let discoWaveTint = 'palette';   // palette | warm | cool | white | custom
+        let discoWaveColor = '#6fb4ff';
+        let discoBg = 'high';      // low | medium | high — the artwork's floor brightness
+
+        // At Low the artwork rests faint and flares with the signal; High
+        // never dims. The floor is what the silence looks like.
+        const DISCO_BG_BASE = { low: 0.22, medium: 0.5, high: 1 };
+
+        function setDiscoWaveTint(t) {
+            discoWaveTint = t;
+            ['palette', 'warm', 'cool', 'white'].forEach(function (k) {
+                const el = document.getElementById('wave-' + k);
+                if (el) el.className = (k === discoWaveTint) ? 'active' : '';
+            });
+        }
+
+        function setDiscoWaveColor(hex) {
+            discoWaveColor = hex;
+            setDiscoWaveTint('custom');
+        }
+
+        function discoWaveRGB() {
+            switch (discoWaveTint) {
+                case 'warm':   return [255, 158, 92];
+                case 'cool':   return [111, 180, 255];
+                case 'white':  return [246, 245, 240];
+                case 'custom': return hexToRgb(discoWaveColor);
+                default: {
+                    // The adaptive one: a slow lerp between two palette notes.
+                    const p2 = hexToRgb(params.colorPalette[2]);
+                    const p4 = hexToRgb(params.colorPalette[4]);
+                    const k = 0.5 + 0.5 * Math.sin(waveA * 0.05);
+                    return [Math.round(p2[0] + (p4[0] - p2[0]) * k),
+                            Math.round(p2[1] + (p4[1] - p2[1]) * k),
+                            Math.round(p2[2] + (p4[2] - p2[2]) * k)];
+                }
+            }
+        }
+
+        function setCanvasDim(v) {
+            const w = document.getElementById('canvas-wrap');
+            if (w) w.style.opacity = v >= 1 ? '' : v.toFixed(3);
+        }
+
+        function setDiscoBg(level) {
+            discoBg = DISCO_BG_BASE[level] ? level : 'high';
+            ['low', 'medium', 'high'].forEach(function (k) {
+                const el = document.getElementById('disco-bg-' + k);
+                if (el) el.className = (k === discoBg) ? 'active' : '';
+            });
+            if (!disco || discoBg === 'high') setCanvasDim(1);
+        }
+
+        // What the sound adds on top of each field parameter, applied at
+        // render time exactly like the intensity lens — the sliders never
+        // move, and switching disco off leaves no residue. Twist sways with
+        // the bass, moiré shimmers with the treble, rings pump on the bass.
+        function discoModParam(k, v) {
+            const d = discoParamDrive;
+            if (!d) return v;
+            if (k === 'twist') return v + Math.sin(discoSpin * 0.045) * discoBass * 0.6 * d;
+            if (k === 'moire') return v + discoTreble * 0.3 * d;
+            if (k === 'rings') return v + discoBass * 0.5 * d;
+            return v;
+        }
+
+        function setDiscoMotionDrive(v) {
+            discoMotionDrive = parseFloat(v);
+            setSlider('discoMotion', discoMotionDrive);
+        }
+
+        function setDiscoParamDrive(v) {
+            discoParamDrive = parseFloat(v);
+            setSlider('discoParams', discoParamDrive);
+        }
+        let waveA = 0, waveA2 = 50;   // the original's angle / angle2
+        let discoAudioCtx = null, discoAnalyser = null, discoBins = null, discoMic = null;
+        let discoSrcNode = null;
+        let discoLevel = 0, discoBass = 0, discoTreble = 0;
+        let discoSpin = 0, discoBaseRipple = 1, discoApplied = -1;
+
+        // The dock ball glows for either reason — its panel is open, or the
+        // scope is actually listening — so panel highlighting and the live
+        // state never fight over the class.
+        function syncDiscoDock() {
+            const dock = document.getElementById('dock-disco');
+            if (dock) dock.className = 'dock-btn' +
+                ((disco || openPanelName === 'disco') ? ' on' : '');
+        }
+
+        function setDisco(on) {
+            disco = !!on;
+            syncDiscoDock();
+            ['off', 'on'].forEach(function (k) {
+                const el = document.getElementById('disco-' + k);
+                if (el) el.className = ((k === 'on') === disco) ? 'active' : '';
+            });
+            syncDiscoOverlay();
+            if (disco) {
+                discoBaseRipple = ripple;
+                startDiscoAudio();
+                loop();
+            } else {
+                ripple = discoBaseRipple;
+                setCanvasDim(1);
+                stopDiscoAudio();
+                if (!needsLoop()) noLoop();
+                scheduleRender();
+            }
+        }
+
+        let discoMicId = '';
+
+        // The device menu. Labels only exist once a stream has been granted,
+        // so this runs again after the mic opens and on hardware changes.
+        function populateDiscoMics() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+            navigator.mediaDevices.enumerateDevices().then(function (devs) {
+                const sel = document.getElementById('disco-mic-select');
+                if (!sel) return;
+                const mics = devs.filter(function (d) { return d.kind === 'audioinput'; });
+                sel.innerHTML = '';
+                const def = document.createElement('option');
+                def.value = '';
+                def.textContent = 'Default microphone';
+                sel.appendChild(def);
+                mics.forEach(function (d, i) {
+                    if (!d.deviceId || d.deviceId === 'default') return;
+                    const o = document.createElement('option');
+                    o.value = d.deviceId;
+                    o.textContent = d.label || ('Microphone ' + (i + 1));
+                    sel.appendChild(o);
+                });
+                sel.value = discoMicId;
+                if (sel.value !== discoMicId) { sel.value = ''; discoMicId = ''; }
+            }).catch(function () {});
+        }
+
+        function setDiscoMic(id) {
+            discoMicId = id || '';
+            // A live session swaps over in place; off, the choice just waits.
+            if (disco) {
+                stopDiscoAudio();
+                startDiscoAudio();
+            }
+        }
+
+        function startDiscoAudio() {
+            if (discoAnalyser) return;
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+            // The browser's voice-call processing is poison for a music
+            // visualizer: noise suppression decides steady music is background
+            // noise and ducks it to silence within seconds, and auto-gain
+            // squashes the rest. Ask for the raw feed.
+            const wants = {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+            };
+            if (discoMicId) wants.deviceId = { exact: discoMicId };
+            navigator.mediaDevices.getUserMedia({ audio: wants }).then(function (stream) {
+                discoMic = stream;
+                discoAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                // Chrome hands contexts over suspended when the gesture chain
+                // is lost across the permission prompt; a suspended context
+                // reads permanent silence and everything sits still.
+                if (discoAudioCtx.resume) discoAudioCtx.resume().catch(function () {});
+                // Held in a durable reference: an unreachable stream-source
+                // node is fair game for the collector, and its death reads as
+                // the microphone going quiet mid-set.
+                discoSrcNode = discoAudioCtx.createMediaStreamSource(stream);
+                discoAnalyser = discoAudioCtx.createAnalyser();
+                discoAnalyser.fftSize = 512;
+                discoAnalyser.smoothingTimeConstant = 0.55;
+                discoSrcNode.connect(discoAnalyser);
+                discoBins = new Uint8Array(discoAnalyser.frequencyBinCount);
+                populateDiscoMics();     // labels are readable now
+                if (navigator.mediaDevices.addEventListener) {
+                    navigator.mediaDevices.addEventListener('devicechange', populateDiscoMics);
+                }
+            }, function () {
+                showVeil(true, 'Microphone unavailable or refused');
+                setTimeout(function () { showVeil(false); }, 1600);
+                setDisco(false);
+            });
+        }
+
+        function stopDiscoAudio() {
+            if (discoMic) {
+                discoMic.getTracks().forEach(function (t) { t.stop(); });
+                discoMic = null;
+            }
+            if (discoAudioCtx) { discoAudioCtx.close().catch(function () {}); discoAudioCtx = null; }
+            discoSrcNode = null;
+            discoAnalyser = null;
+            discoBins = null;
+            discoLevel = discoBass = discoTreble = 0;
+        }
+
+        function setDiscoSens(v) {
+            discoSens = parseFloat(v);
+            setSlider('discoSens', discoSens);
+        }
+
+        // The gate: anything quieter than the floor is treated as silence,
+        // and what remains is rescaled so the ceiling stays reachable. This
+        // is what keeps a humming room from dancing on its own.
+        function setDiscoFloor(v) {
+            discoFloor = parseFloat(v);
+            setSlider('discoFloor', discoFloor);
+        }
+
+        function discoGate(v) {
+            return Math.max(0, v - discoFloor) / (1 - discoFloor);
+        }
+
+        // One canvas carries both overlays; it shows while either is wanted.
+        function syncDiscoOverlay() {
+            const cv = document.getElementById('disco-ball');
+            if (cv) cv.classList.toggle('off', !disco || (!discoBall && !discoWaves));
+        }
+
+        function syncDiscoSwitch(id, on) {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.className = on ? 'switch on' : 'switch';
+                btn.textContent = on ? 'On' : 'Off';
+                btn.setAttribute('aria-pressed', on);
+            }
+        }
+
+        function toggleDiscoBall() {
+            discoBall = !discoBall;
+            syncDiscoSwitch('disco-ball-toggle', discoBall);
+            syncDiscoOverlay();
+        }
+
+        function toggleDiscoWaves() {
+            discoWaves = !discoWaves;
+            syncDiscoSwitch('disco-waves-toggle', discoWaves);
+            syncDiscoOverlay();
+        }
+
+        // Per frame while disco is on. Fast attack, slower release — the beat
+        // hits, the glow lingers.
+        function discoStep(f60) {
+            // The context can fall back to suspended (tab switches, focus
+            // loss); nudge it awake rather than reading silence forever.
+            if (discoAudioCtx && discoAudioCtx.state === 'suspended' && discoAudioCtx.resume) {
+                discoAudioCtx.resume().catch(function () {});
+            }
+            if (discoAnalyser && discoBins) {
+                discoAnalyser.getByteFrequencyData(discoBins);
+                const n = discoBins.length;
+                const bassN = 10, trebleFrom = n >> 1;
+                let all = 0, bass = 0, treble = 0;
+                for (let i = 0; i < n; i++) {
+                    all += discoBins[i];
+                    if (i < bassN) bass += discoBins[i];
+                    else if (i >= trebleFrom) treble += discoBins[i];
+                }
+                // Byte-frequency averages sit low for voice and music — a loud
+                // room rarely clears 0.5 — so the gear ratio lifts them into a
+                // range the visuals actually show.
+                const GEAR = 2.2;
+                const lvl = Math.min(1.5, discoGate(all / n / 255) * GEAR * discoSens);
+                const b = Math.min(1.5, discoGate(bass / bassN / 255) * GEAR * discoSens);
+                const t = Math.min(1.5, discoGate(treble / (n - trebleFrom) / 255) * GEAR * discoSens);
+                discoLevel += (lvl - discoLevel) * (lvl > discoLevel ? 0.5 : 0.12);
+                discoBass += (b - discoBass) * (b > discoBass ? 0.6 : 0.15);
+                discoTreble += (t - discoTreble) * (t > discoTreble ? 0.5 : 0.12);
+            }
+
+            ripple = discoBaseRipple * (1 + discoLevel * 1.5 * discoParamDrive);
+            // Re-solving the field is the expensive part, so it only happens
+            // on the GPU — and only while there is actually sound to follow:
+            // the parameter sways move every frame, but a silent room idles.
+            const activity = discoLevel + discoBass + discoTreble;
+            if (glReady && (Math.abs(discoLevel - discoApplied) > 0.004 ||
+                            (discoParamDrive > 0 && activity > 0.02))) {
+                fieldDirty = true;
+                discoApplied = discoLevel;
+            }
+            spinAngle += discoBass * 0.012 * f60 * discoMotionDrive;
+            animPhase += discoTreble * 0.02 * f60 * discoMotionDrive;
+            tablesDirty = true;
+            discoSpin += (0.3 + discoBass * 2.4) * f60;
+
+            // The background dimmer: silence rests at the floor, the signal
+            // lifts it toward full light. Opacity only — compositor-cheap.
+            const bgBase = DISCO_BG_BASE[discoBg];
+            if (bgBase < 1) setCanvasDim(Math.min(1, bgBase + (1 - bgBase) * discoLevel * 1.6));
+
+            if (discoBall || discoWaves) drawDiscoOverlay();
+        }
+
+        // The equalizer ball, kept close to the original's arithmetic:
+        // currentAngle = i·137.5° + t, radius = maxR·√i, the z bounce
+        // sin(0.2·frame + i)·level and the size pulse sin(0.1·frame + i),
+        // colours lerped point-by-point — here between two palette notes.
+        function drawDiscoOverlay() {
+            const cv = document.getElementById('disco-ball');
+            if (!cv) return;
+            const side = Math.min(520, Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.46));
+            if (cv.width !== side) { cv.width = side; cv.height = side; }
+            const g = cv.getContext('2d');
+            g.clearRect(0, 0, side, side);
+            if (discoWaves) drawDiscoWaves(g, side);
+            if (discoBall) drawDiscoBall(g, side);
+        }
+
+        // The spherical sound waves, from the original's SphericalAnimation:
+        // a Lissajous curve on the sphere whose two frequencies are themselves
+        // sines of the running angles scaled by the mic level, the stroke
+        // width flickering with the sound. Degrees throughout, as it was.
+        function drawDiscoWaves(g, side) {
+            const c = side / 2;
+            const r = c * 0.62;
+            const D = Math.PI / 180;
+            // At exact silence the original's frequencies are 10·sin(0) = 0
+            // and the whole curve collapses to a single point — the shell
+            // simply vanished between sounds. A small idle term keeps it
+            // undulating gently, and the sound blooms it from there.
+            const rn2 = 8 + discoLevel * 100;
+            const freq = 10 * Math.sin(waveA * D * rn2);
+            const freq2 = 10 * Math.sin(waveA2 * D * rn2 / 2);
+            const t = discoSpin * D * 0.35;
+            const rotC = Math.cos(t), rotS = Math.sin(t);
+
+            const rgb = discoWaveRGB();
+            g.strokeStyle = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',0.5)';
+            g.lineWidth = 0.6 + Math.random() * Math.min(3.5, rn2 * 0.04);
+
+            g.beginPath();
+            for (let th = 0; th <= 360; th += 0.5) {
+                const x = r * Math.cos(th * freq * D);
+                const y = r * Math.sin(th * freq * D) * Math.sin(th * freq2 * D);
+                const z = r * Math.sin(th * freq * D) * Math.cos(th * freq2 * D);
+                const X = x * rotC + z * rotS;
+                if (th === 0) g.moveTo(c + X, c + y); else g.lineTo(c + X, c + y);
+            }
+            g.stroke();
+
+            waveA += 0.05;
+            waveA2 += 0.05;
+        }
+
+        function drawDiscoBall(g, side) {
+            const c = side / 2;
+            const N = 420;
+            const GA = 137.5 * Math.PI / 180;      // the golden angle
+            const PHI_K = 173;                     // the original's seed scatter, pinned
+            const maxR = (c * 0.82) / Math.sqrt(N);
+            const t = discoSpin * Math.PI / 180;
+            const bounce = discoLevel * c * 0.5;
+            const p1 = hexToRgb(params.colorPalette[1]);
+            const p4 = hexToRgb(params.colorPalette[4]);
+            const rotC = Math.cos(t * 0.35), rotS = Math.sin(t * 0.35);
+
+            for (let i = 0; i < N; i++) {
+                const a = i * GA + t;
+                const radius = maxR * Math.sqrt(i);
+                const phi = (i % 360) * Math.PI / 360;
+                const x0 = radius * Math.cos(a) * Math.sin(phi * PHI_K);
+                const y0 = radius * Math.sin(a) * Math.sin(phi);
+                const z0 = radius * Math.cos(phi) + Math.sin(discoSpin * 0.2 + i) * bounce;
+
+                const X = x0 * rotC + z0 * rotS;
+                const Z = z0 * rotC - x0 * rotS;
+                const depth = 0.45 + 0.55 * (Z / c + 1) / 2;
+                const k = i / N;
+                const size = Math.max(0.6,
+                    2.2 + Math.sin(discoSpin * 0.1 + i) * (0.8 + discoLevel * 6));
+
+                g.fillStyle = 'rgba(' +
+                    Math.round(p1[0] + (p4[0] - p1[0]) * k) + ',' +
+                    Math.round(p1[1] + (p4[1] - p1[1]) * k) + ',' +
+                    Math.round(p1[2] + (p4[2] - p1[2]) * k) + ',' +
+                    (0.92 * depth).toFixed(3) + ')';
+                g.beginPath();
+                g.arc(c + X, c + y0, size * depth, 0, 6.28318);
+                g.fill();
+            }
+        }
+
         const DRIFT_STEPS = [10, 20, 30];
 
         function setDriftEvery(s) {
@@ -5563,6 +6581,11 @@
                 params.seed = Math.floor(Math.random() * 999999) + 1;
                 updateSeedDisplay();
             } else if (name === 'source') {
+                // An upload in use: shuffle among your own, or hold if locked.
+                if (activeUpload !== null) {
+                    if (!shuffleUserPlate()) scheduleRender();
+                    return;
+                }
                 if (imageLocked) { scheduleRender(); return; }
                 const avail = BASE_PLATES.filter(function (x) { return !x.missing; });
                 const b = avail[(Math.random() * avail.length) | 0];
@@ -5643,7 +6666,9 @@
                         updateSeedDisplay();
                         touched = true;
                     } else if (name === 'source') {
-                        if (params.source === 'image' && activeBase !== null && !imageLocked) {
+                        if (params.source === 'image' && activeUpload !== null) {
+                            shuffleUserPlate();   // holds still while locked
+                        } else if (params.source === 'image' && activeBase !== null && !imageLocked) {
                             const avail = BASE_PLATES.filter(function (x) { return !x.missing; });
                             const b = avail[(Math.random() * avail.length) | 0];
                             useBasePlate(b.id, b.name);
@@ -5942,8 +6967,11 @@
 
             if (locked('source')) { scheduleRender(); return; }
 
-            // Swap plates only if we're on a built-in one and it is not pinned.
-            if (params.source === 'image' && activeBase !== null && !imageLocked) {
+            // Swap plates only among their own kind: an unlocked upload moves
+            // to another upload, a built-in that is not pinned to a built-in.
+            if (params.source === 'image' && activeUpload !== null) {
+                if (shuffleUserPlate()) return;
+            } else if (params.source === 'image' && activeBase !== null && !imageLocked) {
                 const avail = BASE_PLATES.filter(function (x) { return !x.missing; });
                 const b = avail[ri(0, avail.length - 1)];
                 useBasePlate(b.id, b.name);
@@ -5975,6 +7003,7 @@
             updateSeedDisplay();
             clearSectionPower();
             syncParamStrengthUI();
+            syncSrcStrengthUI();
             setDriftEvery(params.driftEvery);
             setTiling(params.tiling);
             setTriType(params.triType);
@@ -5994,7 +7023,8 @@
             'mfreq', 'detune', 'descent', 'angular', 'twist', 'warp', 'octaves',
             'bands', 'rings', 'shift', 'seam', 'contrast', 'rotation', 'flow',
             'spin', 'trail', 'orbFov', 'imgZoom', 'imgPanX', 'imgPanY', 'imgAngle',
-            'imgWarp', 'mix', 'radType', 'radDir', 'paramStrength'];   // appended — key order is what old links decode by
+            'imgWarp', 'mix', 'radType', 'radDir', 'paramStrength',
+            'srcStrength'];   // appended — key order is what old links decode by
 
         function b64url(str) {
             return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -6043,6 +7073,7 @@
             }
             clearSectionPower();
             syncParamStrengthUI();
+            syncSrcStrengthUI();
             setTiling(params.tiling);
             setTriType(params.triType);
             setRadType(params.radType);
