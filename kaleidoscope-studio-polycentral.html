@@ -1846,6 +1846,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l11 7-11 7z" fill="currentColor" stroke="none"/></svg>
                 <span class="dock-tip">Animate <em>A</em></span>
             </button>
+            <button class="dock-btn" id="dock-disco" onclick="setDisco(!disco)" aria-label="Disco">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3.6"/><circle cx="12" cy="13.2" r="7.2"/><path d="M5.2 10.7h13.6"/><path d="M5.2 15.7h13.6"/><path d="M9.4 6.5c-1.5 4.3-1.5 9.1 0 13.4"/><path d="M14.6 6.5c1.5 4.3 1.5 9.1 0 13.4"/></svg>
+                <span class="dock-tip">Disco</span>
+            </button>
             <button class="dock-btn" id="dock-fs" onclick="toggleFullscreen()" aria-label="Fullscreen">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/></svg>
                 <span class="dock-tip">Fullscreen <em>F</em></span>
@@ -5855,6 +5859,8 @@
 
         function setDisco(on) {
             disco = !!on;
+            const dock = document.getElementById('dock-disco');
+            if (dock) dock.className = 'dock-btn' + (disco ? ' on' : '');
             ['off', 'on'].forEach(function (k) {
                 const el = document.getElementById('disco-' + k);
                 if (el) el.className = ((k === 'on') === disco) ? 'active' : '';

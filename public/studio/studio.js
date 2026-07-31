@@ -3987,6 +3987,8 @@
 
         function setDisco(on) {
             disco = !!on;
+            const dock = document.getElementById('dock-disco');
+            if (dock) dock.className = 'dock-btn' + (disco ? ' on' : '');
             ['off', 'on'].forEach(function (k) {
                 const el = document.getElementById('disco-' + k);
                 if (el) el.className = ((k === 'on') === disco) ? 'active' : '';
