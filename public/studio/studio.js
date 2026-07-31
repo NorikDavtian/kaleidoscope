@@ -2151,7 +2151,10 @@
             } else {
                 // The buffer is square; drawn at the viewport diagonal it covers
                 // the frame at any rotation, so spin never exposes a corner.
-                const puff = 1 + (breathValue - 0.5) * params.breathDepth * 0.09;
+                // The breath swells outward only — the old centred swing put
+                // the exhale a few percent under the diagonal, and black
+                // corners peeked in at unlucky angles.
+                const puff = 1 + breathValue * params.breathDepth * 0.09;
                 const D = Math.sqrt(width * width + height * height) * puff
                         * lensZoom();
                 ctx.save();
