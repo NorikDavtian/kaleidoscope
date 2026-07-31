@@ -424,13 +424,14 @@
                 </div>
             </div>
 
-            <label class="edge-label">Orb colour</label>
+            <label class="edge-label">Guide colour</label>
             <div class="breath-row edge-row">
                 <button id="tint-white" class="active" onclick="setOrbTint('white')">White</button>
                 <button id="tint-palette" onclick="setOrbTint('palette')">Palette</button>
                 <button id="tint-warm" onclick="setOrbTint('warm')">Warm</button>
                 <button id="tint-cool" onclick="setOrbTint('cool')">Cool</button>
                 <button id="tint-depth" onclick="setOrbTint('depth')">Depth</button>
+                <input type="color" id="tint-color" class="sec-swatch" value="#6fb4ff" title="Your own guide colour" oninput="setOrbColor(this.value)">
             </div>
 
             <div class="control-group" id="orb-size-row">

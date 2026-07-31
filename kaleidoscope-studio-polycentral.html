@@ -1593,13 +1593,14 @@
                 </div>
             </div>
 
-            <label class="edge-label">Orb colour</label>
+            <label class="edge-label">Guide colour</label>
             <div class="breath-row edge-row">
                 <button id="tint-white" class="active" onclick="setOrbTint('white')">White</button>
                 <button id="tint-palette" onclick="setOrbTint('palette')">Palette</button>
                 <button id="tint-warm" onclick="setOrbTint('warm')">Warm</button>
                 <button id="tint-cool" onclick="setOrbTint('cool')">Cool</button>
                 <button id="tint-depth" onclick="setOrbTint('depth')">Depth</button>
+                <input type="color" id="tint-color" class="sec-swatch" value="#6fb4ff" title="Your own guide colour" oninput="setOrbColor(this.value)">
             </div>
 
             <div class="control-group" id="orb-size-row">
@@ -1997,7 +1998,8 @@
             guideStyle: 'orb',// orb (particle shell) | circle (drawn ring)
             circleBorder: 4,  // ring thickness of the circle guide, in px
             circleBlur: 6,    // softness feathered into the ring's edges, in px
-            orbTint: 'white', // white | ink | palette | warm | cool | depth
+            orbTint: 'white', // white | ink | palette | warm | cool | depth | custom
+            orbColor: '#6fb4ff',  // the custom tint's colour
             orbBackdrop: 'dark',  // none | dark | glass
             orbBackdropAlpha: 1,  // how strongly the backdrop reads
             orbBackdropBlur: 9,   // px of frosting behind glass
@@ -5417,7 +5419,8 @@
         // Backing resolution is capped and CSS scales it up: clearing and
         // uploading the buffer dominates the cost and grows with the square of
         // the side. Points are soft, so the upscale costs nothing visually.
-        const breathOrb = { side: 300, spin: 0, ctx: null, img: null };
+        // Only the welcome disc runs the particle shell now — the breathing
+        // guide draws itself as discrete balls, in drawOrb below.
         const introOrb  = { side: 300, spin: 1.9, ctx: null, img: null };
 
         // The welcome runs the same shell, dimmer and slower, as a backdrop.
@@ -5428,11 +5431,74 @@
                       [0.30, 0.34, 0.44], 0.98);
         }
 
+        // The tint, resolved to a colour pair the ball lerps across.
+        function orbBallColors() {
+            const p = params.colorPalette;
+            switch (params.orbTint) {
+                case 'palette': return [hexToRgb(p[1]), hexToRgb(p[4])];
+                case 'warm':    return [[255, 217, 160], [224, 90, 58]];
+                case 'cool':    return [[183, 227, 255], [90, 109, 255]];
+                case 'depth':   return [hexToRgb(p[4]), hexToRgb(p[1])];
+                case 'ink':     return [[24, 24, 30], [72, 72, 82]];
+                case 'custom': {
+                    // One chosen colour, darkened along the lerp so the far
+                    // side of the shell still reads as depth rather than flat.
+                    const h = hexToRgb(params.orbColor);
+                    return [h, [h[0] * 0.42, h[1] * 0.42, h[2] * 0.42]];
+                }
+                default:        return [[246, 245, 240], [168, 168, 176]];
+            }
+        }
+
+        let breathBallSpin = 0;
+
+        // The guide in the equalizer ball's language: discrete glowing balls
+        // rather than particle fog, laid on a Fibonacci sphere so it reads as
+        // a clean orb, turning slowly, with a soft radial ripple the breath
+        // deepens. The whole thing still swells on the ring's CSS transform.
         function drawOrb() {
             if (params.guideStyle !== 'orb') return;   // the circle owns the guide
-            breathOrb.side = Math.max(80, Math.min(300, Math.round(params.orbSize)));
-            renderOrb(document.getElementById('breath-ring'), breathOrb,
-                      params.orbStrength, 0.0016, 0.38);
+            const cv = document.getElementById('breath-ring');
+            if (!cv) return;
+            const side = Math.max(80, Math.min(620, Math.round(params.orbSize)));
+            if (cv.width !== side || cv.height !== side) { cv.width = side; cv.height = side; }
+            const g = cv.getContext('2d');
+            g.clearRect(0, 0, side, side);
+
+            const c = side / 2;
+            const N = 384;
+            const GA = 137.5 * Math.PI / 180;
+            const R = c * 0.74;
+            const spin = breathBallSpin;
+            const ripple = 0.025 + breathValue * 0.05;
+            const strength = Math.min(2, Math.max(0, params.orbStrength));
+            const pair = orbBallColors();
+            const a = pair[0], b = pair[1];
+
+            for (let i = 0; i < N; i++) {
+                const phi = Math.acos(1 - 2 * (i + 0.5) / N);
+                const th = i * GA + spin;
+                const r = R * (1 + Math.sin(spin * 2 + i) * ripple);
+                const sp = Math.sin(phi);
+                const x = r * sp * Math.cos(th);
+                const y = r * Math.cos(phi);
+                const z = r * sp * Math.sin(th);
+
+                const depth = 0.35 + 0.65 * (z / R + 1) / 2;
+                const k = i / N;
+                const size = (1.1 + 2.1 * depth) * (side / 300);
+
+                g.fillStyle = 'rgba(' +
+                    Math.round(a[0] + (b[0] - a[0]) * k) + ',' +
+                    Math.round(a[1] + (b[1] - a[1]) * k) + ',' +
+                    Math.round(a[2] + (b[2] - a[2]) * k) + ',' +
+                    Math.min(1, 0.85 * depth * strength).toFixed(3) + ')';
+                g.beginPath();
+                g.arc(c + x, c + y, size, 0, 6.28318);
+                g.fill();
+            }
+
+            breathBallSpin += 0.006;
         }
 
 
@@ -5580,6 +5646,7 @@
                 case 'cool':  return 'linear-gradient(135deg, #b7e3ff, #6fb4ff, #5a6dff)';
                 case 'depth': return 'radial-gradient(circle, ' + p[4] + ', ' + p[1] + ')';
                 case 'ink':   return 'rgba(16, 16, 20, 0.92)';
+                case 'custom': return params.orbColor;
                 default:      return 'rgba(250, 249, 245, 0.92)';
             }
         }
@@ -5645,6 +5712,11 @@
             });
             drawOrb();
             updateCircleStyle();
+        }
+
+        function setOrbColor(hex) {
+            params.orbColor = hex;
+            setOrbTint('custom');     // picking a colour is choosing it
         }
 
         function setOrbSize(v) {
