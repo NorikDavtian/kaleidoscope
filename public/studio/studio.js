@@ -3980,7 +3980,10 @@
 
         let disco = false;
         let discoBall = true;
+        let discoWaves = true;
         let discoSens = 1;
+        let discoFloor = 0.06;     // ambient noise below this is silence
+        let waveA = 0, waveA2 = 50;   // the original's angle / angle2
         let discoAudioCtx = null, discoAnalyser = null, discoBins = null, discoMic = null;
         let discoLevel = 0, discoBass = 0, discoTreble = 0;
         let discoSpin = 0, discoBaseRipple = 1, discoApplied = -1;
@@ -3993,12 +3996,11 @@
                 const el = document.getElementById('disco-' + k);
                 if (el) el.className = ((k === 'on') === disco) ? 'active' : '';
             });
-            ['disco-sens-row', 'disco-ball-row'].forEach(function (id) {
+            ['disco-sens-row', 'disco-floor-row', 'disco-ball-row', 'disco-waves-row'].forEach(function (id) {
                 const el = document.getElementById(id);
                 if (el) el.classList.toggle('off', !disco);
             });
-            const cv = document.getElementById('disco-ball');
-            if (cv) cv.classList.toggle('off', !disco || !discoBall);
+            syncDiscoOverlay();
             if (disco) {
                 discoBaseRipple = ripple;
                 startDiscoAudio();
@@ -4046,16 +4048,43 @@
             setSlider('discoSens', discoSens);
         }
 
+        // The gate: anything quieter than the floor is treated as silence,
+        // and what remains is rescaled so the ceiling stays reachable. This
+        // is what keeps a humming room from dancing on its own.
+        function setDiscoFloor(v) {
+            discoFloor = parseFloat(v);
+            setSlider('discoFloor', discoFloor);
+        }
+
+        function discoGate(v) {
+            return Math.max(0, v - discoFloor) / (1 - discoFloor);
+        }
+
+        // One canvas carries both overlays; it shows while either is wanted.
+        function syncDiscoOverlay() {
+            const cv = document.getElementById('disco-ball');
+            if (cv) cv.classList.toggle('off', !disco || (!discoBall && !discoWaves));
+        }
+
+        function syncDiscoSwitch(id, on) {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.className = on ? 'switch on' : 'switch';
+                btn.textContent = on ? 'On' : 'Off';
+                btn.setAttribute('aria-pressed', on);
+            }
+        }
+
         function toggleDiscoBall() {
             discoBall = !discoBall;
-            const btn = document.getElementById('disco-ball-toggle');
-            if (btn) {
-                btn.className = discoBall ? 'switch on' : 'switch';
-                btn.textContent = discoBall ? 'On' : 'Off';
-                btn.setAttribute('aria-pressed', discoBall);
-            }
-            const cv = document.getElementById('disco-ball');
-            if (cv) cv.classList.toggle('off', !disco || !discoBall);
+            syncDiscoSwitch('disco-ball-toggle', discoBall);
+            syncDiscoOverlay();
+        }
+
+        function toggleDiscoWaves() {
+            discoWaves = !discoWaves;
+            syncDiscoSwitch('disco-waves-toggle', discoWaves);
+            syncDiscoOverlay();
         }
 
         // Per frame while disco is on. Fast attack, slower release — the beat
@@ -4071,9 +4100,9 @@
                     if (i < bassN) bass += discoBins[i];
                     else if (i >= trebleFrom) treble += discoBins[i];
                 }
-                const lvl = (all / n / 255) * discoSens;
-                const b = (bass / bassN / 255) * discoSens;
-                const t = (treble / (n - trebleFrom) / 255) * discoSens;
+                const lvl = discoGate(all / n / 255) * discoSens;
+                const b = discoGate(bass / bassN / 255) * discoSens;
+                const t = discoGate(treble / (n - trebleFrom) / 255) * discoSens;
                 discoLevel += (lvl - discoLevel) * (lvl > discoLevel ? 0.5 : 0.12);
                 discoBass += (b - discoBass) * (b > discoBass ? 0.6 : 0.15);
                 discoTreble += (t - discoTreble) * (t > discoTreble ? 0.5 : 0.12);
@@ -4090,21 +4119,62 @@
             animPhase += discoTreble * 0.02 * f60;
             tablesDirty = true;
             discoSpin += (0.3 + discoBass * 2.4) * f60;
-            if (discoBall) drawDiscoBall();
+            if (discoBall || discoWaves) drawDiscoOverlay();
         }
 
         // The equalizer ball, kept close to the original's arithmetic:
         // currentAngle = i·137.5° + t, radius = maxR·√i, the z bounce
         // sin(0.2·frame + i)·level and the size pulse sin(0.1·frame + i),
         // colours lerped point-by-point — here between two palette notes.
-        function drawDiscoBall() {
+        function drawDiscoOverlay() {
             const cv = document.getElementById('disco-ball');
             if (!cv) return;
             const side = Math.min(520, Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.46));
             if (cv.width !== side) { cv.width = side; cv.height = side; }
             const g = cv.getContext('2d');
             g.clearRect(0, 0, side, side);
+            if (discoWaves) drawDiscoWaves(g, side);
+            if (discoBall) drawDiscoBall(g, side);
+        }
 
+        // The spherical sound waves, from the original's SphericalAnimation:
+        // a Lissajous curve on the sphere whose two frequencies are themselves
+        // sines of the running angles scaled by the mic level, the stroke
+        // width flickering with the sound. Degrees throughout, as it was.
+        function drawDiscoWaves(g, side) {
+            const c = side / 2;
+            const r = c * 0.62;
+            const D = Math.PI / 180;
+            const rn2 = discoLevel * 100;
+            const freq = 10 * Math.sin(waveA * D * rn2);
+            const freq2 = 10 * Math.sin(waveA2 * D * rn2 / 2);
+            const t = discoSpin * D * 0.35;
+            const rotC = Math.cos(t), rotS = Math.sin(t);
+
+            const p2 = hexToRgb(params.colorPalette[2]);
+            const p4 = hexToRgb(params.colorPalette[4]);
+            const k = 0.5 + 0.5 * Math.sin(waveA * 0.05);
+            g.strokeStyle = 'rgba(' +
+                Math.round(p2[0] + (p4[0] - p2[0]) * k) + ',' +
+                Math.round(p2[1] + (p4[1] - p2[1]) * k) + ',' +
+                Math.round(p2[2] + (p4[2] - p2[2]) * k) + ',0.5)';
+            g.lineWidth = 0.6 + Math.random() * Math.min(3.5, rn2 * 0.04);
+
+            g.beginPath();
+            for (let th = 0; th <= 360; th += 0.5) {
+                const x = r * Math.cos(th * freq * D);
+                const y = r * Math.sin(th * freq * D) * Math.sin(th * freq2 * D);
+                const z = r * Math.sin(th * freq * D) * Math.cos(th * freq2 * D);
+                const X = x * rotC + z * rotS;
+                if (th === 0) g.moveTo(c + X, c + y); else g.lineTo(c + X, c + y);
+            }
+            g.stroke();
+
+            waveA += 0.05;
+            waveA2 += 0.05;
+        }
+
+        function drawDiscoBall(g, side) {
             const c = side / 2;
             const N = 420;
             const GA = 137.5 * Math.PI / 180;      // the golden angle

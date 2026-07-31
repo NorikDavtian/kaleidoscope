@@ -349,13 +349,28 @@
                 </div>
             </div>
 
+            <div class="control-group off" id="disco-floor-row">
+                <label for="discoFloor">Noise Floor</label>
+                <div class="slider-container">
+                    <input type="range" id="discoFloor" min="0" max="0.4" step="0.01" value="0.06" oninput="setDiscoFloor(this.value)">
+                    <span class="value-display" id="discoFloor-value">0.06</span>
+                </div>
+            </div>
+
             <div class="lock-row off" id="disco-ball-row">
                 <span>Equalizer ball on the canvas</span>
                 <button class="switch on" id="disco-ball-toggle" onclick="toggleDiscoBall()"
                         aria-pressed="true"
                         title="The point-sphere from VFX No. 18, bouncing with the sound">On</button>
             </div>
-            <div class="hint">Disco listens to the microphone: warp swells with the level, the mirrors kick on the bass, colour runs with the treble. Audio is analysed and discarded — nothing is recorded.</div>
+
+            <div class="lock-row off" id="disco-waves-row">
+                <span>Sound waves on the canvas</span>
+                <button class="switch on" id="disco-waves-toggle" onclick="toggleDiscoWaves()"
+                        aria-pressed="true"
+                        title="The spherical sound waves from VFX No. 18, rippling with the level">On</button>
+            </div>
+            <div class="hint">Disco listens to the microphone: warp swells with the level, the mirrors kick on the bass, colour runs with the treble. Noise Floor is the gate — sound quieter than it counts as silence, so a humming room does not dance on its own. Audio is analysed and discarded — nothing is recorded.</div>
 
             <label class="edge-label">Drift Every</label>
             <div class="breath-row edge-row">
