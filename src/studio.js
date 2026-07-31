@@ -251,6 +251,46 @@
         }
 
         let plateVideo = null, videoCv = null, videoCtx = null, videoLive = false;
+        let camStream = null, camUsed = false;
+
+        // Live camera as a source: the stream lands in the same shared video
+        // element and rides the per-frame frame-to-canvas path the video
+        // plates use. Nothing is recorded and nothing leaves the machine —
+        // the frames go to the sampler and nowhere else.
+        function useCamera() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showVeil(true, 'No camera available here');
+                setTimeout(function () { showVeil(false); }, 1600);
+                return;
+            }
+            navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: false
+            }).then(function (stream) {
+                stopMovingSources();
+                ensureVideoEl();
+                plateVideo.muted = true;
+                camStream = stream;
+                plateVideo.onerror = null;
+                plateVideo.onloadeddata = function () {
+                    const d = adoptVideoSurface();
+                    if (!d) return;
+                    activeBase = null;
+                    activeUpload = null;
+                    markActiveThumb('camera');
+                    setSourceMeta(thumbURL(videoCv), 'Camera',
+                        d.w + ' × ' + d.h + ' · live, never recorded');
+                    if (!camUsed) { camUsed = true; familiarStart(); }
+                    setSource('image');
+                    plateVideo.play().catch(function () {});
+                    loop();
+                };
+                plateVideo.srcObject = stream;
+            }, function () {
+                showVeil(true, 'Camera unavailable or refused');
+                setTimeout(function () { showVeil(false); }, 1600);
+            });
+        }
 
         // A video source is the animated plate with its frames coming from a
         // file: draw the current frame to a canvas, hand that to the GPU, and
@@ -331,6 +371,13 @@
             videoLive = false;
             plateAnim = false;
             if (plateVideo) plateVideo.pause();
+            // The webcam light must go out the moment anything else takes
+            // over — a paused stream still counts as watching.
+            if (camStream) {
+                camStream.getTracks().forEach(function (t) { t.stop(); });
+                camStream = null;
+            }
+            if (plateVideo && plateVideo.srcObject) plateVideo.srcObject = null;
             if (animFrames) {
                 animFrames.forEach(function (f) { if (f.frame.close) f.frame.close(); });
                 animFrames = null;
@@ -669,6 +716,19 @@
             up.onclick = function () { document.getElementById('file-input').click(); };
             grid.appendChild(up);
 
+            const cam = document.createElement('button');
+            cam.className = 'thumb thumb-upload';
+            cam.id = 'thumb-camera';
+            cam.title = 'Feed the scope your camera — live, never recorded';
+            cam.innerHTML = '<span class="up-face">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+                'stroke-linecap="round" stroke-linejoin="round">' +
+                '<path d="M4 8.5h3l1.6-2.3h6.8L17 8.5h3v10H4z"/>' +
+                '<circle cx="12" cy="13.2" r="3.1"/></svg></span>' +
+                '<span>Camera</span>';
+            cam.onclick = function () { useCamera(); };
+            grid.appendChild(cam);
+
             refreshSeedTile();
 
             BASE_PLATES.forEach(function (b) {
@@ -747,6 +807,8 @@
             if (none) none.classList.toggle('active', id === 'none');
             const up = document.getElementById('thumb-upload');
             if (up) up.classList.toggle('active', id === 'upload');
+            const cam = document.getElementById('thumb-camera');
+            if (cam) cam.classList.toggle('active', id === 'camera');
             const ug = document.getElementById('upload-grid');
             if (ug) {
                 Array.prototype.forEach.call(ug.children, function (el) {
@@ -1971,7 +2033,7 @@
 
         function needsLoop() {
             return animating || dragging || Math.abs(dragVel) > 0.0004 ||
-                   params.breath !== 'off' ||
+                   params.breath !== 'off' || disco ||
                    (plateAnim && params.source === 'image') ||
                    anySectionAuto() || fadeAmt > 0;
         }
@@ -2023,6 +2085,8 @@
                 if (params.breathGuide && params.guideStyle === 'orb') drawOrb();
                 tablesDirty = true;
             }
+
+            if (disco) discoStep(f60);
 
             if (!document.getElementById('intro').classList.contains('gone')) drawIntroOrb();
 
@@ -2638,7 +2702,6 @@
             activeBase = null;
             activeUpload = p.id;
             markActiveThumb('upload-' + p.id);
-            setDropLabel(shortName(p.name));
             setSourceMeta(p.thumb, shortName(p.name), srcW + ' × ' + srcH + ' · yours, never uploaded');
             if (fresh) familiarStart();
             setSource('image');
@@ -2661,7 +2724,6 @@
                     refreshUploadThumb(p);
                 }
                 markActiveThumb('upload-' + p.id);
-                setDropLabel(shortName(p.name));
                 setSourceMeta(p.thumb, shortName(p.name),
                     d.w + ' × ' + d.h + ' · your video, never uploaded');
                 if (fresh) familiarStart();
@@ -2707,15 +2769,13 @@
             const grid = document.getElementById('upload-grid');
             if (!grid) return;
             const btn = document.createElement('button');
-            btn.className = 'thumb';
+            btn.className = 'thumb thumb-media';
             btn.id = 'thumb-upload-' + p.id;
+            btn.title = p.name;             // the filename lives in the tooltip
             const im = document.createElement('img');
             im.alt = p.name;
             if (p.thumb) im.src = p.thumb;
-            const cap = document.createElement('span');
-            cap.textContent = shortName(p.name);
             btn.appendChild(im);
-            btn.appendChild(cap);
             btn.onclick = function () { useUserPlate(p.id); };
             grid.appendChild(btn);
         }
@@ -3904,6 +3964,180 @@
         function clearSectionPower() {
             secPower.params = secPower.colour = secPower.motion = null;
             syncPowerSwitches();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // DISCO
+        //
+        // The scope listens. Adapted from the author's equalizer ball
+        // (norik.io/vfx/no18): the phyllotaxis point sphere — golden-angle
+        // spiral, radius √i, the level-driven bounce and size pulse — comes
+        // over as a 2D-projected overlay, and the microphone level now drives
+        // the field itself: warp ripple swells on the overall level, the
+        // mirrors kick on the bass, colour runs with the treble. Audio is
+        // analysed and discarded — nothing is recorded.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let disco = false;
+        let discoBall = true;
+        let discoSens = 1;
+        let discoAudioCtx = null, discoAnalyser = null, discoBins = null, discoMic = null;
+        let discoLevel = 0, discoBass = 0, discoTreble = 0;
+        let discoSpin = 0, discoBaseRipple = 1, discoApplied = -1;
+
+        function setDisco(on) {
+            disco = !!on;
+            ['off', 'on'].forEach(function (k) {
+                const el = document.getElementById('disco-' + k);
+                if (el) el.className = ((k === 'on') === disco) ? 'active' : '';
+            });
+            ['disco-sens-row', 'disco-ball-row'].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el) el.classList.toggle('off', !disco);
+            });
+            const cv = document.getElementById('disco-ball');
+            if (cv) cv.classList.toggle('off', !disco || !discoBall);
+            if (disco) {
+                discoBaseRipple = ripple;
+                startDiscoAudio();
+                loop();
+            } else {
+                ripple = discoBaseRipple;
+                stopDiscoAudio();
+                if (!needsLoop()) noLoop();
+                scheduleRender();
+            }
+        }
+
+        function startDiscoAudio() {
+            if (discoAnalyser) return;
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+                discoMic = stream;
+                discoAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const src = discoAudioCtx.createMediaStreamSource(stream);
+                discoAnalyser = discoAudioCtx.createAnalyser();
+                discoAnalyser.fftSize = 512;
+                discoAnalyser.smoothingTimeConstant = 0.55;
+                src.connect(discoAnalyser);
+                discoBins = new Uint8Array(discoAnalyser.frequencyBinCount);
+            }, function () {
+                showVeil(true, 'Microphone unavailable or refused');
+                setTimeout(function () { showVeil(false); }, 1600);
+                setDisco(false);
+            });
+        }
+
+        function stopDiscoAudio() {
+            if (discoMic) {
+                discoMic.getTracks().forEach(function (t) { t.stop(); });
+                discoMic = null;
+            }
+            if (discoAudioCtx) { discoAudioCtx.close().catch(function () {}); discoAudioCtx = null; }
+            discoAnalyser = null;
+            discoBins = null;
+            discoLevel = discoBass = discoTreble = 0;
+        }
+
+        function setDiscoSens(v) {
+            discoSens = parseFloat(v);
+            setSlider('discoSens', discoSens);
+        }
+
+        function toggleDiscoBall() {
+            discoBall = !discoBall;
+            const btn = document.getElementById('disco-ball-toggle');
+            if (btn) {
+                btn.className = discoBall ? 'switch on' : 'switch';
+                btn.textContent = discoBall ? 'On' : 'Off';
+                btn.setAttribute('aria-pressed', discoBall);
+            }
+            const cv = document.getElementById('disco-ball');
+            if (cv) cv.classList.toggle('off', !disco || !discoBall);
+        }
+
+        // Per frame while disco is on. Fast attack, slower release — the beat
+        // hits, the glow lingers.
+        function discoStep(f60) {
+            if (discoAnalyser && discoBins) {
+                discoAnalyser.getByteFrequencyData(discoBins);
+                const n = discoBins.length;
+                const bassN = 10, trebleFrom = n >> 1;
+                let all = 0, bass = 0, treble = 0;
+                for (let i = 0; i < n; i++) {
+                    all += discoBins[i];
+                    if (i < bassN) bass += discoBins[i];
+                    else if (i >= trebleFrom) treble += discoBins[i];
+                }
+                const lvl = (all / n / 255) * discoSens;
+                const b = (bass / bassN / 255) * discoSens;
+                const t = (treble / (n - trebleFrom) / 255) * discoSens;
+                discoLevel += (lvl - discoLevel) * (lvl > discoLevel ? 0.5 : 0.12);
+                discoBass += (b - discoBass) * (b > discoBass ? 0.6 : 0.15);
+                discoTreble += (t - discoTreble) * (t > discoTreble ? 0.5 : 0.12);
+            }
+
+            ripple = discoBaseRipple * (1 + discoLevel * 1.5);
+            // Re-solving the field is the expensive part, so it only happens
+            // on the GPU and only when the level actually moved.
+            if (glReady && Math.abs(discoLevel - discoApplied) > 0.004) {
+                fieldDirty = true;
+                discoApplied = discoLevel;
+            }
+            spinAngle += discoBass * 0.012 * f60;
+            animPhase += discoTreble * 0.02 * f60;
+            tablesDirty = true;
+            discoSpin += (0.3 + discoBass * 2.4) * f60;
+            if (discoBall) drawDiscoBall();
+        }
+
+        // The equalizer ball, kept close to the original's arithmetic:
+        // currentAngle = i·137.5° + t, radius = maxR·√i, the z bounce
+        // sin(0.2·frame + i)·level and the size pulse sin(0.1·frame + i),
+        // colours lerped point-by-point — here between two palette notes.
+        function drawDiscoBall() {
+            const cv = document.getElementById('disco-ball');
+            if (!cv) return;
+            const side = Math.min(520, Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.46));
+            if (cv.width !== side) { cv.width = side; cv.height = side; }
+            const g = cv.getContext('2d');
+            g.clearRect(0, 0, side, side);
+
+            const c = side / 2;
+            const N = 420;
+            const GA = 137.5 * Math.PI / 180;      // the golden angle
+            const PHI_K = 173;                     // the original's seed scatter, pinned
+            const maxR = (c * 0.82) / Math.sqrt(N);
+            const t = discoSpin * Math.PI / 180;
+            const bounce = discoLevel * c * 0.5;
+            const p1 = hexToRgb(params.colorPalette[1]);
+            const p4 = hexToRgb(params.colorPalette[4]);
+            const rotC = Math.cos(t * 0.35), rotS = Math.sin(t * 0.35);
+
+            for (let i = 0; i < N; i++) {
+                const a = i * GA + t;
+                const radius = maxR * Math.sqrt(i);
+                const phi = (i % 360) * Math.PI / 360;
+                const x0 = radius * Math.cos(a) * Math.sin(phi * PHI_K);
+                const y0 = radius * Math.sin(a) * Math.sin(phi);
+                const z0 = radius * Math.cos(phi) + Math.sin(discoSpin * 0.2 + i) * bounce;
+
+                const X = x0 * rotC + z0 * rotS;
+                const Z = z0 * rotC - x0 * rotS;
+                const depth = 0.45 + 0.55 * (Z / c + 1) / 2;
+                const k = i / N;
+                const size = Math.max(0.6,
+                    2.2 + Math.sin(discoSpin * 0.1 + i) * (0.8 + discoLevel * 6));
+
+                g.fillStyle = 'rgba(' +
+                    Math.round(p1[0] + (p4[0] - p1[0]) * k) + ',' +
+                    Math.round(p1[1] + (p4[1] - p1[1]) * k) + ',' +
+                    Math.round(p1[2] + (p4[2] - p1[2]) * k) + ',' +
+                    (0.92 * depth).toFixed(3) + ')';
+                g.beginPath();
+                g.arc(c + X, c + y0, size * depth, 0, 6.28318);
+                g.fill();
+            }
         }
 
         const DRIFT_STEPS = [10, 20, 30];

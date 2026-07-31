@@ -44,6 +44,8 @@
         </div>
     </div>
 
+    <canvas id="disco-ball" class="off"></canvas>
+
     <div id="breath-guide">
         <canvas id="breath-ring"></canvas>
         <div id="breath-circle" class="off"></div>
@@ -332,6 +334,28 @@
                     <span class="value-display" id="trail-value">0</span>
                 </div>
             </div>
+
+            <label class="edge-label">Disco</label>
+            <div class="breath-row edge-row">
+                <button id="disco-off" class="active" onclick="setDisco(false)">Off</button>
+                <button id="disco-on" onclick="setDisco(true)" title="Listen to the microphone and move with the sound">On</button>
+            </div>
+
+            <div class="control-group off" id="disco-sens-row">
+                <label for="discoSens">Sensitivity</label>
+                <div class="slider-container">
+                    <input type="range" id="discoSens" min="0.2" max="3" step="0.05" value="1" oninput="setDiscoSens(this.value)">
+                    <span class="value-display" id="discoSens-value">1</span>
+                </div>
+            </div>
+
+            <div class="lock-row off" id="disco-ball-row">
+                <span>Equalizer ball on the canvas</span>
+                <button class="switch on" id="disco-ball-toggle" onclick="toggleDiscoBall()"
+                        aria-pressed="true"
+                        title="The point-sphere from VFX No. 18, bouncing with the sound">On</button>
+            </div>
+            <div class="hint">Disco listens to the microphone: warp swells with the level, the mirrors kick on the bass, colour runs with the treble. Audio is analysed and discarded — nothing is recorded.</div>
 
             <label class="edge-label">Drift Every</label>
             <div class="breath-row edge-row">

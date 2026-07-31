@@ -503,6 +503,10 @@
 
         .thumb img { width: 100%; height: 50px; object-fit: cover; display: block; }
 
+        /* Upload tiles carry no caption — the media is the label, the
+           filename lives in the tooltip — so the picture takes the full tile. */
+        .thumb-media img { height: 64px; }
+
         .thumb span {
             display: block;
             font-family: 'Poppins', sans-serif;
@@ -733,6 +737,19 @@
 
         /* Centred on the artwork — the thing you rest your eyes on while
            following it, rather than something tucked into a corner. */
+        /* The equalizer ball, floating over the artwork like the breath
+           guide does. Its own layer: disco and breathing can coexist. */
+        #disco-ball {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 8;
+            pointer-events: none;
+        }
+
+        #disco-ball.off { display: none; }
+
         #breath-guide {
             position: fixed;
             inset: 0;
@@ -921,7 +938,16 @@
         #source-card.off { display: none; }
         #source-card.faded { opacity: 0; pointer-events: none; }
         #source-card img { width: 100%; display: block; border-radius: 7px; }
-        #source-card .card-title { font-size: 12.5px; font-weight: 600; margin-top: 8px; line-height: 1.3; }
+        #source-card .card-title {
+            font-size: 12.5px;
+            font-weight: 600;
+            margin-top: 8px;
+            line-height: 1.3;
+            /* Filenames arrive at any length — clip, never overrun the card. */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         #source-card .card-sub { font-size: 10.5px; color: var(--faint); line-height: 1.4; margin-top: 2px; }
 
         #drop-veil {
