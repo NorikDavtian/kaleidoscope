@@ -24,6 +24,8 @@
             folds: 5,        // mirror count — default 10, the tetractys
             paramStrength: 1, // how much of the parameters reaches the scope —
                               // Low 0.35 | Medium 0.7 | High 1
+            srcStrength: 1,   // how hard the scope works the source — same three
+                              // steps, but Low also opens the cells wide
             moire: 0.01,       // interference depth
             mfreq: 3.3,       // fringe frequency
             detune: 1.48,     // ratio between the two interfering systems
@@ -2321,7 +2323,7 @@
         // square into two right isosceles triangles — the 45·45·90 scope.
         function drawSquareTiling(ctx, w, h, diagMirror) {
             const diag = Math.sqrt(w * w + h * h);
-            const len = Math.max(params.cellSize * lensZoom(), diag / (SQ_CAP - 1));
+            const len = Math.max(effParam('cellSize') * lensZoom(), diag / (SQ_CAP - 1));
             const outer = len / Math.SQRT1_2;      // len = sin(45°) · outer
             const ox = outer / 2, oy = outer / 2;
             const cells = Math.ceil(diag / len) + 1;
@@ -2389,7 +2391,7 @@
 
         function drawTriangleTiling(ctx, w, h) {
             const diag = Math.sqrt(w * w + h * h);
-            const len = Math.max(params.cellSize * lensZoom(), diag / 2 / (TRI_CAP - 1));
+            const len = Math.max(effParam('cellSize') * lensZoom(), diag / 2 / (TRI_CAP - 1));
             const outer = len / (Math.sqrt(3) / 2);
             const ox = len / 2, oy = len / Math.sqrt(3) / 2;
             const cx = w / 2, cy = h / 2;
@@ -2622,15 +2624,11 @@
         // The picture should open looking like itself: nothing painted over
         // it, parameters at their floors, cells big enough to read.
         function familiarStart() {
-            params.mix = 0;
-            params.imgWarp = 0;
-            setSlider('mix', 0);
-            setSlider('imgWarp', 0);
+            // The Source dial says all of this without touching a slider —
+            // wide cells, the field held back — so a picture opens looking
+            // like itself and one click takes you back to the full effect.
+            setSrcStrength('low');
             if (!secPower.params) toggleSectionPower('params');
-            if (params.cellSize < 460) {
-                params.cellSize = 460;
-                setSlider('cellSize', 460);
-            }
         }
 
         function onFilesPicked(list) {
@@ -3961,14 +3959,49 @@
                                'warp', 'octaves', 'bands', 'rings', 'seam',
                                'mix', 'imgWarp'];
 
+        // What the Source dial governs: how hard the scope works the picture.
+        // The two amounts that paint over it ease toward zero, and the cells
+        // open wide — a big cell shows a big piece of the source, which is
+        // what makes it recognisable as itself.
+        const SRC_STRENGTH_KEYS = ['mix', 'imgWarp'];
+        const SRC_WIDE_CELL = 760;
+
         function effParam(k) {
             let v = params[k];
             if (params.paramStrength < 1 && STRENGTH_KEYS.indexOf(k) >= 0) {
                 const lo = powerFloor(k);
                 v = lo + (v - lo) * params.paramStrength;
             }
+            if (params.srcStrength < 1) {
+                if (SRC_STRENGTH_KEYS.indexOf(k) >= 0) {
+                    v *= params.srcStrength;
+                } else if (k === 'cellSize') {
+                    v += (SRC_WIDE_CELL - v) * (1 - params.srcStrength);
+                }
+            }
             if (disco) v = discoModParam(k, v);
             return INT_PARAMS.indexOf(k) >= 0 ? Math.round(v) : v;
+        }
+
+        const SRC_STRENGTHS = { low: 0.35, medium: 0.7, high: 1 };
+
+        function setSrcStrength(level) {
+            params.srcStrength = SRC_STRENGTHS[level] !== undefined
+                ? SRC_STRENGTHS[level]
+                : Math.min(1, Math.max(0, parseFloat(level) || 1));
+            syncSrcStrengthUI();
+            refreshShareUI();
+            refreshSrcRegion();      // the sampled patch moved with the cells
+            scheduleRender();
+        }
+
+        function syncSrcStrengthUI() {
+            const level = params.srcStrength <= 0.5 ? 'low'
+                        : params.srcStrength < 1 ? 'medium' : 'high';
+            Object.keys(SRC_STRENGTHS).forEach(function (k) {
+                const el = document.getElementById('sstr-' + k);
+                if (el) el.className = (k === level) ? 'active' : '';
+            });
         }
 
         const PARAM_STRENGTHS = { low: 0.35, medium: 0.7, high: 1 };
@@ -4909,6 +4942,7 @@
             updateSeedDisplay();
             clearSectionPower();
             syncParamStrengthUI();
+            syncSrcStrengthUI();
             setDriftEvery(params.driftEvery);
             setTiling(params.tiling);
             setTriType(params.triType);
@@ -4928,7 +4962,8 @@
             'mfreq', 'detune', 'descent', 'angular', 'twist', 'warp', 'octaves',
             'bands', 'rings', 'shift', 'seam', 'contrast', 'rotation', 'flow',
             'spin', 'trail', 'orbFov', 'imgZoom', 'imgPanX', 'imgPanY', 'imgAngle',
-            'imgWarp', 'mix', 'radType', 'radDir', 'paramStrength'];   // appended — key order is what old links decode by
+            'imgWarp', 'mix', 'radType', 'radDir', 'paramStrength',
+            'srcStrength'];   // appended — key order is what old links decode by
 
         function b64url(str) {
             return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -4977,6 +5012,7 @@
             }
             clearSectionPower();
             syncParamStrengthUI();
+            syncSrcStrengthUI();
             setTiling(params.tiling);
             setTriType(params.triType);
             setRadType(params.radType);
