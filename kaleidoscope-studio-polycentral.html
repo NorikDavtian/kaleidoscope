@@ -5896,6 +5896,7 @@
         let discoFloor = 0.06;     // ambient noise below this is silence
         let waveA = 0, waveA2 = 50;   // the original's angle / angle2
         let discoAudioCtx = null, discoAnalyser = null, discoBins = null, discoMic = null;
+        let discoSrcNode = null;
         let discoLevel = 0, discoBass = 0, discoTreble = 0;
         let discoSpin = 0, discoBaseRipple = 1, discoApplied = -1;
 
@@ -5967,7 +5968,16 @@
         function startDiscoAudio() {
             if (discoAnalyser) return;
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-            const wants = discoMicId ? { deviceId: { exact: discoMicId } } : true;
+            // The browser's voice-call processing is poison for a music
+            // visualizer: noise suppression decides steady music is background
+            // noise and ducks it to silence within seconds, and auto-gain
+            // squashes the rest. Ask for the raw feed.
+            const wants = {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+            };
+            if (discoMicId) wants.deviceId = { exact: discoMicId };
             navigator.mediaDevices.getUserMedia({ audio: wants }).then(function (stream) {
                 discoMic = stream;
                 discoAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -5975,11 +5985,14 @@
                 // is lost across the permission prompt; a suspended context
                 // reads permanent silence and everything sits still.
                 if (discoAudioCtx.resume) discoAudioCtx.resume().catch(function () {});
-                const src = discoAudioCtx.createMediaStreamSource(stream);
+                // Held in a durable reference: an unreachable stream-source
+                // node is fair game for the collector, and its death reads as
+                // the microphone going quiet mid-set.
+                discoSrcNode = discoAudioCtx.createMediaStreamSource(stream);
                 discoAnalyser = discoAudioCtx.createAnalyser();
                 discoAnalyser.fftSize = 512;
                 discoAnalyser.smoothingTimeConstant = 0.55;
-                src.connect(discoAnalyser);
+                discoSrcNode.connect(discoAnalyser);
                 discoBins = new Uint8Array(discoAnalyser.frequencyBinCount);
                 populateDiscoMics();     // labels are readable now
                 if (navigator.mediaDevices.addEventListener) {
@@ -5998,6 +6011,7 @@
                 discoMic = null;
             }
             if (discoAudioCtx) { discoAudioCtx.close().catch(function () {}); discoAudioCtx = null; }
+            discoSrcNode = null;
             discoAnalyser = null;
             discoBins = null;
             discoLevel = discoBass = discoTreble = 0;
