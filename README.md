@@ -129,6 +129,15 @@ Beyond the nine painted plates, `BASE_PLATES` entries can carry:
 
 Any entry whose file is missing removes itself from the grid.
 
+The Interference plate is drawn from a single equation rather than painted:
+I(**r**) ∝ |Σ¹²ᵢ₌₁ A·e^{i(**k·r** + φᵢ)}|² — twelve plane waves spaced around
+the circle, summed as a complex field and squared, solved once per colour
+channel at its own wavenumber (k ∈ [24, 32]) so the fringes come out
+chromatic. The phases drift, each at its own speed, which is what animates
+it. Only the phases move, so cos/sin of **k·r** are precomputed per wave and
+per channel, and each frame is a phase rotation over those tables rather
+than trig per pixel.
+
 ## Seeing an image in the mirrors
 
 Radial mode folds the plane into one wedge, so the sampler only ever reads a
