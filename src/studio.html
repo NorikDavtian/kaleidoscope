@@ -116,6 +116,29 @@
                 <div class="hint">The clip loops between Start and End, so you can hold on the few seconds worth watching.</div>
             </div>
 
+            <div id="qc-audio-controls" class="off">
+                <label class="edge-label">Sound</label>
+
+                <div class="lock-row">
+                    <span>Ambient drone</span>
+                    <button class="switch" id="qc-audio-toggle" onclick="toggleQcAudio()"
+                            aria-pressed="false"
+                            title="Hear the interference — the same twelve waves as a beating drone">Off</button>
+                </div>
+
+                <div class="control-group">
+                    <label for="qcAudioLevel">Level</label>
+                    <div class="slider-container">
+                        <input type="range" id="qcAudioLevel" min="0" max="1" step="0.01" value="0.5" oninput="setQcAudioLevel(this.value)">
+                        <span class="value-display" id="qcAudioLevel-value">50%</span>
+                    </div>
+                </div>
+
+                <div class="hint">The drone is the plate's own function: one oscillator per wave, pitched
+                    6&#8202;:&#8202;7&#8202;:&#8202;8 by wavelength, each detuned by its drift rate — the
+                    beating you hear is the interference you see.</div>
+            </div>
+
             <div id="img-controls" class="off">
                 <!-- The source, with the patch the scope is reading marked on it.
                      Without this you are adjusting Zoom and Pan blind. -->

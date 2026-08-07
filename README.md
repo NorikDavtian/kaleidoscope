@@ -138,6 +138,16 @@ it. Only the phases move, so cos/sin of **k·r** are precomputed per wave and
 per channel, and each frame is a phase rotation over those tables rather
 than trig per pixel.
 
+The plate can also be heard. At its centre the intensity is
+|Σ¹²ᵢ₌₁ e^{iφᵢ(t)}|² — a slow pulse driven only by the drifting phases — and
+the ambient drone is that same sum: each wavenumber becomes a pitch
+(24 : 28 : 32 = 6 : 7 : 8, a natural harmonic chord, one per ear-position as
+it is one per colour), and each of the twelve waves a sine oscillator detuned
+by its own drift rate, so the beating heard is the interference seen. The
+switch and level live in the Source panel while the plate is active; the
+drone fades out when another source takes over and resumes when the plate
+returns.
+
 ## Seeing an image in the mirrors
 
 Radial mode folds the plane into one wedge, so the sampler only ever reads a
