@@ -2210,7 +2210,8 @@
             { id: 'prism',     name: 'Prism',     src: 'plates/prism.gif', animated: true },
             { id: 'smiley',    name: 'Smiley' },
             { id: 'faces',     name: 'Faces' },
-            { id: 'wink',      name: 'Wink', anim: true }
+            { id: 'wink',      name: 'Wink', anim: true },
+            { id: 'interference', name: 'Interference', anim: true }
         ];
 
         const PLATE_ROOTS = ['/studio/', 'public/studio/', ''];
@@ -2542,6 +2543,98 @@
 
         function pick(R, arr) { return arr[(R() * arr.length) | 0]; }
 
+        // The interference plate: I(r) ∝ |Σ¹²ᵢ₌₁ A·e^{i(k·r + φᵢ)}|² —
+        // twelve plane waves spaced around the circle, summed as a complex
+        // field and squared. The sum is solved three times, once per colour
+        // channel at its own wavenumber (k ∈ [24, 32]), so each channel's
+        // fringes land in different places and the pattern comes out
+        // chromatic — a multiple-wavelength interference study. The phases
+        // φᵢ drift, each at its own speed, which is what animates it.
+        //
+        // Per frame that sum is 12 waves × 3 channels of trig per pixel,
+        // which is far too slow. But φᵢ is the only thing that moves, so
+        // cos/sin of k·r are precomputed per wave and per channel once,
+        // and each frame only rotates them by the current phase:
+        // cos(k·r + φ) = cos(k·r)cosφ − sin(k·r)sinφ.
+        const QC_WAVES = 12, QC_SIDE = 224, QC_KS = [24, 28, 32];
+        const QC_SPAN = 4.4;            // world span across the plate
+        let qcTab = null, qcRe = null, qcIm = null, qcInt = null;
+        let qcBase = null, qcRate = null, qcCv = null, qcCtx = null, qcImg = null;
+
+        function qcInit() {
+            const Npx = QC_SIDE * QC_SIDE;
+            qcCv = document.createElement('canvas');
+            qcCv.width = qcCv.height = QC_SIDE;
+            qcCtx = qcCv.getContext('2d');
+            qcImg = qcCtx.createImageData(QC_SIDE, QC_SIDE);
+            qcRe = new Float32Array(Npx);
+            qcIm = new Float32Array(Npx);
+            qcInt = [new Float32Array(Npx), new Float32Array(Npx), new Float32Array(Npx)];
+            qcBase = []; qcRate = [];
+            qcTab = [];
+            const R = makeRng(0x521ab);
+            for (let i = 0; i < QC_WAVES; i++) {
+                const th = 2 * Math.PI * i / QC_WAVES;
+                const dx = Math.cos(th), dy = Math.sin(th);
+                // A narrow spread of starting phases: wide ones dissolve the
+                // rings into speckle.
+                qcBase.push(R() * 0.9);
+                qcRate.push(0.5 + R());
+                const per = [];
+                for (let c = 0; c < 3; c++) {
+                    const C = new Float32Array(Npx), S = new Float32Array(Npx);
+                    let p = 0;
+                    for (let y = 0; y < QC_SIDE; y++) {
+                        const vy = (y / QC_SIDE - 0.5) * QC_SPAN;
+                        for (let x = 0; x < QC_SIDE; x++, p++) {
+                            const vx = (x / QC_SIDE - 0.5) * QC_SPAN;
+                            // The small per-channel offset decorrelates the
+                            // channels near the centre, where every wave
+                            // would otherwise peak together and burn white.
+                            const t = QC_KS[c] * (dx * vx + dy * vy) + c * 0.6;
+                            C[p] = Math.cos(t);
+                            S[p] = Math.sin(t);
+                        }
+                    }
+                    per.push({ c: C, s: S });
+                }
+                qcTab.push(per);
+            }
+        }
+
+        function qcPaint(tau) {
+            if (!qcTab) qcInit();
+            const Npx = QC_SIDE * QC_SIDE, norm = 1 / (QC_WAVES * QC_WAVES);
+            for (let c = 0; c < 3; c++) {
+                qcRe.fill(0); qcIm.fill(0);
+                for (let i = 0; i < QC_WAVES; i++) {
+                    const ph = qcBase[i] + qcRate[i] * tau;
+                    const cp = Math.cos(ph), sp = Math.sin(ph);
+                    const C = qcTab[i][c].c, S = qcTab[i][c].s;
+                    for (let p = 0; p < Npx; p++) {
+                        qcRe[p] += C[p] * cp - S[p] * sp;
+                        qcIm[p] += S[p] * cp + C[p] * sp;
+                    }
+                }
+                const out = qcInt[c];
+                for (let p = 0; p < Npx; p++) {
+                    const v = (qcRe[p] * qcRe[p] + qcIm[p] * qcIm[p]) * norm;
+                    out[p] = Math.pow(v, 0.7) * 1.5;
+                }
+            }
+            // Blend the three wavelengths through spectral-ish tints rather
+            // than dropping them into pure R/G/B, which reads as a test card.
+            const px = qcImg.data, r0 = qcInt[0], r1 = qcInt[1], r2 = qcInt[2];
+            for (let p = 0, q = 0; p < Npx; p++, q += 4) {
+                const a = r0[p], b = r1[p], d = r2[p];
+                px[q]     = Math.min(255, 255 * (1.00 * a + 0.50 * b + 0.22 * d));
+                px[q + 1] = Math.min(255, 255 * (0.28 * a + 0.85 * b + 0.45 * d));
+                px[q + 2] = Math.min(255, 255 * (0.14 * a + 0.30 * b + 1.10 * d));
+                px[q + 3] = 255;
+            }
+            qcCtx.putImageData(qcImg, 0, 0);
+        }
+
         function paintPlate(id, w, h, phase) {
             const pg = createGraphics(w, h);
             pg.pixelDensity(1);
@@ -2619,6 +2712,14 @@
                 pg.fill(217, 119, 87);
                 pg.rect(w * 0.05, h * 0.07, wsq, wsq);
                 pg.rect(w * 0.95 - wsq, h * 0.93 - wsq, wsq, wsq);
+            } else if (id === 'interference') {
+                // Solved on its own small canvas (see qcPaint above), then
+                // scaled up to cover the plate — the field is smooth enough
+                // that the resample never shows.
+                qcPaint((phase || 0) * 1.6);
+                const c2 = pg.drawingContext;
+                const side = Math.max(w, h);
+                c2.drawImage(qcCv, (w - side) / 2, (h - side) / 2, side, side);
             } else if (id === 'faces') {
                 // The crowd version: many small faces, so a single cell catches
                 // several and the mirrors braid them into each other.
