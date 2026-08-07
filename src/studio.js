@@ -656,6 +656,89 @@
             qcCtx.putImageData(qcImg, 0, 0);
         }
 
+        // ── The plate, heard ──
+        // The same function, rendered as sound instead of pixels. At the
+        // centre of the plate every wave arrives in step with its
+        // neighbours and the intensity there is |Σ¹²ᵢ₌₁ e^{iφᵢ(t)}|² — a
+        // slow pulse driven only by the drifting phases. The audio is the
+        // identical sum: each channel's wavenumber becomes a drone pitch
+        // (24 : 28 : 32 = 6 : 7 : 8, a natural harmonic chord) and each of
+        // the twelve waves a sine oscillator detuned by its own drift
+        // rate, so the beating heard is the interference seen.
+        let qcAudioOn = false, qcAudioLevel = 0.5;
+        let qcAC = null, qcMaster = null;
+
+        // φᵢ advances at qcRate[i] times this many radians per second on
+        // screen (0.011 per frame at 60 fps, times the 1.6 drift scale in
+        // drawPlate), so divided by 2π it is the oscillator's detune in Hz.
+        const QC_DRIFT_HZ = 0.011 * 60 * 1.6 / (2 * Math.PI);
+
+        function qcAudioStart() {
+            if (!qcTab) qcInit();       // the drift rates come from the same tables
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return;
+            qcAC = new AC();
+            qcMaster = qcAC.createGain();
+            qcMaster.gain.value = 0;
+            qcMaster.connect(qcAC.destination);
+            for (let c = 0; c < 3; c++) {
+                const bus = qcAC.createGain();
+                bus.gain.value = 1 / QC_WAVES;
+                // One wavelength per ear-position, as it is one per colour.
+                if (qcAC.createStereoPanner) {
+                    const pan = qcAC.createStereoPanner();
+                    pan.pan.value = (c - 1) * 0.5;
+                    pan.connect(qcMaster);
+                    bus.connect(pan);
+                } else {
+                    bus.connect(qcMaster);
+                }
+                for (let i = 0; i < QC_WAVES; i++) {
+                    const o = qcAC.createOscillator();
+                    o.type = 'sine';
+                    o.frequency.value = QC_KS[c] * 2.75 + qcRate[i] * QC_DRIFT_HZ;
+                    o.connect(bus);
+                    o.start();
+                }
+            }
+        }
+
+        // Show the row only while the interference plate is the source, and
+        // fade the drone in or out to match — the toggle keeps its state
+        // across a switch away and back.
+        function syncQcAudio() {
+            const live = activeBase === 'interference';
+            const box = document.getElementById('qc-audio-controls');
+            if (box) box.classList.toggle('off', !live);
+            const b = document.getElementById('qc-audio-toggle');
+            if (b) {
+                b.className = qcAudioOn ? 'switch on' : 'switch';
+                b.textContent = qcAudioOn ? 'On' : 'Off';
+                b.setAttribute('aria-pressed', qcAudioOn);
+            }
+            const target = (qcAudioOn && live) ? 0.14 * qcAudioLevel : 0;
+            if (!qcAC && target === 0) return;   // never build the graph just to silence it
+            if (!qcAC) qcAudioStart();
+            if (!qcAC) return;
+            if (qcAC.state === 'suspended') qcAC.resume();
+            const t = qcAC.currentTime;
+            qcMaster.gain.cancelScheduledValues(t);
+            qcMaster.gain.setValueAtTime(qcMaster.gain.value, t);
+            qcMaster.gain.linearRampToValueAtTime(target, t + 1.2);
+        }
+
+        function toggleQcAudio() {
+            qcAudioOn = !qcAudioOn;
+            syncQcAudio();
+        }
+
+        function setQcAudioLevel(v) {
+            qcAudioLevel = Math.max(0, Math.min(1, parseFloat(v) || 0));
+            const d = document.getElementById('qcAudioLevel-value');
+            if (d) d.textContent = Math.round(qcAudioLevel * 100) + '%';
+            syncQcAudio();
+        }
+
         function paintPlate(id, w, h, phase) {
             const pg = createGraphics(w, h);
             pg.pixelDensity(1);
@@ -1106,6 +1189,9 @@
             document.getElementById('card-title').textContent = name;
             document.getElementById('card-sub').textContent = srcNote;
             refreshSrcRegion();
+            // Every source adoption funnels through here, so this is where
+            // the interference drone follows the plate in and out.
+            syncQcAudio();
         }
 
         // Marks the patch of the source the wedge is currently reading, so Zoom
