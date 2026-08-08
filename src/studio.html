@@ -122,24 +122,40 @@
                 <div class="control-group">
                     <label for="qcDetail">Detail</label>
                     <div class="slider-container">
-                        <input type="range" id="qcDetail" min="2.2" max="8" step="0.1" value="4.4" oninput="setQcParam('span', this.value)">
-                        <span class="value-display" id="qcDetail-value">4.4</span>
+                        <input type="range" id="qcDetail" min="3" max="10" step="0.1" value="5.5" oninput="setQcParam('span', this.value)">
+                        <span class="value-display" id="qcDetail-value">5.5</span>
                     </div>
                 </div>
 
                 <div class="control-group">
-                    <label for="qcSplit">Colour Split</label>
+                    <label for="qcWaves">Symmetry</label>
                     <div class="slider-container">
-                        <input type="range" id="qcSplit" min="0" max="1" step="0.01" value="0" oninput="setQcParam('split', this.value)">
-                        <span class="value-display" id="qcSplit-value">0%</span>
+                        <input type="range" id="qcWaves" min="8" max="40" step="1" value="32" oninput="setQcParam('waves', this.value)">
+                        <span class="value-display" id="qcWaves-value">32</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="qcRing">Ring</label>
+                    <div class="slider-container">
+                        <input type="range" id="qcRing" min="0.2" max="0.75" step="0.01" value="0.52" oninput="setQcParam('ring', this.value)">
+                        <span class="value-display" id="qcRing-value">104%</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="qcDispersion">Dispersion</label>
+                    <div class="slider-container">
+                        <input type="range" id="qcDispersion" min="0" max="0.1" step="0.0025" value="0.01" oninput="setQcParam('disp', this.value)">
+                        <span class="value-display" id="qcDispersion-value">10%</span>
                     </div>
                 </div>
 
                 <div class="control-group">
                     <label for="qcFalloff">Falloff</label>
                     <div class="slider-container">
-                        <input type="range" id="qcFalloff" min="0" max="1" step="0.01" value="0.35" oninput="setQcParam('env', this.value)">
-                        <span class="value-display" id="qcFalloff-value">35%</span>
+                        <input type="range" id="qcFalloff" min="0" max="1" step="0.01" value="0.25" oninput="setQcParam('env', this.value)">
+                        <span class="value-display" id="qcFalloff-value">25%</span>
                     </div>
                 </div>
 
@@ -151,10 +167,28 @@
                     </div>
                 </div>
 
-                <div class="hint">The equation's own dials. Detail packs more fringes into the
-                    plate; Colour Split shears the three wavelengths apart — at zero they
-                    separate radially on their own, cool core to warm rim; Falloff is the
-                    beam's envelope; Contrast deepens the gaps between fringes.</div>
+                <div class="control-group">
+                    <label for="qcColour">Colour</label>
+                    <div class="slider-container">
+                        <input type="range" id="qcColour" min="0" max="1" step="0.01" value="0.5" oninput="setQcParam('sat', this.value)">
+                        <span class="value-display" id="qcColour-value">50%</span>
+                    </div>
+                </div>
+
+                <div class="lock-row">
+                    <span>Variant <span class="value-display" id="qcVariant-value">#1</span></span>
+                    <button class="sec-btn" onclick="qcShuffle()"
+                            title="Draw a fresh set of phases — another plate of the same family">Shuffle</button>
+                </div>
+
+                <div class="hint">The function's own values. Detail packs more fringes into
+                    the plate; Symmetry is how many sources sit on the ring; Ring is how
+                    wide their circle opens; Dispersion widens each colour's wavelength
+                    band, washing blue out first and red last — the cool core inside the
+                    warm rim; Falloff is the beam's envelope; Contrast deepens the gaps;
+                    Colour pushes the wavelengths' tints apart, keeping bright beads in
+                    hue instead of burning white. Shuffle redraws the phases: another
+                    plate from the same equation.</div>
             </div>
 
             <div id="qc-audio-controls" class="off">
