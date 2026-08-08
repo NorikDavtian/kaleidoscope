@@ -333,8 +333,13 @@
         }
 
         /* Removing the segmented control took this with it, so the image and
-           tessellation controls stopped hiding at all. */
-        #tess-controls.off, #img-controls.off, #orb-controls.off { display: none; }
+           tessellation controls stopped hiding at all. Every section the JS
+           toggles 'off' belongs here — the video trim, interference and
+           upload rows were toggling a class no rule ever read, so they sat
+           in the panel whatever the source. */
+        #tess-controls.off, #img-controls.off, #orb-controls.off,
+        #video-controls.off, #qc-controls.off, #qc-audio-controls.off,
+        #uploads-head.off, #upload-grid.off { display: none; }
 
         /* ── Icon rows ─────────────────────────────────────────────────────── */
 

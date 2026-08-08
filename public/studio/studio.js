@@ -564,49 +564,109 @@
 
         function pick(R, arr) { return arr[(R() * arr.length) | 0]; }
 
-        // The interference plate: I(r) ∝ |Σ¹²ᵢ₌₁ A·e^{i(k·r + φᵢ)}|² —
-        // twelve plane waves spaced around the circle, summed as a complex
-        // field and squared. The sum is solved three times, once per colour
-        // channel at its own wavenumber (k ∈ [24, 32]), so each channel's
-        // fringes land in different places and the pattern comes out
-        // chromatic — a multiple-wavelength interference study. The phases
-        // φᵢ drift, each at its own speed, which is what animates it.
+        // The interference plate: I(r) ∝ Σ_λ |Σᴺⱼ₌₁ A·e^{i(k_λ|r−s_j| + φⱼ)}|²
+        // — N point sources seated on a circle, each radiating a circular
+        // wave, summed as a complex field and squared, once per
+        // wavelength. Plane waves were tried first and come out wrong:
+        // their fringes organise into radial spokes. Circular waves give
+        // the reference study's anatomy — a fine lattice at the centre
+        // where the arcs are locally flat, concentric chains of beads
+        // through the midfield, and a scalloped rim where each source's
+        // own rings surface. Each colour channel is a narrow spectral
+        // band: three nearby wavelengths around its centre (k ∈ [24, 32]),
+        // whose intensities add incoherently, as light's do. Where the
+        // band's fringes coincide the lattice is crisp; further away they
+        // slide apart and wash into a glow. Blue, the shortest wavelength,
+        // blurs first and red last, so the colour orders itself radially:
+        // a cool fine-grained core inside a warm coarse rim.
+        //
+        // The phases φᵢ never drift freely — each sways about its seat.
+        // Free drift decoheres the field within seconds and the mandala
+        // dissolves into speckle; bounded sway keeps every frame a member
+        // of the same family, shimmering through nearby variants. The
+        // values the function reads — wave count, span, dispersion,
+        // envelope, tone, and the seed the phases are drawn from — are
+        // the dials below: every setting is a different plate.
         //
         // The sum is solved on the GPU: a fragment shader of its own, on
         // its own small context, so the plate comes out sharp at full
-        // resolution — 36 trig pairs per pixel is nothing to a GPU, and
-        // was the whole cost on the CPU. The CPU path below survives as
-        // the fallback, precomputing cos/sin of k·r per wave and per
-        // channel so each frame is a phase rotation rather than trig:
-        // cos(k·r + φ) = cos(k·r)cosφ − sin(k·r)sinφ.
-        const QC_WAVES = 12, QC_SIDE = 224, QC_KS = [24, 28, 32];
-        const QC_SPAN = 4.4;            // world span across the plate
+        // resolution — a hundred-odd trig pairs per pixel is nothing to a
+        // GPU. The CPU path below survives as the fallback, precomputing
+        // cos/sin of k·d per wave and channel so each frame is a phase
+        // rotation rather than trig:
+        // cos(k·d + φ) = cos(k·d)cosφ − sin(k·d)sinφ.
+        // It solves only each band's centre line — dispersion is a GPU
+        // refinement — and its frame cost stays what it always was.
+        // The concentric zone reaches r ≈ 2N/k before the discrete
+        // directions surface as spokes, so filling the plate with rings —
+        // the reference's look — wants N in the thirties. The GPU takes
+        // that in stride; the CPU fallback caps N at 16 and lives with
+        // the smaller ring zone, since without WebGL the app is already
+        // running degraded.
+        const QC_MAXW = 40, QC_CPU_MAXW = 16;
+        const QC_SIDE = 224, QC_KS = [24, 28, 32];
         const QC_GL_SIDE = 1024;        // the GPU solve, at plate resolution
-        let qcTab = null, qcRe = null, qcIm = null, qcInt = null;
-        let qcBase = null, qcRate = null, qcCv = null, qcCtx = null, qcImg = null;
+        // The rings live or die by phase discipline: they need all N
+        // sources near step, and the margin shrinks as N grows. Narrow
+        // seats and a gentle sway keep the field shimmering without ever
+        // breaking the circles.
+        const QC_SWAY = 0.22;           // how far a phase leans from its seat
+        const QC_SWAY_RATE = 0.45;      // sway pace, in cycles of τ
+        // Exposure anchors to the incoherent background (|F|² ≈ N), not
+        // the coherent peak (N²) — the fabric between beads then holds
+        // its brightness whatever the wave count.
+        const QC_BG_DIV = 9;
+        // Sits just under the incoherent background (≈1/N for 12 waves):
+        // where dispersion has washed the fringes out, the ground drops
+        // toward black, so the crisp and washed zones ring apart clearly.
+        const QC_FLOOR = 0.07;
+        const QC_GAIN = 1.9;            // lifts the surviving beads into a glow
+        let qcTab = null, qcAcc = null, qcInt = null;
+        let qcBase = null, qcRate = null, qcOff = null;
+        let qcCv = null, qcCtx = null, qcImg = null;
         let qcGL = null, qcGLCv = null, qcGLPhiLoc = null, qcGLPhi = null;
         let qcGLU = null, qcGLReady = false, qcGLTried = false;
 
-        // The plate's dials. Split at zero keeps the channels coherent, so
-        // the colour separates radially by wavelength as it does in the
-        // reference plates; falloff is the beam envelope; contrast the tone
-        // curve. Session-local, like the video trim.
-        const qcParams = { span: QC_SPAN, split: 0, env: 0.35, gamma: 0.7 };
-        let qcEnvArr = null, qcEnvVal = -1, qcTabSpan = -1, qcTabSplit = -1;
+        // The plate's dials — the values the function gets. Waves is the
+        // symmetry order; ring the radius of the circle the sources seat
+        // on, as a fraction of the span; disp the spectral width of each
+        // channel's band, which is what separates the colours radially;
+        // falloff the beam envelope; gamma the tone curve. Session-local,
+        // like the video trim.
+        const qcParams = { span: 5.5, waves: 32, ring: 0.52, disp: 0.01,
+                           env: 0.25, gamma: 0.7, sat: 0.5 };
+        let qcEnvArr = null, qcEnvVal = -1;
+        let qcTabSpan = -1, qcTabWaves = -1, qcTabRing = -1;
 
-        // The starting phase and drift rate of each wave — one stream,
+        // The seat, sway rate and sway offset of each phase — one stream,
         // drawn in the same order whichever solver runs, so the GPU and
-        // CPU paths (and the drone below) all describe the same field.
+        // CPU paths all describe the same field. The variant counter
+        // reseeds the draw: each variant is another plate of the family,
+        // like the nine tiles of the reference study.
+        let qcVariant = 1;
         function qcEnsureRates() {
             if (qcBase) return;
-            qcBase = []; qcRate = [];
-            const R = makeRng(0x521ab);
-            for (let i = 0; i < QC_WAVES; i++) {
-                // A narrow spread of starting phases: wide ones dissolve
-                // the rings into speckle.
-                qcBase.push(R() * 0.9);
+            qcBase = []; qcRate = []; qcOff = [];
+            const R = makeRng(0x521ab ^ (qcVariant * 0x9e3779));
+            for (let i = 0; i < QC_MAXW; i++) {
+                // A narrow spread of seats: wide ones dissolve the rings
+                // into speckle before the sway even starts.
+                qcBase.push(R() * 0.3);
                 qcRate.push(0.5 + R());
+                qcOff.push(R() * 2 * Math.PI);
             }
+        }
+
+        function qcPhase(i, tau) {
+            return qcBase[i] + QC_SWAY * Math.sin(qcRate[i] * QC_SWAY_RATE * tau + qcOff[i]);
+        }
+
+        function qcShuffle() {
+            qcVariant++;
+            qcBase = null;
+            qcEnsureRates();
+            const d = document.getElementById('qcVariant-value');
+            if (d) d.textContent = '#' + qcVariant;
         }
 
         function qcGLInit() {
@@ -621,34 +681,53 @@
             const fsrc = [
                 'precision highp float;',
                 'varying vec2 vUV;',
-                'uniform float uPhi[' + QC_WAVES + '];',
-                'uniform float uSpan, uSplit, uEnv, uGamma;',
+                'uniform float uPhi[' + QC_MAXW + '];',
+                'uniform float uSpan, uRing, uDisp, uEnv, uGamma, uSat;',
+                'uniform int uN;',
                 'void main(){',
                 '  vec2 r = (vUV - 0.5) * uSpan;',
-                '  vec3 reS = vec3(0.), imS = vec3(0.);',
                 '  const vec3 K = vec3(' + QC_KS.join('., ') + '.);',
-                '  for (int i = 0; i < ' + QC_WAVES + '; i++) {',
-                '    float a = ' + (2 * Math.PI / QC_WAVES).toFixed(9) + ' * float(i);',
-                '    float u = cos(a) * r.x + sin(a) * r.y;',
-                // uSplit shears the channels' phases apart. At zero they stay
-                // coherent and the colour separates radially on its own — the
-                // fine blue rings blur together first, the coarse red ones
-                // last, a cool core inside a warm rim. Raised, the channels
-                // decorrelate everywhere and the pattern turns confetti.
-                '    vec3 t = K * u + uPhi[i] + uSplit * vec3(0., 0.6, 1.2);',
-                '    reS += cos(t); imS += sin(t);',
+                // each channel is a band of three lines: k(1−ε), k, k(1+ε)
+                '  vec3 eps = uDisp * pow(K / K.x, vec3(1.5));',
+                '  vec3 reA = vec3(0.), imA = vec3(0.);',
+                '  vec3 reB = vec3(0.), imB = vec3(0.);',
+                '  vec3 reC = vec3(0.), imC = vec3(0.);',
+                '  float sect = 6.283185307 / float(uN);',
+                '  for (int i = 0; i < ' + QC_MAXW + '; i++) {',
+                '    if (i >= uN) break;',
+                '    float a = sect * float(i);',
+                // the source seat, and the circular wavefront's path to here
+                '    float u = length(r - uRing * uSpan * vec2(cos(a), sin(a)));',
+                '    vec3 t = K * u + vec3(uPhi[i]);',
+                '    vec3 d = K * eps * u;',
+                '    reA += cos(t);     imA += sin(t);',
+                '    reB += cos(t - d); imB += sin(t - d);',
+                '    reC += cos(t + d); imC += sin(t + d);',
                 '  }',
-                '  vec3 v = (reS * reS + imS * imS) / ' + (QC_WAVES * QC_WAVES).toFixed(1) + ';',
+                // the three lines add as intensities, not amplitudes —
+                // that incoherence is what washes the fringes out with
+                // radius, each channel at its own pace
+                '  float n2 = 3. * float(uN) * ' + QC_BG_DIV.toFixed(1) + ';',
+                '  vec3 v = (reA * reA + imA * imA + reB * reB + imB * imB',
+                '          + reC * reC + imC * imC) / n2;',
                 // a slight blue lean, as in the reference plates
                 '  v *= vec3(0.85, 1.0, 1.25);',
                 // beam envelope: energy falls away toward the corners
                 '  vec2 e = (vUV - 0.5) * 2.;',
                 '  v *= exp(-uEnv * 1.9 * dot(e, e));',
-                '  v = min(pow(v, vec3(uGamma)) * 1.6, 1.);',
+                '  v = max(v - ' + QC_FLOOR.toFixed(3) + ', 0.) * ' +
+                     (1 / (1 - QC_FLOOR)).toFixed(4) + ';',
+                '  v = min(pow(v, vec3(uGamma)) * ' + QC_GAIN.toFixed(2) + ', 1.);',
                 '  vec3 col = vec3(dot(v, vec3(1.00, 0.50, 0.22)),',
                 '                  dot(v, vec3(0.28, 0.85, 0.45)),',
                 '                  dot(v, vec3(0.14, 0.30, 1.10)));',
-                '  gl_FragColor = vec4(min(col, 1.), 1.);',
+                // Colour: push away from the grey axis, then clip by the
+                // largest channel rather than per-channel — a bright bead
+                // keeps its hue instead of burning out to white.
+                '  float lum = dot(col, vec3(0.299, 0.587, 0.114));',
+                '  col = max(mix(vec3(lum), col, 1. + 1.5 * uSat), 0.);',
+                '  col /= max(max(col.r, max(col.g, col.b)), 1.);',
+                '  gl_FragColor = vec4(col, 1.);',
                 '}'
             ].join('\n');
             function sh(type, src) {
@@ -675,11 +754,14 @@
             qcGLPhiLoc = gl.getUniformLocation(prog, 'uPhi');
             qcGLU = {
                 span:  gl.getUniformLocation(prog, 'uSpan'),
-                split: gl.getUniformLocation(prog, 'uSplit'),
+                ring:  gl.getUniformLocation(prog, 'uRing'),
+                disp:  gl.getUniformLocation(prog, 'uDisp'),
                 env:   gl.getUniformLocation(prog, 'uEnv'),
-                gamma: gl.getUniformLocation(prog, 'uGamma')
+                gamma: gl.getUniformLocation(prog, 'uGamma'),
+                sat:   gl.getUniformLocation(prog, 'uSat'),
+                n:     gl.getUniformLocation(prog, 'uN')
             };
-            qcGLPhi = new Float32Array(QC_WAVES);
+            qcGLPhi = new Float32Array(QC_MAXW);
             qcGL = gl;
             qcGLReady = true;
         }
@@ -690,24 +772,27 @@
             qcCv.width = qcCv.height = QC_SIDE;
             qcCtx = qcCv.getContext('2d');
             qcImg = qcCtx.createImageData(QC_SIDE, QC_SIDE);
-            qcRe = new Float32Array(Npx);
-            qcIm = new Float32Array(Npx);
+            // two accumulators: re/im of the band's centre line
+            qcAcc = [new Float32Array(Npx), new Float32Array(Npx)];
             qcInt = [new Float32Array(Npx), new Float32Array(Npx), new Float32Array(Npx)];
             qcEnsureRates();
             qcTab = [];
-            for (let i = 0; i < QC_WAVES; i++) {
-                const th = 2 * Math.PI * i / QC_WAVES;
-                const dx = Math.cos(th), dy = Math.sin(th);
+            const N = Math.min(qcParams.waves, QC_CPU_MAXW);
+            for (let i = 0; i < N; i++) {
+                const th = 2 * Math.PI * i / N;
+                const rho = qcParams.ring * qcParams.span;
+                const sx = rho * Math.cos(th), sy = rho * Math.sin(th);
                 const per = [];
                 for (let c = 0; c < 3; c++) {
+                    // cos/sin of k·d, d the distance to the source
                     const C = new Float32Array(Npx), S = new Float32Array(Npx);
                     let p = 0;
                     for (let y = 0; y < QC_SIDE; y++) {
                         const vy = (y / QC_SIDE - 0.5) * qcParams.span;
                         for (let x = 0; x < QC_SIDE; x++, p++) {
                             const vx = (x / QC_SIDE - 0.5) * qcParams.span;
-                            const t = QC_KS[c] * (dx * vx + dy * vy)
-                                    + qcParams.split * c * 0.6;
+                            const u = Math.hypot(vx - sx, vy - sy);
+                            const t = QC_KS[c] * u;
                             C[p] = Math.cos(t);
                             S[p] = Math.sin(t);
                         }
@@ -717,7 +802,8 @@
                 qcTab.push(per);
             }
             qcTabSpan = qcParams.span;
-            qcTabSplit = qcParams.split;
+            qcTabWaves = qcParams.waves;
+            qcTabRing = qcParams.ring;
         }
 
         // The beam envelope, precomputed per pixel — it only changes with
@@ -744,46 +830,67 @@
             qcEnsureRates();
             if (!qcGLTried) qcGLInit();
             if (qcGLReady) {
-                for (let i = 0; i < QC_WAVES; i++) {
-                    qcGLPhi[i] = qcBase[i] + qcRate[i] * tau;
+                for (let i = 0; i < QC_MAXW; i++) {
+                    qcGLPhi[i] = i < qcParams.waves ? qcPhase(i, tau) : 0;
                 }
                 qcGL.uniform1fv(qcGLPhiLoc, qcGLPhi);
                 qcGL.uniform1f(qcGLU.span, qcParams.span);
-                qcGL.uniform1f(qcGLU.split, qcParams.split);
+                qcGL.uniform1f(qcGLU.ring, qcParams.ring);
+                qcGL.uniform1f(qcGLU.disp, qcParams.disp);
                 qcGL.uniform1f(qcGLU.env, qcParams.env);
                 qcGL.uniform1f(qcGLU.gamma, qcParams.gamma);
+                qcGL.uniform1f(qcGLU.sat, qcParams.sat);
+                qcGL.uniform1i(qcGLU.n, qcParams.waves);
                 qcGL.drawArrays(qcGL.TRIANGLE_STRIP, 0, 4);
                 return qcGLCv;
             }
-            if (!qcTab || qcTabSpan !== qcParams.span || qcTabSplit !== qcParams.split) qcInit();
-            const Npx = QC_SIDE * QC_SIDE, norm = 1 / (QC_WAVES * QC_WAVES);
+            if (!qcTab || qcTabSpan !== qcParams.span ||
+                qcTabWaves !== qcParams.waves || qcTabRing !== qcParams.ring) qcInit();
+            const N = Math.min(qcParams.waves, QC_CPU_MAXW);
+            const Npx = QC_SIDE * QC_SIDE, norm = 1 / (N * QC_BG_DIV);
             const env = qcEnvelope(), g = qcParams.gamma;
             const bias = [0.85, 1.0, 1.25];   // the shader's blue lean
+            const reA = qcAcc[0], imA = qcAcc[1];
+            const flr = QC_FLOOR, unflr = 1 / (1 - QC_FLOOR);
             for (let c = 0; c < 3; c++) {
-                qcRe.fill(0); qcIm.fill(0);
-                for (let i = 0; i < QC_WAVES; i++) {
-                    const ph = qcBase[i] + qcRate[i] * tau;
+                reA.fill(0); imA.fill(0);
+                for (let i = 0; i < N; i++) {
+                    const ph = qcPhase(i, tau);
                     const cp = Math.cos(ph), sp = Math.sin(ph);
-                    const C = qcTab[i][c].c, S = qcTab[i][c].s;
+                    const T = qcTab[i][c];
+                    const C = T.c, S = T.s;
                     for (let p = 0; p < Npx; p++) {
-                        qcRe[p] += C[p] * cp - S[p] * sp;
-                        qcIm[p] += S[p] * cp + C[p] * sp;
+                        reA[p] += C[p] * cp - S[p] * sp;
+                        imA[p] += S[p] * cp + C[p] * sp;
                     }
                 }
                 const out = qcInt[c], nb = norm * bias[c];
                 for (let p = 0; p < Npx; p++) {
-                    const v = (qcRe[p] * qcRe[p] + qcIm[p] * qcIm[p]) * nb * env[p];
-                    out[p] = Math.min(1, Math.pow(v, g) * 1.6);
+                    let v = (reA[p] * reA[p] + imA[p] * imA[p]) * nb * env[p];
+                    v = Math.max(v - flr, 0) * unflr;
+                    out[p] = Math.min(1, Math.pow(v, g) * QC_GAIN);
                 }
             }
             // Blend the three wavelengths through spectral-ish tints rather
             // than dropping them into pure R/G/B, which reads as a test card.
+            // Then the same colour move as the shader: push away from the
+            // grey axis and clip by the largest channel, so bright beads
+            // keep their hue instead of burning out to white.
             const px = qcImg.data, r0 = qcInt[0], r1 = qcInt[1], r2 = qcInt[2];
+            const satK = 1 + 1.5 * qcParams.sat;
             for (let p = 0, q = 0; p < Npx; p++, q += 4) {
                 const a = r0[p], b = r1[p], d = r2[p];
-                px[q]     = Math.min(255, 255 * (1.00 * a + 0.50 * b + 0.22 * d));
-                px[q + 1] = Math.min(255, 255 * (0.28 * a + 0.85 * b + 0.45 * d));
-                px[q + 2] = Math.min(255, 255 * (0.14 * a + 0.30 * b + 1.10 * d));
+                let rr = 1.00 * a + 0.50 * b + 0.22 * d;
+                let gg = 0.28 * a + 0.85 * b + 0.45 * d;
+                let bb = 0.14 * a + 0.30 * b + 1.10 * d;
+                const lum = 0.299 * rr + 0.587 * gg + 0.114 * bb;
+                rr = Math.max(0, lum + (rr - lum) * satK);
+                gg = Math.max(0, lum + (gg - lum) * satK);
+                bb = Math.max(0, lum + (bb - lum) * satK);
+                const m = Math.max(1, rr, gg, bb);
+                px[q]     = 255 * rr / m;
+                px[q + 1] = 255 * gg / m;
+                px[q + 2] = 255 * bb / m;
                 px[q + 3] = 255;
             }
             qcCtx.putImageData(qcImg, 0, 0);
@@ -791,32 +898,44 @@
         }
 
         // The dials. The GPU path reads qcParams as uniforms each frame;
-        // the CPU fallback rebuilds its tables when span or split move and
-        // its envelope when falloff does — slow dials, so acceptable.
+        // the CPU fallback rebuilds its tables when span, waves or ring
+        // move and its envelope when falloff does — slow dials, so
+        // acceptable.
         const QC_DIALS = {
-            span:  { el: 'qcDetail',   fmt: function (v) { return v.toFixed(1); } },
-            split: { el: 'qcSplit',    fmt: function (v) { return Math.round(v * 100) + '%'; } },
-            env:   { el: 'qcFalloff',  fmt: function (v) { return Math.round(v * 100) + '%'; } },
-            gamma: { el: 'qcContrast', fmt: function (v) { return v.toFixed(2); } }
+            span:  { el: 'qcDetail',     fmt: function (v) { return v.toFixed(1); } },
+            waves: { el: 'qcWaves',      fmt: function (v) { return String(v); }, int: true },
+            ring:  { el: 'qcRing',       fmt: function (v) { return Math.round(v * 200) + '%'; } },
+            disp:  { el: 'qcDispersion', fmt: function (v) { return Math.round(v * 1000) + '%'; } },
+            env:   { el: 'qcFalloff',    fmt: function (v) { return Math.round(v * 100) + '%'; } },
+            gamma: { el: 'qcContrast',   fmt: function (v) { return v.toFixed(2); } },
+            sat:   { el: 'qcColour',     fmt: function (v) { return Math.round(v * 100) + '%'; } }
         };
 
         function setQcParam(key, v) {
             const d = QC_DIALS[key];
             if (!d) return;
-            qcParams[key] = parseFloat(v) || 0;
+            const n = parseFloat(v) || 0;
+            qcParams[key] = d.int ? Math.max(1, Math.round(n)) : n;
             const disp = document.getElementById(d.el + '-value');
             if (disp) disp.textContent = d.fmt(qcParams[key]);
         }
 
         // ── The plate, heard ──
+        // PARKED for now: the drone was written against the free-drift
+        // phase model and no longer describes the field, so the row stays
+        // hidden and the graph is never built until the sound is reworked
+        // to follow the sway. The code below is the last working version,
+        // kept to return to.
+        //
         // The same function, rendered as sound instead of pixels. At the
         // centre of the plate every wave arrives in step with its
-        // neighbours and the intensity there is |Σ¹²ᵢ₌₁ e^{iφᵢ(t)}|² — a
-        // slow pulse driven only by the drifting phases. The audio is the
+        // neighbours and the intensity there is |Σᴺᵢ₌₁ e^{iφᵢ(t)}|² — a
+        // slow pulse driven only by the moving phases. The audio is the
         // identical sum: each channel's wavenumber becomes a drone pitch
-        // (24 : 28 : 32 = 6 : 7 : 8, a natural harmonic chord) and each of
-        // the twelve waves a sine oscillator detuned by its own drift
-        // rate, so the beating heard is the interference seen.
+        // (24 : 28 : 32 = 6 : 7 : 8, a natural harmonic chord) and each
+        // wave a sine oscillator detuned by its own rate, so the beating
+        // heard is the interference seen.
+        const QC_AUDIO_ENABLED = false;
         let qcAudioOn = false, qcAudioLevel = 0.5;
         let qcAC = null, qcMaster = null;
 
@@ -846,7 +965,7 @@
             comp.connect(qcAC.destination);
             for (let c = 0; c < 3; c++) {
                 const chan = qcAC.createGain();
-                chan.gain.value = 1 / QC_WAVES;
+                chan.gain.value = 1 / qcParams.waves;
                 // One wavelength per ear-position, as it is one per colour.
                 if (qcAC.createStereoPanner) {
                     const pan = qcAC.createStereoPanner();
@@ -860,7 +979,7 @@
                     const bus = qcAC.createGain();
                     bus.gain.value = L[1];
                     bus.connect(chan);
-                    for (let i = 0; i < QC_WAVES; i++) {
+                    for (let i = 0; i < qcParams.waves; i++) {
                         const o = qcAC.createOscillator();
                         o.type = 'sine';
                         o.frequency.value = QC_KS[c] * L[0] + qcRate[i] * QC_DRIFT_HZ;
@@ -871,15 +990,17 @@
             }
         }
 
-        // Show the row only while the interference plate is the source, and
-        // fade the drone in or out to match — the toggle keeps its state
-        // across a switch away and back.
+        // Show the dial row only while the interference plate is the
+        // source. The sound row stays hidden while the drone is parked —
+        // QC_AUDIO_ENABLED gates both the row and the graph, so nothing
+        // below ever runs until the rework.
         function syncQcAudio() {
-            const live = activeBase === 'interference';
+            const active = activeBase === 'interference';
+            const live = QC_AUDIO_ENABLED && active;
             const box = document.getElementById('qc-audio-controls');
             if (box) box.classList.toggle('off', !live);
             const dials = document.getElementById('qc-controls');
-            if (dials) dials.classList.toggle('off', !live);
+            if (dials) dials.classList.toggle('off', !active);
             const b = document.getElementById('qc-audio-toggle');
             if (b) {
                 b.className = qcAudioOn ? 'switch on' : 'switch';
