@@ -1285,6 +1285,47 @@
                 <div class="hint">The clip loops between Start and End, so you can hold on the few seconds worth watching.</div>
             </div>
 
+            <div id="qc-controls" class="off">
+                <label class="edge-label">Interference</label>
+
+                <div class="control-group">
+                    <label for="qcDetail">Detail</label>
+                    <div class="slider-container">
+                        <input type="range" id="qcDetail" min="2.2" max="8" step="0.1" value="4.4" oninput="setQcParam('span', this.value)">
+                        <span class="value-display" id="qcDetail-value">4.4</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="qcSplit">Colour Split</label>
+                    <div class="slider-container">
+                        <input type="range" id="qcSplit" min="0" max="1" step="0.01" value="0" oninput="setQcParam('split', this.value)">
+                        <span class="value-display" id="qcSplit-value">0%</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="qcFalloff">Falloff</label>
+                    <div class="slider-container">
+                        <input type="range" id="qcFalloff" min="0" max="1" step="0.01" value="0.35" oninput="setQcParam('env', this.value)">
+                        <span class="value-display" id="qcFalloff-value">35%</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="qcContrast">Contrast</label>
+                    <div class="slider-container">
+                        <input type="range" id="qcContrast" min="0.5" max="1.4" step="0.01" value="0.7" oninput="setQcParam('gamma', this.value)">
+                        <span class="value-display" id="qcContrast-value">0.70</span>
+                    </div>
+                </div>
+
+                <div class="hint">The equation's own dials. Detail packs more fringes into the
+                    plate; Colour Split shears the three wavelengths apart — at zero they
+                    separate radially on their own, cool core to warm rim; Falloff is the
+                    beam's envelope; Contrast deepens the gaps between fringes.</div>
+            </div>
+
             <div id="qc-audio-controls" class="off">
                 <label class="edge-label">Sound</label>
 
@@ -2588,7 +2629,14 @@
         let qcTab = null, qcRe = null, qcIm = null, qcInt = null;
         let qcBase = null, qcRate = null, qcCv = null, qcCtx = null, qcImg = null;
         let qcGL = null, qcGLCv = null, qcGLPhiLoc = null, qcGLPhi = null;
-        let qcGLReady = false, qcGLTried = false;
+        let qcGLU = null, qcGLReady = false, qcGLTried = false;
+
+        // The plate's dials. Split at zero keeps the channels coherent, so
+        // the colour separates radially by wavelength as it does in the
+        // reference plates; falloff is the beam envelope; contrast the tone
+        // curve. Session-local, like the video trim.
+        const qcParams = { span: QC_SPAN, split: 0, env: 0.35, gamma: 0.7 };
+        let qcEnvArr = null, qcEnvVal = -1, qcTabSpan = -1, qcTabSplit = -1;
 
         // The starting phase and drift rate of each wave — one stream,
         // drawn in the same order whichever solver runs, so the GPU and
@@ -2618,20 +2666,29 @@
                 'precision highp float;',
                 'varying vec2 vUV;',
                 'uniform float uPhi[' + QC_WAVES + '];',
+                'uniform float uSpan, uSplit, uEnv, uGamma;',
                 'void main(){',
-                '  vec2 r = (vUV - 0.5) * ' + QC_SPAN.toFixed(1) + ';',
+                '  vec2 r = (vUV - 0.5) * uSpan;',
                 '  vec3 reS = vec3(0.), imS = vec3(0.);',
                 '  const vec3 K = vec3(' + QC_KS.join('., ') + '.);',
                 '  for (int i = 0; i < ' + QC_WAVES + '; i++) {',
                 '    float a = ' + (2 * Math.PI / QC_WAVES).toFixed(9) + ' * float(i);',
                 '    float u = cos(a) * r.x + sin(a) * r.y;',
-                // the same small per-channel offset as the CPU path, so the
-                // channels decorrelate near the centre instead of burning white
-                '    vec3 t = K * u + uPhi[i] + vec3(0., 0.6, 1.2);',
+                // uSplit shears the channels' phases apart. At zero they stay
+                // coherent and the colour separates radially on its own — the
+                // fine blue rings blur together first, the coarse red ones
+                // last, a cool core inside a warm rim. Raised, the channels
+                // decorrelate everywhere and the pattern turns confetti.
+                '    vec3 t = K * u + uPhi[i] + uSplit * vec3(0., 0.6, 1.2);',
                 '    reS += cos(t); imS += sin(t);',
                 '  }',
                 '  vec3 v = (reS * reS + imS * imS) / ' + (QC_WAVES * QC_WAVES).toFixed(1) + ';',
-                '  v = pow(v, vec3(0.7)) * 1.5;',
+                // a slight blue lean, as in the reference plates
+                '  v *= vec3(0.85, 1.0, 1.25);',
+                // beam envelope: energy falls away toward the corners
+                '  vec2 e = (vUV - 0.5) * 2.;',
+                '  v *= exp(-uEnv * 1.9 * dot(e, e));',
+                '  v = min(pow(v, vec3(uGamma)) * 1.6, 1.);',
                 '  vec3 col = vec3(dot(v, vec3(1.00, 0.50, 0.22)),',
                 '                  dot(v, vec3(0.28, 0.85, 0.45)),',
                 '                  dot(v, vec3(0.14, 0.30, 1.10)));',
@@ -2660,6 +2717,12 @@
             gl.enableVertexAttribArray(aP);
             gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
             qcGLPhiLoc = gl.getUniformLocation(prog, 'uPhi');
+            qcGLU = {
+                span:  gl.getUniformLocation(prog, 'uSpan'),
+                split: gl.getUniformLocation(prog, 'uSplit'),
+                env:   gl.getUniformLocation(prog, 'uEnv'),
+                gamma: gl.getUniformLocation(prog, 'uGamma')
+            };
             qcGLPhi = new Float32Array(QC_WAVES);
             qcGL = gl;
             qcGLReady = true;
@@ -2684,13 +2747,11 @@
                     const C = new Float32Array(Npx), S = new Float32Array(Npx);
                     let p = 0;
                     for (let y = 0; y < QC_SIDE; y++) {
-                        const vy = (y / QC_SIDE - 0.5) * QC_SPAN;
+                        const vy = (y / QC_SIDE - 0.5) * qcParams.span;
                         for (let x = 0; x < QC_SIDE; x++, p++) {
-                            const vx = (x / QC_SIDE - 0.5) * QC_SPAN;
-                            // The small per-channel offset decorrelates the
-                            // channels near the centre, where every wave
-                            // would otherwise peak together and burn white.
-                            const t = QC_KS[c] * (dx * vx + dy * vy) + c * 0.6;
+                            const vx = (x / QC_SIDE - 0.5) * qcParams.span;
+                            const t = QC_KS[c] * (dx * vx + dy * vy)
+                                    + qcParams.split * c * 0.6;
                             C[p] = Math.cos(t);
                             S[p] = Math.sin(t);
                         }
@@ -2699,6 +2760,26 @@
                 }
                 qcTab.push(per);
             }
+            qcTabSpan = qcParams.span;
+            qcTabSplit = qcParams.split;
+        }
+
+        // The beam envelope, precomputed per pixel — it only changes with
+        // its own dial, never with the phases.
+        function qcEnvelope() {
+            if (qcEnvArr && qcEnvVal === qcParams.env) return qcEnvArr;
+            const Npx = QC_SIDE * QC_SIDE;
+            if (!qcEnvArr) qcEnvArr = new Float32Array(Npx);
+            let p = 0;
+            for (let y = 0; y < QC_SIDE; y++) {
+                const ey = (y / QC_SIDE - 0.5) * 2;
+                for (let x = 0; x < QC_SIDE; x++, p++) {
+                    const ex = (x / QC_SIDE - 0.5) * 2;
+                    qcEnvArr[p] = Math.exp(-qcParams.env * 1.9 * (ex * ex + ey * ey));
+                }
+            }
+            qcEnvVal = qcParams.env;
+            return qcEnvArr;
         }
 
         // Returns the canvas holding the solved field — the GPU's when the
@@ -2711,11 +2792,17 @@
                     qcGLPhi[i] = qcBase[i] + qcRate[i] * tau;
                 }
                 qcGL.uniform1fv(qcGLPhiLoc, qcGLPhi);
+                qcGL.uniform1f(qcGLU.span, qcParams.span);
+                qcGL.uniform1f(qcGLU.split, qcParams.split);
+                qcGL.uniform1f(qcGLU.env, qcParams.env);
+                qcGL.uniform1f(qcGLU.gamma, qcParams.gamma);
                 qcGL.drawArrays(qcGL.TRIANGLE_STRIP, 0, 4);
                 return qcGLCv;
             }
-            if (!qcTab) qcInit();
+            if (!qcTab || qcTabSpan !== qcParams.span || qcTabSplit !== qcParams.split) qcInit();
             const Npx = QC_SIDE * QC_SIDE, norm = 1 / (QC_WAVES * QC_WAVES);
+            const env = qcEnvelope(), g = qcParams.gamma;
+            const bias = [0.85, 1.0, 1.25];   // the shader's blue lean
             for (let c = 0; c < 3; c++) {
                 qcRe.fill(0); qcIm.fill(0);
                 for (let i = 0; i < QC_WAVES; i++) {
@@ -2727,10 +2814,10 @@
                         qcIm[p] += S[p] * cp + C[p] * sp;
                     }
                 }
-                const out = qcInt[c];
+                const out = qcInt[c], nb = norm * bias[c];
                 for (let p = 0; p < Npx; p++) {
-                    const v = (qcRe[p] * qcRe[p] + qcIm[p] * qcIm[p]) * norm;
-                    out[p] = Math.pow(v, 0.7) * 1.5;
+                    const v = (qcRe[p] * qcRe[p] + qcIm[p] * qcIm[p]) * nb * env[p];
+                    out[p] = Math.min(1, Math.pow(v, g) * 1.6);
                 }
             }
             // Blend the three wavelengths through spectral-ish tints rather
@@ -2745,6 +2832,24 @@
             }
             qcCtx.putImageData(qcImg, 0, 0);
             return qcCv;
+        }
+
+        // The dials. The GPU path reads qcParams as uniforms each frame;
+        // the CPU fallback rebuilds its tables when span or split move and
+        // its envelope when falloff does — slow dials, so acceptable.
+        const QC_DIALS = {
+            span:  { el: 'qcDetail',   fmt: function (v) { return v.toFixed(1); } },
+            split: { el: 'qcSplit',    fmt: function (v) { return Math.round(v * 100) + '%'; } },
+            env:   { el: 'qcFalloff',  fmt: function (v) { return Math.round(v * 100) + '%'; } },
+            gamma: { el: 'qcContrast', fmt: function (v) { return v.toFixed(2); } }
+        };
+
+        function setQcParam(key, v) {
+            const d = QC_DIALS[key];
+            if (!d) return;
+            qcParams[key] = parseFloat(v) || 0;
+            const disp = document.getElementById(d.el + '-value');
+            if (disp) disp.textContent = d.fmt(qcParams[key]);
         }
 
         // ── The plate, heard ──
@@ -2817,6 +2922,8 @@
             const live = activeBase === 'interference';
             const box = document.getElementById('qc-audio-controls');
             if (box) box.classList.toggle('off', !live);
+            const dials = document.getElementById('qc-controls');
+            if (dials) dials.classList.toggle('off', !live);
             const b = document.getElementById('qc-audio-toggle');
             if (b) {
                 b.className = qcAudioOn ? 'switch on' : 'switch';

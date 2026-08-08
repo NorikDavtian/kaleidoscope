@@ -116,6 +116,47 @@
                 <div class="hint">The clip loops between Start and End, so you can hold on the few seconds worth watching.</div>
             </div>
 
+            <div id="qc-controls" class="off">
+                <label class="edge-label">Interference</label>
+
+                <div class="control-group">
+                    <label for="qcDetail">Detail</label>
+                    <div class="slider-container">
+                        <input type="range" id="qcDetail" min="2.2" max="8" step="0.1" value="4.4" oninput="setQcParam('span', this.value)">
+                        <span class="value-display" id="qcDetail-value">4.4</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="qcSplit">Colour Split</label>
+                    <div class="slider-container">
+                        <input type="range" id="qcSplit" min="0" max="1" step="0.01" value="0" oninput="setQcParam('split', this.value)">
+                        <span class="value-display" id="qcSplit-value">0%</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="qcFalloff">Falloff</label>
+                    <div class="slider-container">
+                        <input type="range" id="qcFalloff" min="0" max="1" step="0.01" value="0.35" oninput="setQcParam('env', this.value)">
+                        <span class="value-display" id="qcFalloff-value">35%</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="qcContrast">Contrast</label>
+                    <div class="slider-container">
+                        <input type="range" id="qcContrast" min="0.5" max="1.4" step="0.01" value="0.7" oninput="setQcParam('gamma', this.value)">
+                        <span class="value-display" id="qcContrast-value">0.70</span>
+                    </div>
+                </div>
+
+                <div class="hint">The equation's own dials. Detail packs more fringes into the
+                    plate; Colour Split shears the three wavelengths apart — at zero they
+                    separate radially on their own, cool core to warm rim; Falloff is the
+                    beam's envelope; Contrast deepens the gaps between fringes.</div>
+            </div>
+
             <div id="qc-audio-controls" class="off">
                 <label class="edge-label">Sound</label>
 
