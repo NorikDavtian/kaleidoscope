@@ -572,15 +572,95 @@
         // chromatic — a multiple-wavelength interference study. The phases
         // φᵢ drift, each at its own speed, which is what animates it.
         //
-        // Per frame that sum is 12 waves × 3 channels of trig per pixel,
-        // which is far too slow. But φᵢ is the only thing that moves, so
-        // cos/sin of k·r are precomputed per wave and per channel once,
-        // and each frame only rotates them by the current phase:
+        // The sum is solved on the GPU: a fragment shader of its own, on
+        // its own small context, so the plate comes out sharp at full
+        // resolution — 36 trig pairs per pixel is nothing to a GPU, and
+        // was the whole cost on the CPU. The CPU path below survives as
+        // the fallback, precomputing cos/sin of k·r per wave and per
+        // channel so each frame is a phase rotation rather than trig:
         // cos(k·r + φ) = cos(k·r)cosφ − sin(k·r)sinφ.
         const QC_WAVES = 12, QC_SIDE = 224, QC_KS = [24, 28, 32];
         const QC_SPAN = 4.4;            // world span across the plate
+        const QC_GL_SIDE = 1024;        // the GPU solve, at plate resolution
         let qcTab = null, qcRe = null, qcIm = null, qcInt = null;
         let qcBase = null, qcRate = null, qcCv = null, qcCtx = null, qcImg = null;
+        let qcGL = null, qcGLCv = null, qcGLPhiLoc = null, qcGLPhi = null;
+        let qcGLReady = false, qcGLTried = false;
+
+        // The starting phase and drift rate of each wave — one stream,
+        // drawn in the same order whichever solver runs, so the GPU and
+        // CPU paths (and the drone below) all describe the same field.
+        function qcEnsureRates() {
+            if (qcBase) return;
+            qcBase = []; qcRate = [];
+            const R = makeRng(0x521ab);
+            for (let i = 0; i < QC_WAVES; i++) {
+                // A narrow spread of starting phases: wide ones dissolve
+                // the rings into speckle.
+                qcBase.push(R() * 0.9);
+                qcRate.push(0.5 + R());
+            }
+        }
+
+        function qcGLInit() {
+            qcGLTried = true;
+            qcGLCv = document.createElement('canvas');
+            qcGLCv.width = qcGLCv.height = QC_GL_SIDE;
+            const gl = qcGLCv.getContext('webgl',
+                { antialias: false, depth: false, preserveDrawingBuffer: true });
+            if (!gl) return;
+            const vsrc = 'attribute vec2 aP; varying vec2 vUV;' +
+                'void main(){ vUV = aP * 0.5 + 0.5; gl_Position = vec4(aP, 0., 1.); }';
+            const fsrc = [
+                'precision highp float;',
+                'varying vec2 vUV;',
+                'uniform float uPhi[' + QC_WAVES + '];',
+                'void main(){',
+                '  vec2 r = (vUV - 0.5) * ' + QC_SPAN.toFixed(1) + ';',
+                '  vec3 reS = vec3(0.), imS = vec3(0.);',
+                '  const vec3 K = vec3(' + QC_KS.join('., ') + '.);',
+                '  for (int i = 0; i < ' + QC_WAVES + '; i++) {',
+                '    float a = ' + (2 * Math.PI / QC_WAVES).toFixed(9) + ' * float(i);',
+                '    float u = cos(a) * r.x + sin(a) * r.y;',
+                // the same small per-channel offset as the CPU path, so the
+                // channels decorrelate near the centre instead of burning white
+                '    vec3 t = K * u + uPhi[i] + vec3(0., 0.6, 1.2);',
+                '    reS += cos(t); imS += sin(t);',
+                '  }',
+                '  vec3 v = (reS * reS + imS * imS) / ' + (QC_WAVES * QC_WAVES).toFixed(1) + ';',
+                '  v = pow(v, vec3(0.7)) * 1.5;',
+                '  vec3 col = vec3(dot(v, vec3(1.00, 0.50, 0.22)),',
+                '                  dot(v, vec3(0.28, 0.85, 0.45)),',
+                '                  dot(v, vec3(0.14, 0.30, 1.10)));',
+                '  gl_FragColor = vec4(min(col, 1.), 1.);',
+                '}'
+            ].join('\n');
+            function sh(type, src) {
+                const s = gl.createShader(type);
+                gl.shaderSource(s, src);
+                gl.compileShader(s);
+                return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null;
+            }
+            const vs = sh(gl.VERTEX_SHADER, vsrc), fs = sh(gl.FRAGMENT_SHADER, fsrc);
+            if (!vs || !fs) return;
+            const prog = gl.createProgram();
+            gl.attachShader(prog, vs);
+            gl.attachShader(prog, fs);
+            gl.linkProgram(prog);
+            if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+            gl.useProgram(prog);
+            const buf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+            gl.bufferData(gl.ARRAY_BUFFER,
+                new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+            const aP = gl.getAttribLocation(prog, 'aP');
+            gl.enableVertexAttribArray(aP);
+            gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+            qcGLPhiLoc = gl.getUniformLocation(prog, 'uPhi');
+            qcGLPhi = new Float32Array(QC_WAVES);
+            qcGL = gl;
+            qcGLReady = true;
+        }
 
         function qcInit() {
             const Npx = QC_SIDE * QC_SIDE;
@@ -591,16 +671,11 @@
             qcRe = new Float32Array(Npx);
             qcIm = new Float32Array(Npx);
             qcInt = [new Float32Array(Npx), new Float32Array(Npx), new Float32Array(Npx)];
-            qcBase = []; qcRate = [];
+            qcEnsureRates();
             qcTab = [];
-            const R = makeRng(0x521ab);
             for (let i = 0; i < QC_WAVES; i++) {
                 const th = 2 * Math.PI * i / QC_WAVES;
                 const dx = Math.cos(th), dy = Math.sin(th);
-                // A narrow spread of starting phases: wide ones dissolve the
-                // rings into speckle.
-                qcBase.push(R() * 0.9);
-                qcRate.push(0.5 + R());
                 const per = [];
                 for (let c = 0; c < 3; c++) {
                     const C = new Float32Array(Npx), S = new Float32Array(Npx);
@@ -623,7 +698,19 @@
             }
         }
 
+        // Returns the canvas holding the solved field — the GPU's when the
+        // dedicated context came up, the CPU fallback's otherwise.
         function qcPaint(tau) {
+            qcEnsureRates();
+            if (!qcGLTried) qcGLInit();
+            if (qcGLReady) {
+                for (let i = 0; i < QC_WAVES; i++) {
+                    qcGLPhi[i] = qcBase[i] + qcRate[i] * tau;
+                }
+                qcGL.uniform1fv(qcGLPhiLoc, qcGLPhi);
+                qcGL.drawArrays(qcGL.TRIANGLE_STRIP, 0, 4);
+                return qcGLCv;
+            }
             if (!qcTab) qcInit();
             const Npx = QC_SIDE * QC_SIDE, norm = 1 / (QC_WAVES * QC_WAVES);
             for (let c = 0; c < 3; c++) {
@@ -654,6 +741,7 @@
                 px[q + 3] = 255;
             }
             qcCtx.putImageData(qcImg, 0, 0);
+            return qcCv;
         }
 
         // ── The plate, heard ──
@@ -673,33 +761,49 @@
         // drawPlate), so divided by 2π it is the oscillator's detune in Hz.
         const QC_DRIFT_HZ = 0.011 * 60 * 1.6 / (2 * Math.PI);
 
+        // The chord sits in three registers: the top one carries on any
+        // speaker — the original single layer lived at 66–88 Hz, which a
+        // laptop cannot reproduce at all — and the lower two add body
+        // where the hardware can hold them. Every oscillator keeps the
+        // same additive detune, so all three registers beat in unison.
+        const QC_LAYERS = [[11, 1.0], [5.5, 0.55], [2.75, 0.3]];  // pitch ×, gain
+
         function qcAudioStart() {
-            if (!qcTab) qcInit();       // the drift rates come from the same tables
+            qcEnsureRates();            // the drift rates are the field's own
             const AC = window.AudioContext || window.webkitAudioContext;
             if (!AC) return;
             qcAC = new AC();
             qcMaster = qcAC.createGain();
             qcMaster.gain.value = 0;
-            qcMaster.connect(qcAC.destination);
+            // The compressor catches the moments every wave lands in phase
+            // — the audible version of the centre burning white.
+            const comp = qcAC.createDynamicsCompressor();
+            qcMaster.connect(comp);
+            comp.connect(qcAC.destination);
             for (let c = 0; c < 3; c++) {
-                const bus = qcAC.createGain();
-                bus.gain.value = 1 / QC_WAVES;
+                const chan = qcAC.createGain();
+                chan.gain.value = 1 / QC_WAVES;
                 // One wavelength per ear-position, as it is one per colour.
                 if (qcAC.createStereoPanner) {
                     const pan = qcAC.createStereoPanner();
                     pan.pan.value = (c - 1) * 0.5;
                     pan.connect(qcMaster);
-                    bus.connect(pan);
+                    chan.connect(pan);
                 } else {
-                    bus.connect(qcMaster);
+                    chan.connect(qcMaster);
                 }
-                for (let i = 0; i < QC_WAVES; i++) {
-                    const o = qcAC.createOscillator();
-                    o.type = 'sine';
-                    o.frequency.value = QC_KS[c] * 2.75 + qcRate[i] * QC_DRIFT_HZ;
-                    o.connect(bus);
-                    o.start();
-                }
+                QC_LAYERS.forEach(function (L) {
+                    const bus = qcAC.createGain();
+                    bus.gain.value = L[1];
+                    bus.connect(chan);
+                    for (let i = 0; i < QC_WAVES; i++) {
+                        const o = qcAC.createOscillator();
+                        o.type = 'sine';
+                        o.frequency.value = QC_KS[c] * L[0] + qcRate[i] * QC_DRIFT_HZ;
+                        o.connect(bus);
+                        o.start();
+                    }
+                });
             }
         }
 
@@ -716,7 +820,7 @@
                 b.textContent = qcAudioOn ? 'On' : 'Off';
                 b.setAttribute('aria-pressed', qcAudioOn);
             }
-            const target = (qcAudioOn && live) ? 0.14 * qcAudioLevel : 0;
+            const target = (qcAudioOn && live) ? 0.5 * qcAudioLevel : 0;
             if (!qcAC && target === 0) return;   // never build the graph just to silence it
             if (!qcAC) qcAudioStart();
             if (!qcAC) return;
@@ -817,13 +921,13 @@
                 pg.rect(w * 0.05, h * 0.07, wsq, wsq);
                 pg.rect(w * 0.95 - wsq, h * 0.93 - wsq, wsq, wsq);
             } else if (id === 'interference') {
-                // Solved on its own small canvas (see qcPaint above), then
-                // scaled up to cover the plate — the field is smooth enough
-                // that the resample never shows.
-                qcPaint((phase || 0) * 1.6);
+                // Solved on its own canvas (see qcPaint above) and drawn to
+                // cover the plate. The GPU solve is at full resolution, so
+                // nothing is lost; the CPU fallback upscales a smooth field.
+                const cv = qcPaint((phase || 0) * 1.6);
                 const c2 = pg.drawingContext;
                 const side = Math.max(w, h);
-                c2.drawImage(qcCv, (w - side) / 2, (h - side) / 2, side, side);
+                c2.drawImage(cv, (w - side) / 2, (h - side) / 2, side, side);
             } else if (id === 'faces') {
                 // The crowd version: many small faces, so a single cell catches
                 // several and the mirrors braid them into each other.
@@ -1126,8 +1230,11 @@
             plateAnim = !!(meta && meta.anim);
             if (srcHolder) srcHolder.remove();
             // Animated plates stay square and small: the surface is repainted
-            // and re-uploaded to the GPU on every frame.
-            srcHolder = plateAnim ? paintPlate(id, 512, 512, 0)
+            // and re-uploaded to the GPU on every frame. The interference
+            // plate is the exception — its shapes are fine fringes that a
+            // 512 surface blurs away, and its per-frame cost is a GPU draw.
+            const animSide = id === 'interference' ? QC_GL_SIDE : 512;
+            srcHolder = plateAnim ? paintPlate(id, animSide, animSide, 0)
                                   : paintPlate(id, 1100, 715);
             srcHolder.loadPixels();
             srcPixels = srcHolder.pixels;
@@ -1363,12 +1470,15 @@
             '        float wedge = 6.28318530718 / uFolds;',
             '        float hw = wedge * 0.5;',
             // uRadMode: 0 mirror, 1 pinwheel (no reflection), 2 spiral
-            // (angle sheared by log radius before the fold)
+            // (angle sheared by log radius before the fold), 3 none —
+            // no fold at all, for a source that carries its own symmetry
             '        float lg = log(r + 0.045);',
             '        th = atan(dy, dx) * uRadDir - uRot;',
-            '        if (uRadMode > 1.5) th += lg * ' + SPIRAL_BEND.toFixed(4) + ';',
-            '        th = th - floor(th / wedge) * wedge;',
-            '        if (abs(uRadMode - 1.0) > 0.5 && th > hw) th = wedge - th;',
+            '        if (abs(uRadMode - 2.0) < 0.5) th += lg * ' + SPIRAL_BEND.toFixed(4) + ';',
+            '        if (uRadMode < 2.5) {',
+            '            th = th - floor(th / wedge) * wedge;',
+            '            if (abs(uRadMode - 1.0) > 0.5 && th > hw) th = wedge - th;',
+            '        }',
             '        lr = lg * uDescent;',
             '        u = lr + th * uTwist * 4.0;',
             '        v = th * uAngular * 6.0 + uPhaseY * 0.01;',
@@ -1603,7 +1713,8 @@
             gl.uniform1f(P.u.uFolds, effParam('folds'));
             gl.uniform1f(P.u.uRot, params.rotation * Math.PI / 180);
             gl.uniform1f(P.u.uRadMode, params.radType === 'pinwheel' ? 1
-                                     : params.radType === 'spiral' ? 2 : 0);
+                                     : params.radType === 'spiral' ? 2
+                                     : params.radType === 'none' ? 3 : 0);
             gl.uniform1f(P.u.uRadDir, params.radDir === 'left' ? -1 : 1);
             gl.uniform1f(P.u.uDescent, effParam('descent'));
             gl.uniform1f(P.u.uAngular, effParam('angular'));
@@ -1770,9 +1881,10 @@
             const wedge = (Math.PI * 2) / effParam('folds');
             const half = wedge / 2;
             const base = params.rotation * Math.PI / 180;
-            // 0 mirror, 1 pinwheel, 2 spiral — mirrors the shader's uRadMode.
+            // 0 mirror, 1 pinwheel, 2 spiral, 3 none — mirrors uRadMode.
             const RT = params.radType === 'pinwheel' ? 1
-                     : params.radType === 'spiral' ? 2 : 0;
+                     : params.radType === 'spiral' ? 2
+                     : params.radType === 'none' ? 3 : 0;
             const DIR = params.radDir === 'left' ? -1 : 1;
 
             const oct = effParam('octaves');
@@ -1833,8 +1945,10 @@
                         const lg = Math.log(r + 0.045);
                         th = Math.atan2(dy, dx) * DIR - base;
                         if (RT === 2) th += lg * SPIRAL_BEND;
-                        th = th - Math.floor(th / wedge) * wedge;
-                        if (RT !== 1 && th > half) th = wedge - th;
+                        if (RT !== 3) {
+                            th = th - Math.floor(th / wedge) * wedge;
+                            if (RT !== 1 && th > half) th = wedge - th;
+                        }
 
                         // ── logarithmic descent + angular shear (the spiral)
                         lr = lg * D;
@@ -2145,7 +2259,7 @@
             scheduleRender();
         }
 
-        const RAD_TYPES = ['mirror', 'pinwheel', 'spiral'];
+        const RAD_TYPES = ['mirror', 'pinwheel', 'spiral', 'none'];
 
         // Unlike the triangle types this reshapes the field itself, so it goes
         // through scheduleRender rather than a plain redraw.
@@ -2165,7 +2279,8 @@
             const row = document.getElementById('rad-dir-row');
             if (!row) return;
             const scoped = params.tiling === 'radial' || params.tiling === 'orb';
-            row.classList.toggle('off', !scoped || params.radType === 'mirror');
+            row.classList.toggle('off', !scoped || params.radType === 'mirror'
+                                               || params.radType === 'none');
             ['left', 'right'].forEach(function (d) {
                 const el = document.getElementById('rad-dir-' + d);
                 if (el) el.className = (d === params.radDir) ? 'active' : '';

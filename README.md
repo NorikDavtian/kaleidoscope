@@ -138,12 +138,22 @@ it. Only the phases move, so cos/sin of **k·r** are precomputed per wave and
 per channel, and each frame is a phase rotation over those tables rather
 than trig per pixel.
 
+The solve runs on the GPU — a small fragment shader of its own, at full
+plate resolution, so the fringes stay sharp; the phase-rotation tables above
+survive as the CPU fallback. And since the equation carries its own 12-fold
+symmetry, the Radial row offers **Interference**: no folding at all, the
+plane sampled straight through, so the plate's own mandala is the shapes
+rather than being folded a second time by the mirrors.
+
 The plate can also be heard. At its centre the intensity is
 |Σ¹²ᵢ₌₁ e^{iφᵢ(t)}|² — a slow pulse driven only by the drifting phases — and
 the ambient drone is that same sum: each wavenumber becomes a pitch
 (24 : 28 : 32 = 6 : 7 : 8, a natural harmonic chord, one per ear-position as
 it is one per colour), and each of the twelve waves a sine oscillator detuned
 by its own drift rate, so the beating heard is the interference seen. The
+chord sits in three registers — the top carries on a laptop speaker, the
+lower two add body where the hardware can hold them — all beating in
+unison, since the detunes are additive. The
 switch and level live in the Source panel while the plate is active; the
 drone fades out when another source takes over and resumes when the plate
 returns.
