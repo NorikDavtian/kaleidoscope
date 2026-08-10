@@ -599,7 +599,8 @@
         // rotation rather than trig:
         // cos(k·d + φ) = cos(k·d)cosφ − sin(k·d)sinφ.
         // It solves only each band's centre line — dispersion is a GPU
-        // refinement — and its frame cost stays what it always was.
+        // refinement, and so is seat motion, since the tables bake the
+        // seats in — and its frame cost stays what it always was.
         // The concentric zone reaches r ≈ 2N/k before the discrete
         // directions surface as spokes, so filling the plate with rings —
         // the reference's look — wants N in the thirties. The GPU takes
@@ -626,8 +627,10 @@
         const QC_GAIN = 1.9;            // lifts the surviving beads into a glow
         let qcTab = null, qcAcc = null, qcInt = null;
         let qcBase = null, qcRate = null, qcOff = null;
+        let qcGRateA = null, qcGOffA = null, qcGRateR = null, qcGOffR = null;
         let qcCv = null, qcCtx = null, qcImg = null;
         let qcGL = null, qcGLCv = null, qcGLPhiLoc = null, qcGLPhi = null;
+        let qcGLSeatLoc = null, qcGLSeat = null;
         let qcGLU = null, qcGLReady = false, qcGLTried = false;
 
         // The plate's dials — the values the function gets. Waves is the
@@ -637,7 +640,7 @@
         // falloff the beam envelope; gamma the tone curve. Session-local,
         // like the video trim.
         const qcParams = { span: 5.5, waves: 32, ring: 0.52, disp: 0.01,
-                           env: 0.25, gamma: 0.7, sat: 0.5 };
+                           env: 0.25, gamma: 0.7, sat: 0.5, motion: 0.35 };
         let qcEnvArr = null, qcEnvVal = -1;
         let qcTabSpan = -1, qcTabWaves = -1, qcTabRing = -1;
 
@@ -658,6 +661,33 @@
                 qcRate.push(0.5 + R());
                 qcOff.push(R() * 2 * Math.PI);
             }
+            // Seat motion draws after the phases, so a variant's phase
+            // stream is untouched by geometry existing at all.
+            qcGRateA = []; qcGOffA = []; qcGRateR = []; qcGOffR = [];
+            for (let i = 0; i < QC_MAXW; i++) {
+                qcGRateA.push(0.35 + 0.65 * R());
+                qcGOffA.push(R() * 2 * Math.PI);
+                qcGRateR.push(0.35 + 0.65 * R());
+                qcGOffR.push(R() * 2 * Math.PI);
+            }
+        }
+
+        // Where source i sits at time tau. The seats are no longer pinned:
+        // each swings about its sector and breathes about its ring, every
+        // source on its own incommensurate pair of sines, so the figure's
+        // geometry keeps reorganising without ever leaving the family.
+        // Bounded like the phase sway, and slower — geometry glides where
+        // phase shimmers.
+        function qcSeat(i, N, tau, out) {
+            const mot = qcParams.motion;
+            const sect = 2 * Math.PI / N;
+            const tg = tau * 0.4 * QC_SWAY_RATE;
+            const a = sect * i
+                + mot * sect * 0.9 * Math.sin(qcGRateA[i] * tg + qcGOffA[i]);
+            const rho = qcParams.ring * qcParams.span
+                * (1 + mot * 0.25 * Math.sin(qcGRateR[i] * tg + qcGOffR[i]));
+            out[0] = rho * Math.cos(a);
+            out[1] = rho * Math.sin(a);
         }
 
         function qcPhase(i, tau) {
@@ -685,7 +715,8 @@
                 'precision highp float;',
                 'varying vec2 vUV;',
                 'uniform float uPhi[' + QC_MAXW + '];',
-                'uniform float uSpan, uRing, uDisp, uEnv, uGamma, uSat;',
+                'uniform vec2 uSeat[' + QC_MAXW + '];',
+                'uniform float uSpan, uDisp, uEnv, uGamma, uSat;',
                 'uniform int uN;',
                 'void main(){',
                 '  vec2 r = (vUV - 0.5) * uSpan;',
@@ -695,12 +726,12 @@
                 '  vec3 reA = vec3(0.), imA = vec3(0.);',
                 '  vec3 reB = vec3(0.), imB = vec3(0.);',
                 '  vec3 reC = vec3(0.), imC = vec3(0.);',
-                '  float sect = 6.283185307 / float(uN);',
                 '  for (int i = 0; i < ' + QC_MAXW + '; i++) {',
                 '    if (i >= uN) break;',
-                '    float a = sect * float(i);',
-                // the source seat, and the circular wavefront's path to here
-                '    float u = length(r - uRing * uSpan * vec2(cos(a), sin(a)));',
+                // the source seat, and the circular wavefront's path to here.
+                // Seats arrive as uniforms — solved per frame on the CPU, so
+                // the geometry itself can move.
+                '    float u = length(r - uSeat[i]);',
                 '    vec3 t = K * u + vec3(uPhi[i]);',
                 '    vec3 d = K * eps * u;',
                 '    reA += cos(t);     imA += sin(t);',
@@ -755,9 +786,9 @@
             gl.enableVertexAttribArray(aP);
             gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
             qcGLPhiLoc = gl.getUniformLocation(prog, 'uPhi');
+            qcGLSeatLoc = gl.getUniformLocation(prog, 'uSeat');
             qcGLU = {
                 span:  gl.getUniformLocation(prog, 'uSpan'),
-                ring:  gl.getUniformLocation(prog, 'uRing'),
                 disp:  gl.getUniformLocation(prog, 'uDisp'),
                 env:   gl.getUniformLocation(prog, 'uEnv'),
                 gamma: gl.getUniformLocation(prog, 'uGamma'),
@@ -765,6 +796,7 @@
                 n:     gl.getUniformLocation(prog, 'uN')
             };
             qcGLPhi = new Float32Array(QC_MAXW);
+            qcGLSeat = new Float32Array(QC_MAXW * 2);
             qcGL = gl;
             qcGLReady = true;
         }
@@ -833,12 +865,22 @@
             qcEnsureRates();
             if (!qcGLTried) qcGLInit();
             if (qcGLReady) {
+                const seat = [0, 0];
                 for (let i = 0; i < QC_MAXW; i++) {
-                    qcGLPhi[i] = i < qcParams.waves ? qcPhase(i, tau) : 0;
+                    if (i < qcParams.waves) {
+                        qcGLPhi[i] = qcPhase(i, tau);
+                        qcSeat(i, qcParams.waves, tau, seat);
+                        qcGLSeat[i * 2] = seat[0];
+                        qcGLSeat[i * 2 + 1] = seat[1];
+                    } else {
+                        qcGLPhi[i] = 0;
+                        qcGLSeat[i * 2] = 0;
+                        qcGLSeat[i * 2 + 1] = 0;
+                    }
                 }
                 qcGL.uniform1fv(qcGLPhiLoc, qcGLPhi);
+                qcGL.uniform2fv(qcGLSeatLoc, qcGLSeat);
                 qcGL.uniform1f(qcGLU.span, qcParams.span);
-                qcGL.uniform1f(qcGLU.ring, qcParams.ring);
                 qcGL.uniform1f(qcGLU.disp, qcParams.disp);
                 qcGL.uniform1f(qcGLU.env, qcParams.env);
                 qcGL.uniform1f(qcGLU.gamma, qcParams.gamma);
@@ -911,7 +953,8 @@
             disp:  { el: 'qcDispersion', fmt: function (v) { return Math.round(v * 1000) + '%'; } },
             env:   { el: 'qcFalloff',    fmt: function (v) { return Math.round(v * 100) + '%'; } },
             gamma: { el: 'qcContrast',   fmt: function (v) { return v.toFixed(2); } },
-            sat:   { el: 'qcColour',     fmt: function (v) { return Math.round(v * 100) + '%'; } }
+            sat:   { el: 'qcColour',     fmt: function (v) { return Math.round(v * 100) + '%'; } },
+            motion: { el: 'qcMotion',    fmt: function (v) { return Math.round(v * 100) + '%'; } }
         };
 
         function setQcParam(key, v) {

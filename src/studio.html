@@ -144,6 +144,14 @@
                 </div>
 
                 <div class="control-group">
+                    <label for="qcMotion">Motion</label>
+                    <div class="slider-container">
+                        <input type="range" id="qcMotion" min="0" max="1" step="0.01" value="0.35" oninput="setQcParam('motion', this.value)">
+                        <span class="value-display" id="qcMotion-value">35%</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
                     <label for="qcDispersion">Dispersion</label>
                     <div class="slider-container">
                         <input type="range" id="qcDispersion" min="0" max="0.1" step="0.0025" value="0.01" oninput="setQcParam('disp', this.value)">
