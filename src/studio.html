@@ -771,6 +771,14 @@
             </div>
 
             <div class="control-group">
+                <label for="swirl">Swirl</label>
+                <div class="slider-container">
+                    <input type="range" id="swirl" min="0" max="3" step="0.05" value="0" oninput="updateParam('swirl', this.value)">
+                    <span class="value-display" id="swirl-value">0</span>
+                </div>
+            </div>
+
+            <div class="control-group">
                 <label for="octaves">Fractal Octaves</label>
                 <div class="slider-container">
                     <input type="range" id="octaves" min="1" max="5" step="1" value="3" oninput="updateParam('octaves', this.value)">
@@ -807,6 +815,22 @@
                 <div class="slider-container">
                     <input type="range" id="seam" min="0" max="1" step="0.01" value="0.09" oninput="updateParam('seam', this.value)">
                     <span class="value-display" id="seam-value">0.09</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="dots">Halftone</label>
+                <div class="slider-container">
+                    <input type="range" id="dots" min="0" max="1" step="0.01" value="0" oninput="updateParam('dots', this.value)">
+                    <span class="value-display" id="dots-value">0</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="dotPitch">Dot Pitch</label>
+                <div class="slider-container">
+                    <input type="range" id="dotPitch" min="10" max="60" step="1" value="26" oninput="updateParam('dotPitch', this.value)">
+                    <span class="value-display" id="dotPitch-value">26</span>
                 </div>
             </div>
 

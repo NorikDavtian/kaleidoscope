@@ -1945,6 +1945,14 @@
             </div>
 
             <div class="control-group">
+                <label for="swirl">Swirl</label>
+                <div class="slider-container">
+                    <input type="range" id="swirl" min="0" max="3" step="0.05" value="0" oninput="updateParam('swirl', this.value)">
+                    <span class="value-display" id="swirl-value">0</span>
+                </div>
+            </div>
+
+            <div class="control-group">
                 <label for="octaves">Fractal Octaves</label>
                 <div class="slider-container">
                     <input type="range" id="octaves" min="1" max="5" step="1" value="3" oninput="updateParam('octaves', this.value)">
@@ -1981,6 +1989,22 @@
                 <div class="slider-container">
                     <input type="range" id="seam" min="0" max="1" step="0.01" value="0.09" oninput="updateParam('seam', this.value)">
                     <span class="value-display" id="seam-value">0.09</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="dots">Halftone</label>
+                <div class="slider-container">
+                    <input type="range" id="dots" min="0" max="1" step="0.01" value="0" oninput="updateParam('dots', this.value)">
+                    <span class="value-display" id="dots-value">0</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="dotPitch">Dot Pitch</label>
+                <div class="slider-container">
+                    <input type="range" id="dotPitch" min="10" max="60" step="1" value="26" oninput="updateParam('dotPitch', this.value)">
+                    <span class="value-display" id="dotPitch-value">26</span>
                 </div>
             </div>
 
@@ -2110,6 +2134,7 @@
             srcStrength: 1,   // how hard the scope works the source — same three
                               // steps, but Low also opens the cells wide
             moire: 0.01,       // interference depth
+            swirl: 0,         // cosine-turbulence depth folded into the warp
             mfreq: 3.3,       // fringe frequency
             detune: 1.48,     // ratio between the two interfering systems
             descent: 2.9,     // logarithmic radial compression → depth
@@ -2121,6 +2146,8 @@
             rings: 0.9,       // concentric colour cadence bound to the descent
             shift: 0.26,         // palette phase
             seam: 0.09,        // luminous contour at band boundaries
+            dots: 0,          // halftone mix — 0 continuous, 1 pure dot screen
+            dotPitch: 26,     // dot rings between the centre and the edge
             contrast: 0.9,
             rotation: 350,
             flow: 1,          // palette phase drift per frame
@@ -3685,7 +3712,7 @@
             'uniform float uSeed;',
             'uniform int uPass, uTess, uOct;',
             'uniform float uFolds, uRot, uRadMode, uRadDir, uDescent, uAngular, uTwist, uWarp;',
-            'uniform float uMoire, uMFreq, uDetune, uBands, uRings, uContrast;',
+            'uniform float uMoire, uMFreq, uDetune, uBands, uRings, uContrast, uSwirl;',
             'uniform float uPhaseX, uPhaseY, uRipple;',
             'uniform float uZX, uZY, uPanX, uPanY, uIC, uIS, uIW;',
 
@@ -3760,6 +3787,17 @@
             '    float s2 = fbm(u + uWarp * q1 + 8.3, v + uWarp * q2 + 2.8);',
             '    float wu = u + uWarp * s1 * uRipple;',
             '    float wv = v + uWarp * s2 * uRipple;',
+
+            // Swirl: the turbulence trick lifted whole from the spiral demo —
+            // u += cos(u.yx·s + t)·k/s, four octaves, each cosine fed the other
+            // axis. Feedback across octaves is what draws the silk; noise-based
+            // warp can't, because it never resonates with itself.
+            '    for (int i = 0; i < 4; i++) {',
+            '        float sc = exp2(float(i));',
+            '        float cu = cos(wv * sc + uPhaseX) * uSwirl / sc;',
+            '        float cv = cos(wu * sc + uPhaseX) * uSwirl / sc;',
+            '        wu += cu; wv += cv;',
+            '    }',
             '    float f = fbm(wu, wv) * uContrast;',
             '    float mo = sin(wu * uMFreq) * sin(wv * uMFreq * uDetune);',
 
@@ -3794,7 +3832,7 @@
             'uniform sampler2D uField;',
             'uniform sampler2D uImg;',
             'uniform int uUseImage;',
-            'uniform float uMix, uSeam, uShift;',
+            'uniform float uMix, uSeam, uShift, uDots, uPitch;',
             'uniform vec3 uPal0, uPal1, uPal2, uPal3, uPal4;',
 
             'vec3 palAt(float k) {',
@@ -3806,8 +3844,7 @@
             '    return uPal4;',
             '}',
 
-            'void main() {',
-            '    vec2 uv = vec2(vPos.x, -vPos.y) * 0.5 + 0.5;',
+            'vec3 shadeAt(vec2 uv) {',
             '    vec4 fld = texture2D(uField, uv);',
             '    float t = fract((floor(fld.r * 255.0 + 0.5) * 256.0',
             '                   + floor(fld.g * 255.0 + 0.5)) / 65535.0 + uShift);',
@@ -3827,6 +3864,33 @@
             '        outc = mix(im, col, uMix) * (1.0 + (sh - 1.0) * uMix) + glow * uMix;',
             '    } else {',
             '        outc = col * sh + glow;',
+            '    }',
+            '    return outc;',
+            '}',
+
+            // The halftone stage. One dot per site of a polar lattice — rings a
+            // constant step apart, as many spokes per ring as keep the arc pitch
+            // equal to the radial pitch — and the dot's radius carries the
+            // luminance the continuous render has at its centre. Area tracks
+            // light (hence the sqrt), the brightest dots run slightly past
+            // their cell so they fuse, and the ground under them is the
+            // palette's deepest colour, almost out.
+            'void main() {',
+            '    vec2 uv = vec2(vPos.x, -vPos.y) * 0.5 + 0.5;',
+            '    vec3 outc = shadeAt(uv);',
+            '    if (uDots > 0.0) {',
+            '        vec2 p = vec2(vPos.x, -vPos.y);',
+            '        float pitch = 1.0 / uPitch;',
+            '        float ring = floor(length(p) / pitch + 0.5);',
+            '        float nS = max(1.0, floor(6.2831853 * ring + 0.5));',
+            '        float sp = 6.2831853 / nS;',
+            '        float a = floor(atan(p.y, p.x) / sp + 0.5) * sp;',
+            '        vec2 c = ring * pitch * vec2(cos(a), sin(a));',
+            '        vec3 cc = shadeAt(c * 0.5 + 0.5);',
+            '        float lum = clamp(dot(cc, vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0);',
+            '        float rad = 0.62 * pitch * sqrt(lum);',
+            '        float m = 1.0 - smoothstep(rad - pitch * 0.18, rad, length(p - c));',
+            '        outc = mix(outc, mix(uPal0 * 0.25, cc, m), uDots);',
             '    }',
             '    gl_FragColor = vec4(outc, 1.0);',
             '}'
@@ -3918,11 +3982,11 @@
 
             fieldProg = makeProgram(FRAG_SRC,
                 ['uSrc', 'uSeed', 'uPass', 'uTess', 'uOct', 'uFolds', 'uRot', 'uRadMode', 'uRadDir', 'uDescent',
-                 'uAngular', 'uTwist', 'uWarp', 'uMoire', 'uMFreq', 'uDetune', 'uBands',
+                 'uAngular', 'uTwist', 'uWarp', 'uMoire', 'uMFreq', 'uDetune', 'uBands', 'uSwirl',
                  'uRings', 'uContrast', 'uPhaseX', 'uPhaseY', 'uRipple', 'uZX', 'uZY',
                  'uPanX', 'uPanY', 'uIC', 'uIS', 'uIW']);
             colourProg = makeProgram(COLOUR_SRC,
-                ['uField', 'uImg', 'uUseImage', 'uMix', 'uSeam', 'uShift',
+                ['uField', 'uImg', 'uUseImage', 'uMix', 'uSeam', 'uShift', 'uDots', 'uPitch',
                  'uPal0', 'uPal1', 'uPal2', 'uPal3', 'uPal4']);
             orbProg = makeProgram(ORB_SRC,
                 ['uTex', 'uYaw', 'uPitch', 'uRoll', 'uAspect', 'uZoom']);
@@ -3991,6 +4055,7 @@
             gl.uniform1f(P.u.uTwist, effParam('twist'));
             gl.uniform1f(P.u.uWarp, effParam('warp'));
             gl.uniform1f(P.u.uMoire, effParam('moire'));
+            gl.uniform1f(P.u.uSwirl, effParam('swirl'));
             gl.uniform1f(P.u.uMFreq, params.mfreq);
             gl.uniform1f(P.u.uDetune, params.detune);
             gl.uniform1f(P.u.uBands, effParam('bands'));
@@ -4073,6 +4138,10 @@
             gl.uniform1f(P.u.uMix, useImage ? effParam('mix') : 1);
             gl.uniform1f(P.u.uSeam, effParam('seam'));
             gl.uniform1f(P.u.uShift, params.shift + animPhase + 1000);
+            // Halftone is a way of looking, not part of the field — it never
+            // randomizes or drifts, and the CPU fallback renders without it.
+            gl.uniform1f(P.u.uDots, params.dots);
+            gl.uniform1f(P.u.uPitch, params.dotPitch);
             for (let i = 0; i < 5; i++) {
                 const c = hexToRgb(params.colorPalette[i]);
                 gl.uniform3f(P.u['uPal' + i], c[0] / 255, c[1] / 255, c[2] / 255);
@@ -4163,6 +4232,7 @@
             const A = effParam('angular');
             const T = effParam('twist');
             const M = effParam('moire');
+            const SW = effParam('swirl');
             const MF = params.mfreq;
             const DT = params.detune;
             const bands = effParam('bands');
@@ -4235,8 +4305,15 @@
 
                     // ── the warped coordinate. Everything downstream reads from
                     //    here, so the fringes inherit the distortion.
-                    const wu = u + W * s1 * ripple;
-                    const wv = v + W * s2 * ripple;
+                    let wu = u + W * s1 * ripple;
+                    let wv = v + W * s2 * ripple;
+
+                    // ── swirl, matching the GL loop octave for octave
+                    for (let sc = 1; SW > 0 && sc < 9; sc += sc) {
+                        const cu = Math.cos(wv * sc + phaseX) * SW / sc;
+                        const cv = Math.cos(wu * sc + phaseX) * SW / sc;
+                        wu += cu; wv += cv;
+                    }
 
                     const f = fbm(wu, wv, oct) * contrast;
 
@@ -5549,7 +5626,7 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         const INT_PARAMS = ['folds', 'octaves', 'rotation', 'imgAngle', 'bpm', 'cellAngle'];
-        const COLOUR_ONLY = ['shift', 'seam', 'mix', 'breathDepth'];
+        const COLOUR_ONLY = ['shift', 'seam', 'mix', 'breathDepth', 'dots', 'dotPitch'];
         const MOTION_ONLY = ['flow', 'spin', 'trail', 'cellSize', 'cellSpin', 'bpm',
                              'edgeSize', 'edgeSoft', 'orbFov', 'cellAngle'];
         const IMG_PARAMS = ['imgZoom', 'imgPanX', 'imgPanY', 'imgAngle', 'imgWarp'];
@@ -7617,7 +7694,7 @@
             'bands', 'rings', 'shift', 'seam', 'contrast', 'rotation', 'flow',
             'spin', 'trail', 'orbFov', 'imgZoom', 'imgPanX', 'imgPanY', 'imgAngle',
             'imgWarp', 'mix', 'radType', 'radDir', 'paramStrength',
-            'srcStrength'];   // appended — key order is what old links decode by
+            'srcStrength', 'dots', 'dotPitch', 'swirl'];   // appended — key order is what old links decode by
 
         function b64url(str) {
             return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
