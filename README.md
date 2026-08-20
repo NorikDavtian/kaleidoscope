@@ -95,6 +95,8 @@ resolution, which is what motivated the move to the GPU.
 - The remaining two of Brewster's four polycentral shapes: the 90-45-45 and
   90-60-30 triangles.
 - Export a loop as video rather than a single PNG.
+- Review [shadertoy.com/view/scdSRs](https://www.shadertoy.com/view/scdSRs) for
+  GPU sound and video ideas.
 - Drop the p5 dependency entirely — it is now only used for the main canvas and
   for painting the built-in plates.
 
