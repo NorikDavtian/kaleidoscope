@@ -55,6 +55,9 @@
     <div id="status">rendering</div>
 
     <!-- What the scope is currently reading from -->
+    <!-- The name of the look the dice just landed on, gone again in a moment. -->
+    <div id="look-note" class="faded"></div>
+
     <div id="source-card" class="off">
         <img id="card-img" alt="Source image">
         <div class="card-title" id="card-title"></div>
@@ -841,6 +844,75 @@
                     <span class="value-display" id="dotPitch-value">26</span>
                 </div>
             </div>
+
+            <div class="control-group">
+                <label for="facet">Facets</label>
+                <div class="slider-container">
+                    <input type="range" id="facet" min="0" max="1" step="0.01" value="0" oninput="updateParam('facet', this.value)">
+                    <span class="value-display" id="facet-value">0</span>
+                </div>
+            </div>
+
+            <div id="facet-controls" class="off">
+                <div class="breath-row edge-row">
+                    <button id="facet-hex" class="active" onclick="setFacetShape('hex')" title="The honeycomb itself">Hex</button>
+                    <button id="facet-gem" onclick="setFacetShape('gem')" title="The same packing, cut to a diamond">Gem</button>
+                    <button id="facet-chip" onclick="setFacetShape('chip')" title="Rectangles, laid on the same offset rows">Chip</button>
+                </div>
+
+                <div class="control-group">
+                    <label for="facetPitch">Facet Pitch</label>
+                    <div class="slider-container">
+                        <input type="range" id="facetPitch" min="6" max="96" step="1" value="30" oninput="updateParam('facetPitch', this.value)"
+                               title="Tiles around one turn, snapped to a multiple of the mirror count so a spoke lands on every fold">
+                        <span class="value-display" id="facetPitch-value">30</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="facetDepth">Facet Depth</label>
+                    <div class="slider-container">
+                        <input type="range" id="facetDepth" min="0.3" max="3" step="0.05" value="1" oninput="updateParam('facetDepth', this.value)"
+                               title="1 is a regular tile. Higher stretches it along the radius into a lozenge, which reads as a steeper fall into the middle">
+                        <span class="value-display" id="facetDepth-value">1</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="facetHold">Facet Hold</label>
+                    <div class="slider-container">
+                        <input type="range" id="facetHold" min="0" max="1" step="0.01" value="0.62" oninput="updateParam('facetHold', this.value)"
+                               title="How much of its size a tile keeps where the field goes dark. At 0 size follows the light and dark places empty out; at 1 every tile stays whole and only its colour moves">
+                        <span class="value-display" id="facetHold-value">0.62</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="facetBevel">Facet Bevel</label>
+                    <div class="slider-container">
+                        <input type="range" id="facetBevel" min="0" max="1" step="0.01" value="0.45" oninput="updateParam('facetBevel', this.value)"
+                               title="Three faces meeting at each tile's centre, the outward one lit — what keeps a flat tile from lying flat">
+                        <span class="value-display" id="facetBevel-value">0.45</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="facetSteps">Facet Steps</label>
+                    <div class="slider-container">
+                        <input type="range" id="facetSteps" min="0" max="12" step="1" value="0" oninput="updateParam('facetSteps', this.value)"
+                               title="Rungs in the colour ramp. 0 leaves it continuous; a small count lands neighbouring tiles on the same colour, which breaks the field into flat blocks">
+                        <span class="value-display" id="facetSteps-value">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="hint mid">Hard-edged tiles on a lattice that grows outward the way a receding tunnel of equal tiles does, each filled with the one colour the field has at its centre. The field keeps flowing underneath; the shapes hold their edges and their depth. Takes over from the halftone while it is up.</div>
+
+            <div class="lock-row">
+                <span>Sharp output</span>
+                <button class="switch" id="power-sharp" onclick="toggleSharp()" aria-pressed="false"
+                        title="Render at the display's own resolution instead of a fixed 1024 square">Off</button>
+            </div>
+            <div class="hint mid">Off draws a 1024 buffer and lets the screen stretch it — fine for soft gradients, fatal to a hard edge. On matches the buffer and the canvas to the display, and costs fill rate for it. Facets switches it on the first time you raise them.</div>
 
             <div class="control-group">
                 <label for="contrast">Contrast</label>

@@ -332,6 +332,10 @@
             margin-top: 9px;
         }
 
+        /* A hint with more controls under it rather than one ending its
+           block — without this the next label crowds the last line. */
+        .hint.mid { margin-bottom: 15px; }
+
         /* Removing the segmented control took this with it, so the image and
            tessellation controls stopped hiding at all. Every section the JS
            toggles 'off' belongs here — the video trim, interference and
@@ -339,7 +343,7 @@
            in the panel whatever the source. */
         #tess-controls.off, #img-controls.off, #orb-controls.off,
         #video-controls.off, #qc-controls.off, #qc-audio-controls.off,
-        #uploads-head.off, #upload-grid.off { display: none; }
+        #uploads-head.off, #upload-grid.off, #facet-controls.off { display: none; }
 
         /* ── Icon rows ─────────────────────────────────────────────────────── */
 
@@ -938,6 +942,31 @@
         }
 
         #status.on { opacity: 1; }
+
+        /* Says what the dice landed on, then gets out of the way. Sits above
+           the dock, centred, and never takes a click. */
+        #look-note {
+            position: fixed;
+            left: 50%;
+            bottom: 92px;
+            transform: translateX(-50%);
+            z-index: 12;
+            padding: 7px 16px;
+            background: var(--panel);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--dim);
+            pointer-events: none;
+            transition: opacity 0.7s ease;
+        }
+
+        #look-note.faded { opacity: 0; }
+        body.cinema #look-note { opacity: 0; }
 
         #source-card {
             position: fixed;

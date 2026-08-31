@@ -350,6 +350,10 @@
             margin-top: 9px;
         }
 
+        /* A hint with more controls under it rather than one ending its
+           block — without this the next label crowds the last line. */
+        .hint.mid { margin-bottom: 15px; }
+
         /* Removing the segmented control took this with it, so the image and
            tessellation controls stopped hiding at all. Every section the JS
            toggles 'off' belongs here — the video trim, interference and
@@ -357,7 +361,7 @@
            in the panel whatever the source. */
         #tess-controls.off, #img-controls.off, #orb-controls.off,
         #video-controls.off, #qc-controls.off, #qc-audio-controls.off,
-        #uploads-head.off, #upload-grid.off { display: none; }
+        #uploads-head.off, #upload-grid.off, #facet-controls.off { display: none; }
 
         /* ── Icon rows ─────────────────────────────────────────────────────── */
 
@@ -957,6 +961,31 @@
 
         #status.on { opacity: 1; }
 
+        /* Says what the dice landed on, then gets out of the way. Sits above
+           the dock, centred, and never takes a click. */
+        #look-note {
+            position: fixed;
+            left: 50%;
+            bottom: 92px;
+            transform: translateX(-50%);
+            z-index: 12;
+            padding: 7px 16px;
+            background: var(--panel);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--dim);
+            pointer-events: none;
+            transition: opacity 0.7s ease;
+        }
+
+        #look-note.faded { opacity: 0; }
+        body.cinema #look-note { opacity: 0; }
+
         #source-card {
             position: fixed;
             right: 16px;
@@ -1229,6 +1258,9 @@
     <div id="status">rendering</div>
 
     <!-- What the scope is currently reading from -->
+    <!-- The name of the look the dice just landed on, gone again in a moment. -->
+    <div id="look-note" class="faded"></div>
+
     <div id="source-card" class="off">
         <img id="card-img" alt="Source image">
         <div class="card-title" id="card-title"></div>
@@ -2017,6 +2049,75 @@
             </div>
 
             <div class="control-group">
+                <label for="facet">Facets</label>
+                <div class="slider-container">
+                    <input type="range" id="facet" min="0" max="1" step="0.01" value="0" oninput="updateParam('facet', this.value)">
+                    <span class="value-display" id="facet-value">0</span>
+                </div>
+            </div>
+
+            <div id="facet-controls" class="off">
+                <div class="breath-row edge-row">
+                    <button id="facet-hex" class="active" onclick="setFacetShape('hex')" title="The honeycomb itself">Hex</button>
+                    <button id="facet-gem" onclick="setFacetShape('gem')" title="The same packing, cut to a diamond">Gem</button>
+                    <button id="facet-chip" onclick="setFacetShape('chip')" title="Rectangles, laid on the same offset rows">Chip</button>
+                </div>
+
+                <div class="control-group">
+                    <label for="facetPitch">Facet Pitch</label>
+                    <div class="slider-container">
+                        <input type="range" id="facetPitch" min="6" max="96" step="1" value="30" oninput="updateParam('facetPitch', this.value)"
+                               title="Tiles around one turn, snapped to a multiple of the mirror count so a spoke lands on every fold">
+                        <span class="value-display" id="facetPitch-value">30</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="facetDepth">Facet Depth</label>
+                    <div class="slider-container">
+                        <input type="range" id="facetDepth" min="0.3" max="3" step="0.05" value="1" oninput="updateParam('facetDepth', this.value)"
+                               title="1 is a regular tile. Higher stretches it along the radius into a lozenge, which reads as a steeper fall into the middle">
+                        <span class="value-display" id="facetDepth-value">1</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="facetHold">Facet Hold</label>
+                    <div class="slider-container">
+                        <input type="range" id="facetHold" min="0" max="1" step="0.01" value="0.62" oninput="updateParam('facetHold', this.value)"
+                               title="How much of its size a tile keeps where the field goes dark. At 0 size follows the light and dark places empty out; at 1 every tile stays whole and only its colour moves">
+                        <span class="value-display" id="facetHold-value">0.62</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="facetBevel">Facet Bevel</label>
+                    <div class="slider-container">
+                        <input type="range" id="facetBevel" min="0" max="1" step="0.01" value="0.45" oninput="updateParam('facetBevel', this.value)"
+                               title="Three faces meeting at each tile's centre, the outward one lit — what keeps a flat tile from lying flat">
+                        <span class="value-display" id="facetBevel-value">0.45</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="facetSteps">Facet Steps</label>
+                    <div class="slider-container">
+                        <input type="range" id="facetSteps" min="0" max="12" step="1" value="0" oninput="updateParam('facetSteps', this.value)"
+                               title="Rungs in the colour ramp. 0 leaves it continuous; a small count lands neighbouring tiles on the same colour, which breaks the field into flat blocks">
+                        <span class="value-display" id="facetSteps-value">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="hint mid">Hard-edged tiles on a lattice that grows outward the way a receding tunnel of equal tiles does, each filled with the one colour the field has at its centre. The field keeps flowing underneath; the shapes hold their edges and their depth. Takes over from the halftone while it is up.</div>
+
+            <div class="lock-row">
+                <span>Sharp output</span>
+                <button class="switch" id="power-sharp" onclick="toggleSharp()" aria-pressed="false"
+                        title="Render at the display's own resolution instead of a fixed 1024 square">Off</button>
+            </div>
+            <div class="hint mid">Off draws a 1024 buffer and lets the screen stretch it — fine for soft gradients, fatal to a hard edge. On matches the buffer and the canvas to the display, and costs fill rate for it. Facets switches it on the first time you raise them.</div>
+
+            <div class="control-group">
                 <label for="contrast">Contrast</label>
                 <div class="slider-container">
                     <input type="range" id="contrast" min="0.4" max="2.5" step="0.05" value="0.9" oninput="updateParam('contrast', this.value)">
@@ -2156,6 +2257,15 @@
             seam: 0.09,        // luminous contour at band boundaries
             dots: 0,          // halftone mix — 0 continuous, 1 pure dot screen
             dotPitch: 26,     // dot rings between the centre and the edge
+            // The facet screen: hard-edged tiles on a log-polar lattice.
+            facet: 0,         // mix — 0 continuous, 1 nothing but tiles
+            facetShape: 'hex',// hex | gem (diamond) | chip (brick)
+            facetPitch: 30,   // tiles around one turn, snapped to the fold count
+            facetDepth: 1,    // radial stretch — 1 is a regular tile, more lozenges it
+            facetHold: 0.62,  // how much size a dark tile keeps — 1 never shrinks
+            facetBevel: 0.45, // the lit-from-the-centre face shading
+            facetSteps: 0,    // palette quantisation, 0 = the continuous ramp
+            sharp: false,     // render the buffer at display resolution
             contrast: 0.9,
             rotation: 350,
             flow: 1,          // palette phase drift per frame
@@ -3732,6 +3842,15 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         const FIELD_SIDE = 1024;
+
+        // The field is always solved at FIELD_SIDE. What the *output* buffer
+        // wants is a different question — see wantedOutSide — because a fixed
+        // 1024 square stretched to fill a retina display is where a hard edge
+        // goes soft. Sharp sizes it to the composite instead, up to this cap:
+        // the colour pass is per-pixel, so every step costs quadratically, and
+        // 2048 already lands inside a pixel and a half of a 2× composite.
+        const OUT_MAX = 2048;
+        let outSide = FIELD_SIDE;
         let gl = null, glCanvas = null;
         let fieldProg = null, colourProg = null, orbProg = null;
         let fieldTarget = null, imgTarget = null, colourTarget = null, srcTex = null;
@@ -3884,6 +4003,9 @@
             'uniform sampler2D uImg;',
             'uniform int uUseImage;',
             'uniform float uMix, uSeam, uShift, uDots, uPitch;',
+            'uniform int uFShape;',
+            'uniform float uFacet, uFSpokes, uFDepth, uFHold, uFBevel, uFSteps;',
+            'uniform float uFRot, uFDir, uPx;',
             'uniform vec3 uPal0, uPal1, uPal2, uPal3, uPal4;',
 
             'vec3 palAt(float k) {',
@@ -3895,10 +4017,14 @@
             '    return uPal4;',
             '}',
 
-            'vec3 shadeAt(vec2 uv) {',
+            // steps > 0 snaps the palette phase to that many rungs before the
+            // ramp reads it, so neighbouring tiles land on the same colour and
+            // the field breaks into flat blocks rather than a gradient.
+            'vec3 shadeAt(vec2 uv, float steps) {',
             '    vec4 fld = texture2D(uField, uv);',
             '    float t = fract((floor(fld.r * 255.0 + 0.5) * 256.0',
             '                   + floor(fld.g * 255.0 + 0.5)) / 65535.0 + uShift);',
+            '    if (steps > 0.5) t = (floor(t * steps) + 0.5) / steps;',
             '    float sh = fld.b * 1.1 + 0.45;',
 
             '    float p = t * 5.0;',
@@ -3919,6 +4045,94 @@
             '    return outc;',
             '}',
 
+            // Centre-to-edge distance of the tile the shape dial selects, in
+            // lattice units. The packing is triangular with a spacing of one,
+            // so the cell a fragment gets assigned to is a hexagon, half a
+            // unit to the flat and 0.577 to the point. Every shape has to fit
+            // inside that: what falls outside belongs to a neighbouring site,
+            // and would be cut away along a line the edge smoothing knows
+            // nothing about — a discontinuity in the lattice offset itself
+            // rather than in this distance. The hexagon is the cell; the
+            // diamond is inscribed in it exactly; the chip is the largest
+            // rectangle of its rows that still fits, hence the 1.25. All
+            // three then read 0.5 at the cell wall, so one radius shrinks
+            // every shape evenly, pulling in all of its edges rather than
+            // some of them.
+            'float tileDist(vec2 g) {',
+            '    vec2 a = abs(g);',
+            '    if (uFShape == 1) return a.x + a.y * 0.8660254;',
+            '    if (uFShape == 2) return 1.25 * max(a.x, a.y * 1.1547005);',
+            '    return max(dot(a, vec2(0.5, 0.8660254)), a.x);',
+            '}',
+
+            // The facet screen. One flat, hard-edged tile per site of a
+            // log-polar lattice — a fixed count of spokes, rings a constant
+            // ratio apart — which is the lattice a receding tunnel of equal
+            // tiles projects to, so tile size tracks radius and the depth is
+            // in the geometry rather than in a gradient. The fill is one
+            // colour, sampled where the site sits: the field can flow
+            // underneath all it likes and the tile keeps its shape and its
+            // edge. Cells hold a floor of their size however dark they go
+            // (uFHold), which is the difference between a screen that breathes
+            // and one that dissolves.
+            'vec3 facetAt(vec2 p, vec2 uv) {',
+            '    float r = max(length(p), 1e-4);',
+            '    float k = uFSpokes * 0.15915494;',          // lattice units per radian
+            // The angle has to be the one the FIELD folded on, and the field
+            // reads the varying unflipped where this pass flips it — so the
+            // y here comes back negated. Taken from p directly the lattice
+            // turns the opposite way to the mirrors as Base Rotation moves,
+            // and the spokes slide off the folds at twice the rate instead of
+            // locking to them.
+            '    float ang = atan(-p.y, p.x) * uFDir - uFRot;',
+            '    vec2 q = vec2(ang * k, log(r) * k / uFDepth);',
+
+            // Nearest site: the packing is two interleaved rectangular
+            // lattices, so take whichever candidate is closer.
+            '    vec2 H = vec2(1.0, 1.73205081);',
+            '    vec2 e = mod(q, H) - H * 0.5;',
+            '    vec2 o = mod(q - H * 0.5, H) - H * 0.5;',
+            '    vec2 g = dot(e, e) < dot(o, o) ? e : o;',
+            '    vec2 site = q - g;',
+
+            // Back to the plane to sample the tile's own colour — through the
+            // same flip on the way out.
+            '    float th = (site.x / k + uFRot) * uFDir;',
+            '    float sr = exp(clamp(site.y * uFDepth / k, -12.0, 2.0));',
+            '    vec3 cc = shadeAt(sr * vec2(cos(th), -sin(th)) * 0.5 + 0.5, uFSteps);',
+
+            // An edge is only an edge while it is wider than a pixel. One
+            // output pixel is uPx across and the lattice runs k/r units to
+            // the NDC unit — but only around the ring: down the radius Depth
+            // has divided that, so under a Depth of 1 the rings are the finer
+            // of the two and the width has to be theirs. Taking the coarser
+            // axis let the rings go sub-pixel while this still read them as
+            // legible, which is where the moire came from. Past a couple of
+            // pixels a tile stops being a shape at all, and the screen hands
+            // back to the continuous render rather than aliasing into noise.
+            '    float w = max(0.75 * uPx * k / (r * min(uFDepth, 1.0)), 1e-4);',
+            '    float lum = clamp(dot(cc, vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0);',
+            '    float rad = 0.46 * mix(uFHold, 1.0, sqrt(lum));',
+            '    float m = 1.0 - smoothstep(rad - w, rad + w, tileDist(g));',
+
+            // Three rhombi meeting at the tile's centre, split on the
+            // alternating vertices, with the outward-facing one catching the
+            // light: the isometric read that keeps a flat tile from lying
+            // flat. In lattice space "up" is the radial direction, so every
+            // tile is lit from the same side however the mandala turns.
+            '    float face = floor(mod(atan(g.y, g.x) + 7.85398163, 6.28318531) / 2.0943951);',
+            '    float lit = 1.0 + uFBevel * (face < 0.5 ? -0.30 : face < 1.5 ? 0.34 : -0.12);',
+
+            // Where the screen covers completely there is no continuous
+            // render underneath to read, and reading one anyway is a second
+            // field fetch and ramp on every pixel of the frame.
+            '    float legible = 1.0 - smoothstep(0.16, 0.38, w);',
+            '    vec3 tile = mix(uPal0 * 0.12, cc * lit, m);',
+            '    float amt = uFacet * legible;',
+            '    if (amt >= 0.999) return tile;',
+            '    return mix(shadeAt(uv, 0.0), tile, amt);',
+            '}',
+
             // The halftone stage. One dot per site of a polar lattice — rings a
             // constant step apart, as many spokes per ring as keep the arc pitch
             // equal to the radial pitch — and the dot's radius carries the
@@ -3927,17 +4141,21 @@
             // their cell so they fuse, and the ground under them is the
             // palette's deepest colour, almost out.
             'void main() {',
-            '    vec2 uv = vec2(vPos.x, -vPos.y) * 0.5 + 0.5;',
-            '    vec3 outc = shadeAt(uv);',
+            '    vec2 p = vec2(vPos.x, -vPos.y);',
+            '    vec2 uv = p * 0.5 + 0.5;',
+            '    if (uFacet > 0.0) {',
+            '        gl_FragColor = vec4(facetAt(p, uv), 1.0);',
+            '        return;',
+            '    }',
+            '    vec3 outc = shadeAt(uv, 0.0);',
             '    if (uDots > 0.0) {',
-            '        vec2 p = vec2(vPos.x, -vPos.y);',
             '        float pitch = 1.0 / uPitch;',
             '        float ring = floor(length(p) / pitch + 0.5);',
             '        float nS = max(1.0, floor(6.2831853 * ring + 0.5));',
             '        float sp = 6.2831853 / nS;',
             '        float a = floor(atan(p.y, p.x) / sp + 0.5) * sp;',
             '        vec2 c = ring * pitch * vec2(cos(a), sin(a));',
-            '        vec3 cc = shadeAt(c * 0.5 + 0.5);',
+            '        vec3 cc = shadeAt(c * 0.5 + 0.5, 0.0);',
             '        float lum = clamp(dot(cc, vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0);',
             '        float rad = 0.62 * pitch * sqrt(lum);',
             '        float m = 1.0 - smoothstep(rad - pitch * 0.18, rad, length(p - c));',
@@ -4038,6 +4256,8 @@
                  'uPanX', 'uPanY', 'uIC', 'uIS', 'uIW']);
             colourProg = makeProgram(COLOUR_SRC,
                 ['uField', 'uImg', 'uUseImage', 'uMix', 'uSeam', 'uShift', 'uDots', 'uPitch',
+                 'uFacet', 'uFShape', 'uFSpokes', 'uFDepth', 'uFHold', 'uFBevel', 'uFSteps',
+                 'uFRot', 'uFDir', 'uPx',
                  'uPal0', 'uPal1', 'uPal2', 'uPal3', 'uPal4']);
             orbProg = makeProgram(ORB_SRC,
                 ['uTex', 'uYaw', 'uPitch', 'uRoll', 'uAspect', 'uZoom']);
@@ -4070,6 +4290,34 @@
 
             gl.viewport(0, 0, FIELD_SIDE, FIELD_SIDE);
             return true;
+        }
+
+        // How many pixels the composite will really ask of the buffer. Radial
+        // draws it at the viewport diagonal so it covers the frame at any
+        // rotation; the orb and the tilings never need more than the long
+        // edge. Either way the 2D canvas then scales by its own pixel density,
+        // so that is in the count too.
+        function wantedOutSide() {
+            if (!params.sharp) return FIELD_SIDE;
+            const d = (typeof pixelDensity === 'function') ? pixelDensity() : 1;
+            const w = (typeof width === 'number' && width) ? width : window.innerWidth;
+            const h = (typeof height === 'number' && height) ? height : window.innerHeight;
+            const need = params.tiling === 'radial'
+                ? Math.sqrt(w * w + h * h) * d
+                : Math.max(w, h) * d;
+            return Math.max(FIELD_SIDE,
+                   Math.min(OUT_MAX, Math.ceil(need / 128) * 128));
+        }
+
+        // Resizing the canvas drops the drawing buffer's contents and nothing
+        // else — the programs, the targets and the source texture all survive,
+        // and every pass sets its own viewport.
+        function syncOutSide() {
+            if (!glReady || !glCanvas) return;
+            const want = wantedOutSide();
+            if (glCanvas.width === want) return;
+            glCanvas.width = glCanvas.height = want;
+            outSide = want;
         }
 
         // The source is uploaded once per image, not per frame.
@@ -4144,6 +4392,7 @@
         function glRenderField() {
             const P = bindFieldProgram();
 
+            gl.viewport(0, 0, FIELD_SIDE, FIELD_SIDE);
             gl.bindFramebuffer(gl.FRAMEBUFFER, fieldTarget.fb);
             gl.uniform1i(P.u.uPass, 0);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -4164,6 +4413,7 @@
         function glRenderImage() {
             if (params.source === 'image' && srcCanvas) {
                 const P = bindFieldProgram();
+                gl.viewport(0, 0, FIELD_SIDE, FIELD_SIDE);
                 gl.bindFramebuffer(gl.FRAMEBUFFER, imgTarget.fb);
                 gl.uniform1i(P.u.uPass, 1);
                 gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -4193,11 +4443,29 @@
             // randomizes or drifts, and the CPU fallback renders without it.
             gl.uniform1f(P.u.uDots, params.dots);
             gl.uniform1f(P.u.uPitch, params.dotPitch);
+
+            // The facet lattice is turned with the mirrors rather than left
+            // square to the buffer: its spokes land on the fold boundaries,
+            // so the tiles line up along the mandala's arms instead of
+            // beating against them.
+            const side = toTexture ? FIELD_SIDE : outSide;
+            gl.uniform1f(P.u.uFacet, params.facet);
+            gl.uniform1i(P.u.uFShape, FACET_SHAPES.indexOf(params.facetShape));
+            gl.uniform1f(P.u.uFSpokes, facetSpokes());
+            gl.uniform1f(P.u.uFDepth, Math.max(0.05, params.facetDepth));
+            gl.uniform1f(P.u.uFHold, params.facetHold);
+            gl.uniform1f(P.u.uFBevel, params.facetBevel);
+            gl.uniform1f(P.u.uFSteps, Math.round(params.facetSteps));
+            gl.uniform1f(P.u.uFRot, params.rotation * Math.PI / 180);
+            gl.uniform1f(P.u.uFDir, params.radDir === 'left' ? -1 : 1);
+            gl.uniform1f(P.u.uPx, 2 / side);
+
             for (let i = 0; i < 5; i++) {
                 const c = hexToRgb(params.colorPalette[i]);
                 gl.uniform3f(P.u['uPal' + i], c[0] / 255, c[1] / 255, c[2] / 255);
             }
 
+            gl.viewport(0, 0, side, side);
             gl.bindFramebuffer(gl.FRAMEBUFFER, toTexture ? colourTarget.fb : null);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
         }
@@ -4227,11 +4495,13 @@
                 params.orbFov * (1 + Math.sin(t * 0.6) * 0.13) * breathe);
             gl.uniform1f(P.u.uAspect,
                 (typeof width !== 'undefined' && height > 0) ? width / height : 1);
+            gl.viewport(0, 0, outSide, outSide);
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
         }
 
         function glRender() {
+            syncOutSide();
             if (fieldDirty) glRenderField();
             else if (imgDirty) glRenderImage();
             const orb = params.tiling === 'orb';
@@ -4552,7 +4822,7 @@
         function setup() {
             const cnv = createCanvas(windowWidth, windowHeight);
             cnv.parent('canvas-wrap');
-            pixelDensity(1);
+            pixelDensity(sharpDensity());
             imageMode(CENTER);
             // p5's default 60fps target skips rAF ticks it thinks arrived too
             // early, which reads as judder on high-refresh displays. A target
@@ -4702,6 +4972,81 @@
             });
             refreshShareUI();
             redraw();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // THE FACET SCREEN
+        //
+        // A way of looking rather than part of the field: like the halftone it
+        // never randomises and never drifts, and the CPU fallback renders
+        // without it.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const FACET_SHAPES = ['hex', 'gem', 'chip'];
+
+        // Tiles around one turn. Snapped to a multiple of the fold count, so
+        // the lattice closes on the mirrors — a spoke lands on every fold
+        // boundary — instead of beating against them at its own frequency.
+        function facetSpokes() {
+            const folds = Math.max(1, effParam('folds'));
+            return Math.max(folds, Math.round(params.facetPitch / folds) * folds);
+        }
+
+        function setFacetShape(k) {
+            params.facetShape = FACET_SHAPES.indexOf(k) >= 0 ? k : 'hex';
+            FACET_SHAPES.forEach(function (m) {
+                const el = document.getElementById('facet-' + m);
+                if (el) el.className = (m === params.facetShape) ? 'active' : '';
+            });
+            refreshShareUI();
+            if (!animating) recolour();
+        }
+
+        // Raising Facets off zero turns Sharp on with it the first time: a
+        // hard edge drawn into a buffer the display has to stretch is not a
+        // hard edge, and the whole point of the screen is the edge.
+        let sharpTouched = false;
+
+        function syncFacetUI() {
+            const on = params.facet > 0;
+            const rows = document.getElementById('facet-controls');
+            if (rows) rows.className = on ? '' : 'off';
+        }
+
+        function sharpDensity() {
+            return params.sharp ? Math.min(2, window.devicePixelRatio || 1) : 1;
+        }
+
+        // p5 owns the canvas's density and can only be told about it once the
+        // canvas exists. A link that arrives before setup has run leaves this
+        // to setup, which reads the same function.
+        function applySharpDensity() {
+            if (!document.querySelector('#canvas-wrap canvas')) return false;
+            const want = sharpDensity();
+            if (pixelDensity() !== want) {
+                pixelDensity(want);
+                resizeCanvas(windowWidth, windowHeight);
+            }
+            return true;
+        }
+
+        function setSharp(on) {
+            params.sharp = !!on;
+            const live = applySharpDensity();
+            maskKey = '';            // the mask is drawn per device pixel now
+            syncSharpUI();
+            refreshShareUI();
+            if (live) redraw();
+        }
+
+        function toggleSharp() { sharpTouched = true; setSharp(!params.sharp); }
+
+        function syncSharpUI() {
+            const el = document.getElementById('power-sharp');
+            if (!el) return;
+            el.className = 'switch' + (params.sharp ? ' on' : '');
+            el.textContent = params.sharp ? 'On' : 'Off';
+            el.setAttribute('aria-pressed', params.sharp ? 'true' : 'false');
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -5021,8 +5366,11 @@
         function applyEdgeMask(ctx, w, h) {
             if (params.edgeMask === 'off') return;
             const m = buildMask(w, h);
+            const d = (typeof pixelDensity === 'function') ? pixelDensity() : 1;
             ctx.save();
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            // p5's own base transform, restated: the mask is built in CSS
+            // pixels and the backing store may be denser than that.
+            ctx.setTransform(d, 0, 0, d, 0, 0);
             ctx.globalCompositeOperation = 'destination-in';
             ctx.drawImage(m, 0, 0);
             ctx.restore();
@@ -5052,7 +5400,7 @@
 
         function tileSource(outer) {
             const src = fieldCanvas();
-            const s = Math.max(64, Math.min(FIELD_SIDE, Math.ceil(outer)));
+            const s = Math.max(64, Math.min(src.width || FIELD_SIDE, Math.ceil(outer)));
             if (tileCv.width !== s) tileCv.width = tileCv.height = s;
             tileCtx.drawImage(src, 0, 0, s, s);
             return tileCv;
@@ -5677,7 +6025,9 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         const INT_PARAMS = ['folds', 'octaves', 'rotation', 'imgAngle', 'bpm', 'cellAngle'];
-        const COLOUR_ONLY = ['shift', 'seam', 'mix', 'breathDepth', 'dots', 'dotPitch'];
+        const COLOUR_ONLY = ['shift', 'seam', 'mix', 'breathDepth', 'dots', 'dotPitch',
+                             'facet', 'facetPitch', 'facetDepth', 'facetHold',
+                             'facetBevel', 'facetSteps'];
         const MOTION_ONLY = ['flow', 'spin', 'trail', 'cellSize', 'cellSpin', 'bpm',
                              'edgeSize', 'edgeSoft', 'orbFov', 'cellAngle'];
         const IMG_PARAMS = ['imgZoom', 'imgPanX', 'imgPanY', 'imgAngle', 'imgWarp'];
@@ -5696,6 +6046,10 @@
 
             if (IMG_PARAMS.indexOf(name) >= 0) refreshSrcRegion();
             if (name === 'seam') tablesDirty = true;
+            if (name === 'facet') {
+                syncFacetUI();
+                if (params.facet > 0 && !params.sharp && !sharpTouched) setSharp(true);
+            }
             if (name === 'folds' || name === 'edgeSize' || name === 'edgeSoft') maskKey = '';
 
             refreshShareUI();
@@ -7464,9 +7818,12 @@
             const introUp = !document.getElementById('intro').classList.contains('gone');
             if (params.breath !== 'off' && !introUp) {
                 const cx = out.width / 2, cy = out.height / 2;
+                // The guide is laid out in CSS pixels; the capture is the
+                // backing store, which under Sharp is denser than that.
+                const dp = (typeof pixelDensity === 'function') ? pixelDensity() : 1;
 
                 if (params.breathGuide) {
-                    const size = params.orbSize * (0.62 + breathValue * 0.38);
+                    const size = params.orbSize * (0.62 + breathValue * 0.38) * dp;
                     const R = size / 2;
                     const A = function (k) {
                         return Math.min(1, k * params.orbBackdropAlpha);
@@ -7503,20 +7860,20 @@
                 }
 
                 if (params.breathLabel && breathStage) {
-                    c.font = '600 ' + params.breathLabelSize + 'px Poppins, sans-serif';
+                    c.font = '600 ' + (params.breathLabelSize * dp) + 'px Poppins, sans-serif';
                     try { c.letterSpacing = '0.22em'; } catch (e) {}
                     c.textAlign = 'center';
                     c.fillStyle = 'rgba(250,249,245,0.82)';
                     c.shadowColor = 'rgba(6,6,10,0.7)';
-                    c.shadowBlur = 10;
-                    c.shadowOffsetY = 1;
+                    c.shadowBlur = 10 * dp;
+                    c.shadowOffsetY = dp;
                     let ty;
                     if (params.breathLabelPos === 'centre') {
-                        ty = cy + params.breathLabelSize * 0.35;
+                        ty = cy + params.breathLabelSize * 0.35 * dp;
                     } else if (params.breathLabelPos === 'bottom') {
-                        ty = out.height - 92;
+                        ty = out.height - 92 * dp;
                     } else {
-                        ty = cy + 78 + params.breathLabelSize;
+                        ty = cy + (78 + params.breathLabelSize) * dp;
                     }
                     c.fillText(breathStage.toUpperCase(), cx, ty);
                 }
@@ -7612,12 +7969,299 @@
         // deliberately narrower than the sliders allow — the extremes are worth
         // reaching by hand, but they make for poor dice rolls. An uploaded image
         // is never swapped out from under you; a built-in plate may be.
+        // ═══════════════════════════════════════════════════════════════════════
+        // LOOKS
+        //
+        // The dice rolls every dial on its own, which finds things nobody
+        // would have dialled — and just as often finds mud. A look is the
+        // other half of that: a whole state that already works, for the dice
+        // to reach for instead of rolling blind. Each one arrives on a fresh
+        // seed with its palette turned and its own values nudged, so landing
+        // twice on the same look does not give the same picture twice.
+        //
+        // They also exist because the screens don't randomize: Halftone and
+        // Facets are ways of looking rather than parts of the field, so the
+        // dice never reaches them on its own and they would otherwise only
+        // ever be found by hand.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const LOOK_CHANCE = 0.5;
+
+        // Which panel's lock governs each key. Anything unlisted belongs to
+        // Parameters, the screens included — a look is a whole state, but a
+        // held section is still held.
+        const LOOK_OWNER = {
+            tiling: 'symmetry', triType: 'symmetry', radType: 'symmetry',
+            radDir: 'symmetry', cellSize: 'symmetry', cellAngle: 'symmetry',
+            flow: 'motion', spin: 'motion', trail: 'motion'
+        };
+
+        // Nudged ±10% on the way in. Only continuous dials where a tenth
+        // either way is a variation rather than a different look — counts,
+        // shapes and modes are left exactly as written.
+        const LOOK_NUDGE = ['descent', 'angular', 'twist', 'warp', 'swirl',
+                            'bands', 'rings', 'moire', 'mfreq', 'detune',
+                            'contrast', 'seam', 'facetPitch', 'facetDepth',
+                            'facetHold', 'facetBevel', 'dotPitch'];
+
+        const LOOKS = [
+            {
+                // The reference this whole screen was built from: hexagons
+                // read as cubes, falling away into the middle.
+                name: 'Tunnel',
+                palette: ['#04060f', '#e0245e', '#7b2ff7', '#1fa2ff', '#38f9d7'],
+                p: { tiling: 'radial', radType: 'mirror', folds: 6,
+                     facet: 1, facetShape: 'hex', facetPitch: 36, facetDepth: 1.4,
+                     facetHold: 0.55, facetBevel: 0.6, facetSteps: 6,
+                     descent: 3.4, angular: 1.6, twist: 0.4, warp: 1.4, swirl: 0,
+                     bands: 1, rings: 0.8, contrast: 1, seam: 0.05, octaves: 3 }
+            },
+            {
+                // The same lattice drawn out along the radius until the tiles
+                // are lozenges and the fall is steeper.
+                name: 'Lozenge',
+                palette: ['#03040c', '#ff2d55', '#8a2be2', '#00b4ff', '#3df5c8'],
+                p: { tiling: 'radial', radType: 'mirror', folds: 6,
+                     facet: 1, facetShape: 'gem', facetPitch: 48, facetDepth: 2.2,
+                     facetHold: 0.35, facetBevel: 0.5, facetSteps: 6,
+                     descent: 3, angular: 1.4, twist: 0.2, warp: 1.2, swirl: 0,
+                     bands: 1.1, rings: 0.7, contrast: 1.05, seam: 0, octaves: 3 }
+            },
+            {
+                // Chips, laid close, in fired colours — the screen at its
+                // most ceramic.
+                name: 'Kiln',
+                palette: ['#140803', '#7c2708', '#d9541a', '#f0a44a', '#ffe1ab'],
+                p: { tiling: 'radial', radType: 'mirror', folds: 8,
+                     facet: 1, facetShape: 'chip', facetPitch: 26, facetDepth: 1,
+                     facetHold: 0.8, facetBevel: 0.35, facetSteps: 5,
+                     descent: 2.6, angular: 1.2, twist: 0.15, warp: 1, swirl: 0,
+                     bands: 0.9, rings: 0.6, contrast: 1, seam: 0.04, octaves: 3 }
+            },
+            {
+                // The polar screen reflected across cell edges. Big cells, so
+                // each one reads as a window rather than a scatter of them.
+                name: 'Rose Window',
+                palette: ['#05060f', '#122a6b', '#1f7fa8', '#c8a13c', '#f0e6cf'],
+                p: { tiling: 'square', cellSize: 500, cellAngle: 0,
+                     facet: 1, facetShape: 'hex', facetPitch: 28, facetDepth: 1.1,
+                     facetHold: 0.6, facetBevel: 0.45, facetSteps: 5,
+                     descent: 3, angular: 1.6, twist: 0.5, warp: 1.8, swirl: 0,
+                     bands: 0.8, rings: 0.9, contrast: 0.95, seam: 0.06, octaves: 3 }
+            },
+            {
+                // The dot screen, which the dice could not otherwise find.
+                // Coarse, so the dots read as a screen rather than confetti.
+                name: 'Screenprint',
+                palette: ['#07070d', '#c8203c', '#e8622e', '#f2b33c', '#f6f0e2'],
+                p: { tiling: 'radial', radType: 'mirror', folds: 6,
+                     facet: 0, dots: 1, dotPitch: 20,
+                     descent: 3.2, angular: 1.7, twist: -0.35, warp: 2, swirl: 0,
+                     bands: 0.7, rings: 1.1, contrast: 0.95, seam: 0.06, octaves: 3 }
+            },
+            {
+                // No screen at all: the cosine turbulence, left to draw silk.
+                // Swirl stays under one — past that it stops folding the field
+                // and starts shredding it.
+                name: 'Silk',
+                palette: ['#04232b', '#0b4f4a', '#2e8b74', '#84c4a8', '#d9edd8'],
+                p: { tiling: 'radial', radType: 'mirror', folds: 6,
+                     facet: 0, dots: 0,
+                     descent: 2.9, angular: 1.8, twist: 1, warp: 2.6, swirl: 0.85,
+                     bands: 0.7, rings: 0.7, contrast: 0.85, seam: 0.16,
+                     moire: 0.01, mfreq: 3.3, detune: 1.48, octaves: 3 }
+            },
+            {
+                // Two interfering systems, detuned, with the seams lit.
+                name: 'Fringe',
+                palette: ['#0a0512', '#3b1d63', '#7b4bb5', '#b98fe0', '#ecd9ff'],
+                p: { tiling: 'radial', radType: 'mirror', folds: 9,
+                     facet: 0, dots: 0,
+                     moire: 0.3, mfreq: 4, detune: 1.72, seam: 0.3,
+                     descent: 2.7, angular: 1.9, twist: 0.4, warp: 1.8, swirl: 0,
+                     bands: 0.75, rings: 0.9, contrast: 0.9, octaves: 3 }
+            },
+            {
+                // The piece the studio opens on, pushed further down.
+                name: 'Descent',
+                palette: ['#0d1b2a', '#1b4965', '#5fa8d3', '#cae9ff', '#e8a87c'],
+                p: { tiling: 'radial', radType: 'mirror', folds: 9,
+                     facet: 0, dots: 0,
+                     descent: 3.8, angular: 2, twist: 0.75, warp: 2, swirl: 0.2,
+                     bands: 0.75, rings: 1.1, contrast: 0.9, seam: 0.14,
+                     moire: 0.02, mfreq: 3.3, detune: 1.48, octaves: 3 }
+            },
+            {
+                // Mirrors bent into spiral arms, with just enough screen on
+                // top to catch them.
+                name: 'Volute',
+                palette: ['#160a1e', '#4a1d52', '#96407e', '#e07a9a', '#ffd6c4'],
+                p: { tiling: 'radial', radType: 'spiral', radDir: 'right', folds: 9,
+                     facet: 0.75, facetShape: 'gem', facetPitch: 54, facetDepth: 1.6,
+                     facetHold: 0.5, facetBevel: 0.4, facetSteps: 0,
+                     descent: 2.8, angular: 1.3, twist: 0.9, warp: 1.6, swirl: 0.4,
+                     bands: 1, rings: 0.8, contrast: 1, seam: 0.1, octaves: 3 }
+            },
+            {
+                // Inside the sphere, tiled — the screen wrapped all the way
+                // round you.
+                name: 'Vault',
+                palette: ['#040a0a', '#0d3b45', '#1f8a8a', '#6fd6c4', '#e8fff6'],
+                p: { tiling: 'orb', radType: 'mirror', folds: 8,
+                     facet: 1, facetShape: 'hex', facetPitch: 34, facetDepth: 1.2,
+                     facetHold: 0.6, facetBevel: 0.5, facetSteps: 5,
+                     descent: 3, angular: 1.5, twist: 0.3, warp: 1.4, swirl: 0,
+                     bands: 1, rings: 0.8, contrast: 1, seam: 0.05, octaves: 3 }
+            },
+            {
+                // Pinwheel, no reflection — the arms all lean one way.
+                name: 'Turbine',
+                palette: ['#0b0a04', '#4d3b0d', '#a8842a', '#e0c25c', '#fff3c4'],
+                p: { tiling: 'radial', radType: 'pinwheel', radDir: 'left', folds: 11,
+                     facet: 1, facetShape: 'gem', facetPitch: 44, facetDepth: 1.8,
+                     facetHold: 0.45, facetBevel: 0.55, facetSteps: 7,
+                     descent: 3.2, angular: 1.7, twist: -0.6, warp: 1.3, swirl: 0,
+                     bands: 1.1, rings: 0.9, contrast: 1.05, seam: 0.05, octaves: 3 }
+            },
+            {
+                // Triangle mirrors, chips, no bevel: flat glass in lead.
+                name: 'Leadlight',
+                palette: ['#06060a', '#123f6b', '#c23b22', '#e8b93c', '#f4f1e6'],
+                p: { tiling: 'triangle', triType: 'equilateral', cellSize: 380,
+                     facet: 1, facetShape: 'chip', facetPitch: 22, facetDepth: 1.1,
+                     facetHold: 0.85, facetBevel: 0, facetSteps: 5,
+                     descent: 2.6, angular: 1.3, twist: 0.4, warp: 1.5, swirl: 0,
+                     bands: 1, rings: 0.7, contrast: 1.05, seam: 0.04, octaves: 3 }
+            }
+        ];
+
+        // Walk the deck rather than drawing with replacement, so a run of
+        // clicks shows you the whole set before it repeats any of it.
+        let lookDeck = [];
+
+        function looksExhausted() { return LOOKS.length === 0; }
+
+        function nextLook() {
+            if (!lookDeck.length) {
+                lookDeck = LOOKS.map(function (_, i) { return i; });
+                for (let i = lookDeck.length - 1; i > 0; i--) {
+                    const j = (Math.random() * (i + 1)) | 0;
+                    const t = lookDeck[i]; lookDeck[i] = lookDeck[j]; lookDeck[j] = t;
+                }
+            }
+            return LOOKS[lookDeck.pop()];
+        }
+
+        // The sliders already carry every dial's legal span, so a nudge is
+        // clamped against the control rather than against a second copy of
+        // the ranges that would drift out of step with it.
+        function clampToSlider(k, v) {
+            const el = document.getElementById(k);
+            if (el && el.min !== '' && el.max !== '') {
+                const lo = parseFloat(el.min), hi = parseFloat(el.max);
+                if (isFinite(lo) && isFinite(hi)) v = Math.min(hi, Math.max(lo, v));
+            }
+            return INT_PARAMS.indexOf(k) >= 0 ? Math.round(v) : +v.toFixed(2);
+        }
+
+        function applyLook(look) {
+            beginFade();
+
+            const held = {};
+            Object.keys(SECTIONS).forEach(function (sec) {
+                held[sec] = sectionLocked(sec);
+            });
+
+            // A narrow seed range, deliberately. The GPU field's hash folds the
+            // seed in beside its own constant, and the further that sum gets
+            // from zero the less of the product survives a 24-bit mantissa —
+            // by a seed of a few thousand the noise has gone to grain. Under
+            // 640 it holds, and 640 fields is plenty to shuffle through. See
+            // uSeed in setFieldUniforms and hash2 in FRAG_SRC.
+            if (!held.seed) params.seed = ri(1, 640);
+
+            // The shape first: setTiling and friends re-sync their own rows,
+            // and the sliders below want the shape already settled.
+            if (!held.symmetry && !shapeLock) {
+                if (look.p.tiling) setTiling(look.p.tiling);
+                if (look.p.triType) setTriType(look.p.triType);
+                if (look.p.radType) setRadType(look.p.radType);
+                if (look.p.radDir) setRadDir(look.p.radDir);
+            }
+
+            const SHAPE = ['tiling', 'triType', 'radType', 'radDir'];
+            Object.keys(look.p).forEach(function (k) {
+                if (SHAPE.indexOf(k) >= 0) return;
+                if (held[LOOK_OWNER[k] || 'params']) return;
+                let v = look.p[k];
+                if (typeof v === 'number') {
+                    if (LOOK_NUDGE.indexOf(k) >= 0) v *= 0.9 + Math.random() * 0.2;
+                    v = clampToSlider(k, v);
+                    setSlider(k, v);
+                }
+                params[k] = v;
+            });
+
+            // A turn and a palette phase of its own, so the same look twice
+            // is not the same picture twice.
+            if (!held.params) {
+                params.rotation = ri(0, 359);
+                params.shift = +Math.random().toFixed(2);
+                setSlider('rotation', params.rotation);
+                setSlider('shift', params.shift);
+            }
+
+            if (!held.colour && look.palette) {
+                params.colorPalette = look.palette.slice();
+                setPaletteBase(look.palette[2], true);
+                setPaletteUI();
+            }
+            tablesDirty = true;
+
+            // A hard edge wants the resolution to match, unless you have said
+            // otherwise about Sharp yourself.
+            setFacetShape(params.facetShape);
+            syncFacetUI();
+            if (params.facet > 0 && !params.sharp && !sharpTouched) setSharp(true);
+
+            // Aim any drifting section at where it has landed rather than
+            // letting it glide back to a target chosen before this.
+            Object.keys(secState).forEach(function (sec) {
+                const st = secState[sec];
+                if (st) { st.target = null; st.palTarget = null; st.palFrom = null; }
+            });
+
+            animPhase = 0;
+            updateSeedDisplay();
+            showLookName(look.name);
+            scheduleRender();
+        }
+
+        let lookNoteTimer = null;
+
+        function showLookName(name) {
+            const el = document.getElementById('look-note');
+            if (!el) return;
+            el.textContent = name;
+            el.className = '';
+            if (lookNoteTimer) clearTimeout(lookNoteTimer);
+            lookNoteTimer = setTimeout(function () { el.className = 'faded'; }, 1900);
+        }
+
+        // A powered-off section is resting at its floors — Randomize treats
+        // that the same as a lock rather than waking it.
+        function sectionLocked(sec) {
+            return (secState[sec] && secState[sec].lock) || !!secPower[sec];
+        }
+
         function randomSeedAndUpdate() {
-            // A powered-off section is resting at its floors — Randomize
-            // treats that the same as a lock rather than waking it.
-            const locked = function (sec) {
-                return (secState[sec] && secState[sec].lock) || !!secPower[sec];
-            };
+            // Half the time, reach for a look someone kept rather than
+            // rolling every dial blind. Locks are honoured either way.
+            if (!looksExhausted() && Math.random() < LOOK_CHANCE) {
+                applyLook(nextLook());
+                return;
+            }
+            const locked = sectionLocked;
             const keepSeed = params.seed, keepTiling = params.tiling;
             const keep = {};
             Object.keys(SECTIONS).forEach(function (name) {
@@ -7715,7 +8359,9 @@
             ['folds', 'moire', 'mfreq', 'detune', 'descent', 'angular', 'twist', 'warp',
              'octaves', 'bands', 'rings', 'shift', 'seam', 'contrast', 'rotation',
              'flow', 'spin', 'trail', 'bpm', 'imgZoom', 'imgPanX', 'imgPanY', 'imgAngle',
-             'imgWarp', 'mix', 'cellSize'].forEach(function (k) {
+             'imgWarp', 'mix', 'cellSize', 'dots', 'dotPitch', 'facet',
+             'facetPitch', 'facetDepth', 'facetHold', 'facetBevel',
+             'facetSteps'].forEach(function (k) {
                 setSlider(k, params[k]);
             });
             setPaletteUI();
@@ -7729,6 +8375,10 @@
             setTiling(params.tiling);
             setTriType(params.triType);
             setRadType(params.radType);
+            sharpTouched = false;
+            setFacetShape(params.facetShape);
+            syncFacetUI();
+            setSharp(params.sharp);
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -7745,7 +8395,9 @@
             'bands', 'rings', 'shift', 'seam', 'contrast', 'rotation', 'flow',
             'spin', 'trail', 'orbFov', 'imgZoom', 'imgPanX', 'imgPanY', 'imgAngle',
             'imgWarp', 'mix', 'radType', 'radDir', 'paramStrength',
-            'srcStrength', 'dots', 'dotPitch', 'swirl'];   // appended — key order is what old links decode by
+            'srcStrength', 'dots', 'dotPitch', 'swirl',
+            'facet', 'facetShape', 'facetPitch', 'facetDepth', 'facetHold',
+            'facetBevel', 'facetSteps', 'sharp'];   // appended — key order is what old links decode by
 
         function b64url(str) {
             return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -7798,6 +8450,12 @@
             setTiling(params.tiling);
             setTriType(params.triType);
             setRadType(params.radType);
+            // A link that carries the screen carries its own answer on Sharp
+            // too, so let it stand rather than switching it on underneath.
+            if (n >= SHARE_KEYS.length) sharpTouched = true;
+            setFacetShape(params.facetShape);
+            syncFacetUI();
+            setSharp(params.sharp);
             refreshSrcRegion();
             return true;
         }

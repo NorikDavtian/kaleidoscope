@@ -158,6 +158,61 @@ switch and level live in the Source panel while the plate is active; the
 drone fades out when another source takes over and resumes when the plate
 returns.
 
+## Facets
+
+A screen rather than a filter. Everything else in the studio is continuous —
+noise into a ramp — and continuous is what softens under a mirror. Facets
+replaces the ramp with a lattice of hard-edged tiles, each one flat-filled
+with the single colour the field has at that tile's centre. The field goes on
+flowing underneath; the tiles do not move, do not blur, and do not dissolve.
+
+The lattice is log-polar: a fixed count of spokes, and rings a constant
+*ratio* apart rather than a constant distance. That is the lattice a receding
+tunnel of equal tiles projects to, so tile size tracks radius and the depth
+lives in the geometry instead of in a gradient over it. Spokes snap to a
+multiple of the mirror count, so one lands on every fold boundary and the
+tiles run along the mandala's arms instead of beating against them.
+
+| Dial | What it does |
+| --- | --- |
+| Facets | Mix. 0 is the continuous render, 1 is nothing but tiles. |
+| Hex / Gem / Chip | The tile cut: the honeycomb itself, the diamond inscribed in it, or the largest rectangle that fits the same offset rows. |
+| Facet Pitch | Tiles around one turn. |
+| Facet Depth | Radial stretch. 1 is a regular tile; higher draws it out into a lozenge and steepens the fall into the middle. |
+| Facet Hold | How much size a tile keeps where the field goes dark. 0 lets size follow the light, so dark places empty out; 1 holds every tile whole and moves only its colour. |
+| Facet Bevel | Three rhombi meeting at each tile's centre, the outward one lit — what stops a flat tile lying flat. |
+| Facet Steps | Rungs in the colour ramp. A small count lands neighbouring tiles on the same colour, which is what breaks a gradient into flat blocks. |
+
+Halftone and Facets are the same stage of the pipeline; Facets takes over
+while it is up. Like the halftone it is a way of looking rather than part of
+the field, so it never randomises and never drifts, and the CPU fallback
+renders without it.
+
+## Sharp output
+
+A hard edge drawn into a 1024 buffer that the display then stretches is not a
+hard edge. Off, the colour pass fills a fixed 1024 square and the composite
+scales it — fine for a field of soft gradients, fatal to a tile boundary. On,
+the buffer is sized to what the composite will actually ask of it (the
+viewport diagonal in Radial, the long edge elsewhere, times the display's
+pixel ratio, capped at 2048) and the canvas is drawn at device resolution.
+
+Raising Facets off zero switches it on the first time, since the mode is
+pointless without it. Measured at 1280×900 on a 2× display, per frame, with
+the GPU forced to drain between frames:
+
+| | |
+| --- | --- |
+| Radial, no screen, Sharp off | 5.2 ms |
+| Radial, Facets, Sharp off | 7.2 ms |
+| Radial, no screen, Sharp on | 13.1 ms |
+| Radial, Facets, Sharp on | 14.8 ms |
+
+The screen costs about two milliseconds; the resolution costs eight. Facets
+covers the frame, so where it is fully up the shader skips the continuous
+render underneath rather than computing a colour it would only throw away —
+which is why the last two rows are so close together.
+
 ## Seeing an image in the mirrors
 
 Radial mode folds the plane into one wedge, so the sampler only ever reads a
